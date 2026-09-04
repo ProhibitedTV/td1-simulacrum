@@ -29,8 +29,6 @@ GEOMETRY_SCHEMA = "td1.geometry-scene"
 GEOMETRY_SCHEMA_VERSION = 1
 GEOMETRY_GRID = "axial-triangular-int/v1"
 
-# Three non-collinear axial directions. A negative trit reverses the direction,
-# zero suppresses that spoke, and positive uses the direction as written.
 _GLYPH_AXES: tuple[tuple[int, int], ...] = ((1, 0), (0, 1), (-1, 1))
 _REGISTER_GLYPH_OFFSETS: tuple[tuple[int, int], ...] = ((0, 0), (6, 0), (0, 6), (-6, 6))
 
@@ -97,8 +95,7 @@ class GeometryPrimitive:
             raise GeometryError("glyph_id must be in 0..26")
         if self.semantic_root_id is not None and not 0 <= self.semantic_root_id <= 15:
             raise GeometryError("semantic_root_id must be in 0..15")
-        canonical_motifs = tuple(sorted(set(self.motifs)))
-        object.__setattr__(self, "motifs", canonical_motifs)
+        object.__setattr__(self, "motifs", tuple(sorted(set(self.motifs))))
 
     def as_dict(self) -> dict[str, object]:
         payload: dict[str, object] = {
@@ -214,11 +211,13 @@ class GeometryProfile:
                 grouped[annotation.motif].append(annotation)
 
         supports: list[MotifSupport] = []
-        for motif, annotations in grouped.items():
-            source_ids = tuple(annotation.source_id for annotation in annotations)
-            methods = tuple(annotation.method.value for annotation in annotations)
-            confidence_total = sum(annotation.confidence_milli for annotation in annotations)
-            mean = confidence_total // len(annotations)
+        for motif, motif_annotations in grouped.items():
+            source_ids = tuple(annotation.source_id for annotation in motif_annotations)
+            methods = tuple(annotation.method.value for annotation in motif_annotations)
+            confidence_total = sum(
+                annotation.confidence_milli for annotation in motif_annotations
+            )
+            mean = confidence_total // len(motif_annotations)
             supports.append(MotifSupport(motif, source_ids, methods, mean))
         return cls(snapshot.snapshot_id, snapshot.digest(), threshold_milli, tuple(supports))
 
@@ -390,7 +389,7 @@ def microglyph_geometry(
     glyph_id: int,
     *,
     prefix: str = "glyph",
-    origin: LatticePoint = LatticePoint(0, 0, 0),
+    origin: LatticePoint | None = None,
     scale: int = 2,
     semantic_root_id: int | None = None,
     motifs: Iterable[str] = (),
@@ -398,6 +397,8 @@ def microglyph_geometry(
     """Return unique reversible topology for one of the 27 microglyph states."""
     if scale <= 0:
         raise GeometryError("microglyph scale must be positive")
+    if origin is None:
+        origin = LatticePoint(0, 0, 0)
     triad = glyph_id_to_triad(glyph_id)
     motif_tuple = tuple(motifs)
     primitives: list[GeometryPrimitive] = [
@@ -515,12 +516,12 @@ def _append_word_geometry(
     )
     for index, glyph_id in enumerate(ids):
         dq, dr = _REGISTER_GLYPH_OFFSETS[index]
-        origin = center.offset(dq * scale, dr * scale)
+        glyph_origin = center.offset(dq * scale, dr * scale)
         primitives.extend(
             microglyph_geometry(
                 glyph_id,
                 prefix=f"{prefix}.g{index}",
-                origin=origin,
+                origin=glyph_origin,
                 scale=scale,
                 motifs=motifs,
             )
@@ -535,7 +536,6 @@ def _register_center(index: int, *, lattice: bool, z: int) -> LatticePoint:
 
 
 def _semantic_root_glyph_id(root: SemanticRoot) -> int:
-    # Semantic roots occupy a stable 16-state window inside the 27-state substrate.
     return SEMANTIC_ROOT_IDS[root] + 5
 
 
