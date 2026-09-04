@@ -21,6 +21,10 @@ parity campaign / golden vectors
           v
       ParityLineIO
           |
+          +------> optional RecordingParityLineIO
+          |                     |
+          |                     v
+          |          td1.parity-wire-transcript
           v
  UART / USB serial / other byte link later
           |
@@ -97,6 +101,8 @@ Parity exchanges derive their correlation ID deterministically from the canonica
 REQ-<first 24 hex characters>
 ```
 
+`parity_request_correlation()` is the public reference implementation of that derivation.
+
 The host rejects a response with the wrong kind or wrong correlation ID. The parsed `ParityResponse` must also reproduce the request session ID, sequence, and vector ID.
 
 The device dispatcher performs the corresponding validation on inbound request frames.
@@ -132,9 +138,23 @@ write_line(frame: bytes)
 read_line() -> bytes
 ```
 
-No serial library is part of the core package in v0.15. A later adapter may use `pyserial`, USB APIs, or another transport without changing the wire schema or the parity semantics above it.
+No serial library is part of the core package in v0.16. A later adapter may use `pyserial`, USB APIs, or another transport without changing the wire schema or the parity semantics above it.
 
 `InMemoryParityLineIO` exists so CI exercises the exact encode -> device-dispatch -> decode path without physical hardware.
+
+## Recording and replay
+
+v0.16 adds deterministic transport evidence without changing wire v1 itself.
+
+`RecordingParityLineIO` may wrap any line channel. It records each successful canonical host write and device read as an exact `td1.parity-wire-transcript` record containing direction, ordinal, full frame text, frame SHA-256, decoded kind/correlation, and envelope digest.
+
+`ReplayParityLineIO` then requires host request bytes to match the saved transcript exactly and returns the saved response bytes in sequence.
+
+A completed transcript enforces alternating request/response order, matching correlation IDs, and matching request/response message classes.
+
+`td1.parity-bench-run` binds a saved campaign run to the exact transcript implied by its conformance report. The bundle rejects a transcript from a different target, session, vector order, response set, or telemetry set.
+
+See [`WIRE_TRANSCRIPTS.md`](WIRE_TRANSCRIPTS.md) and ADR 0016.
 
 ## Bench telemetry conventions
 
@@ -169,10 +189,31 @@ The numbers above are illustrative transport metadata, not a claim that a physic
 
 ## CLI
 
-A saved trace-derived campaign can now traverse the exact wire codec while still using the deterministic reference target:
+A saved trace-derived campaign can traverse the exact wire codec while still using the deterministic reference target:
 
 ```bash
 td1-parity wire-loopback campaign.json --output wire-run.json
+```
+
+The same command can preserve exact line evidence and the linked bench bundle:
+
+```bash
+td1-parity wire-loopback campaign.json \
+  --output wire-run.json \
+  --transcript-output wire-transcript.json \
+  --bench-output bench-run.json
+```
+
+Verify exact transcript framing/integrity:
+
+```bash
+td1-parity wire-transcript-verify wire-transcript.json
+```
+
+Replay a complete bench bundle through the normal wire transport:
+
+```bash
+td1-parity bench-run-replay bench-run.json
 ```
 
 Capability rejection can be exercised through the same framing path:
@@ -181,7 +222,7 @@ Capability rejection can be exercised through the same framing path:
 td1-parity wire-loopback campaign.json --target-max-width 3
 ```
 
-The resulting artifact remains an ordinary `td1.parity-campaign-run`. The wire transport is not embedded as a new source of arithmetic authority.
+The ordinary campaign-run artifact remains the conformance result. Transcript and bench-run artifacts add transport evidence; they are not new sources of arithmetic authority.
 
 ## First physical adapter sequence
 
@@ -189,15 +230,17 @@ The intended next hardware path is:
 
 1. validate one real trit cell on the bench;
 2. implement the wire envelope on a tiny host/device adapter;
-3. advertise only `trit_hold`, width 1;
-4. run the existing three one-trit parity vectors;
-5. report `voltage_uv`, `settle_us`, `comparator_code`, `sample_count`, and `board_revision` where available;
-6. preserve the resulting parity report as the bench receipt;
-7. expand capabilities only after measured evidence supports the next subsystem.
+3. wrap the real line adapter with `RecordingParityLineIO`;
+4. advertise only `trit_hold`, width 1;
+5. run the existing three one-trit parity vectors;
+6. report `voltage_uv`, `settle_us`, `comparator_code`, `sample_count`, and `board_revision` where available;
+7. save the parity report, exact wire transcript, and linked bench-run bundle;
+8. replay the bundle offline as a regression receipt;
+9. expand capabilities only after measured evidence supports the next subsystem.
 
 ## Explicit non-goals
 
-Wire v1 does not define:
+Wire/transcript v1 does not define:
 
 - USB VID/PID;
 - UART baud rate;
@@ -209,6 +252,7 @@ Wire v1 does not define:
 - sample cadence;
 - retry/time-out policy for a real serial driver;
 - electrical acceptance limits;
+- authenticated hardware identity;
 - instruction fetch/decode;
 - physical instruction words;
 - Issue #2 encoding.
