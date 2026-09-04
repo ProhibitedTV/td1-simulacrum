@@ -2,9 +2,9 @@
 
 ## Purpose
 
-`StreamParityLineIO` is the first concrete host adapter beneath `td1.parity-wire` that can sit on ordinary binary byte streams.
+`StreamParityLineIO` is the concrete host adapter beneath `td1.parity-wire` that can sit on ordinary binary byte streams.
 
-It exists so a future UART, USB CDC, socket, pipe, or file-like transport can carry the existing canonical parity wire without importing a specific serial library into TD-1 semantics.
+It allows UART, USB CDC, socket, pipe, file-like, or injected test transports to carry the existing canonical parity wire without making a specific serial library part of TD-1 semantics.
 
 ```text
 ParityCampaign
@@ -21,8 +21,9 @@ StreamParityLineIO
       v
 binary reader / writer
       |
-      v
-future UART / USB CDC / other byte stream
+      +------> PySerialByteStream -> optional pyserial -> UART / USB CDC
+      |
+      +------> scripted/test stream
 ```
 
 The stream adapter owns byte movement and buffering. `decode_wire_frame()` remains the authority for canonical JSON Lines framing and parity-wire semantics.
@@ -39,7 +40,7 @@ BinaryByteStream = reader + writer
 
 A `StreamParityLineIO` may receive one duplex stream or separate reader/writer objects.
 
-No pyserial dependency is required. A later serial integration only needs to present compatible binary read/write methods.
+The core package does not require pyserial. v0.18 adds an optional serial wrapper that presents the same binary stream behavior without changing this contract.
 
 ## Writes
 
@@ -55,6 +56,8 @@ The adapter loops until the entire frame has been accepted by the writer. It rej
 - a write count larger than the requested slice;
 - underlying write failures;
 - optional `flush()` failures when a writer exposes `flush()`.
+
+Adapter-specific `ParityStreamError` subclasses raised by a lower stream are preserved rather than wrapped into generic error text. This allows the optional serial layer to retain explicit timeout/closed-port diagnostics.
 
 The adapter intentionally does not parse or canonicalize outgoing JSON. That remains the responsibility of the parity-wire layer above it.
 
@@ -76,7 +79,7 @@ The existing wire maximum-frame ceiling is enforced while buffering. An untermin
 
 ## EOF and I/O failure classes
 
-The adapter distinguishes:
+The generic adapter distinguishes:
 
 - `ParityStreamEmptyEOFError`: EOF before any byte of the next line;
 - `ParityStreamPartialEOFError`: EOF after a partial unterminated line;
@@ -86,7 +89,9 @@ The adapter distinguishes:
 
 All derive from `ParityStreamError`.
 
-These are adapter failures, not ternary arithmetic outcomes and not `ParityStatus` values.
+Lower adapters may provide more specific subclasses. v0.18 serial integration uses this to distinguish serial read timeout, serial write timeout, closed-port access, and serial I/O failures.
+
+These are host adapter failures, not ternary arithmetic outcomes and not `ParityStatus` values.
 
 ## Deterministic statistics
 
@@ -118,31 +123,45 @@ Therefore the existing `td1.parity-wire-transcript` and `td1.parity-bench-run` s
 
 CI proves a complete trace-derived campaign through a deliberately fragmenting scripted device stream, records the resulting transcript, creates a bench bundle, and replays that bundle through the ordinary wire transport.
 
-## Future pyserial integration
+## Optional pyserial live adapter
 
-A future serial adapter may be as small as constructing a configured serial object and passing it to `StreamParityLineIO` if its binary read/write behavior satisfies the contract.
+v0.18 adds `PySerialByteStream`, which wraps a configured pyserial port and presents the existing binary stream surface.
 
-That later integration may choose:
+```text
+JsonLineParityTransport
+        |
+        v
+RecordingParityLineIO
+        |
+        v
+StreamParityLineIO
+        |
+        v
+PySerialByteStream
+        |
+        v
+pyserial
+        |
+        v
+UART / USB CDC device
+```
 
-- port/device discovery;
-- baud rate;
-- read/write timeouts;
-- USB identifiers;
-- reconnect behavior;
-- operating-system-specific setup.
+The serial package is an optional extra. Serial configuration requires explicit port, baud rate, read timeout, and write timeout values.
 
-Those are deployment/bench choices, not changes to the parity wire or machine semantics.
+A finite serial read timeout means pyserial's zero-byte read is classified by `PySerialByteStream` as a serial timeout before `StreamParityLineIO` sees it. This prevents a live serial timeout from being mislabeled as generic EOF.
+
+Port names, baud rate, and host timeout settings are deployment state only. They may appear in CLI diagnostics but do not silently enter canonical parity, transcript, or bench-run artifacts.
+
+See [`SERIAL_ADAPTER.md`](SERIAL_ADAPTER.md) and ADR 0018.
 
 ## Non-goals
 
-This revision does not define:
+The stream layer does not define:
 
-- a serial package dependency;
-- COM/tty device naming;
-- baud rate;
+- COM/tty auto-discovery;
+- a default baud rate;
 - USB VID/PID;
 - connector/pinout;
-- timeout policy;
 - retry/reconnect policy;
 - analog thresholds;
 - electrical acceptance limits;
