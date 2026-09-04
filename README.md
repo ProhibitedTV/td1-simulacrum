@@ -21,13 +21,14 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - the renderer-independent native geometry contract used by future visual and physical interfaces;
 - the replayable transition source for future Relic Mode motion and hardware differential testing;
 - the deterministic SVG reference renderer for visible native geometry;
+- the replayable execution-to-geometry Relic timeline for future playback;
 - the transport-neutral conformance harness that physical ternary hardware must pass before replacing emulation.
 
 The long-term target is **hardware parity**: physical TD-1 subsystems should progressively replace emulated subsystems while preserving identical externally observable state.
 
 ## Current capabilities
 
-The v0.9 pre-alpha foundation includes:
+The v0.10 pre-alpha foundation includes:
 
 - balanced ternary conversion and fixed-width arithmetic;
 - a deterministic 12-trit, 9-register, 729-word logical machine;
@@ -58,6 +59,11 @@ The v0.9 pre-alpha foundation includes:
 - integer axial/depth SVG projection with embedded scene/render/machine provenance;
 - zero-display-text Relic SVG by default and geometry-equivalent Engineering labels;
 - XML-safe stable IDs and byte-deterministic SVG artifact digests;
+- versioned `td1.relic-timeline` with frame zero plus one exact frame per execution event;
+- per-frame machine/render/scene digests and event identity;
+- strict replay against execution-trace machine digests;
+- timeline deserialization that rebuilds geometry and recomputes every adjacent delta;
+- deterministic multi-frame SVG export with `td1.timeline-svg-manifest`;
 - transport-neutral hardware capability/request/response/report schemas;
 - deterministic trit/register and ALU golden vectors;
 - explicit hardware `ok`, `unsupported`, `fault`, `timeout`, and `error` outcomes;
@@ -90,6 +96,37 @@ Replay and verify the saved trace:
 ```bash
 td1-sim trace-verify examples/sum.td1 trace.json
 ```
+
+Create a complete execution-to-geometry Relic timeline:
+
+```bash
+td1-sim timeline examples/sum.td1 --output timeline.json
+```
+
+Add corpus-backed geometry and a native State Weave to every frame:
+
+```bash
+td1-sim timeline examples/sum.td1 \
+  --corpus tests/fixtures/corpus_snapshot_v1.json \
+  --weave 'TIME>REFERENCE:+' \
+  --output timeline.json
+```
+
+Validate the saved timeline and all embedded render/geometry/delta relationships:
+
+```bash
+td1-sim timeline-verify timeline.json
+```
+
+Render every exact timeline frame to deterministic Relic SVG:
+
+```bash
+td1-sim timeline-svgs timeline.json \
+  --out-dir relic-frames \
+  --theme relic
+```
+
+The output directory contains `frame-0000.svg`, one SVG for every later execution frame, and a deterministic `manifest.json` with timeline/scene/SVG digests.
 
 List the complete executable State Weave lowering surface:
 
@@ -217,7 +254,7 @@ td1-sim corpus-delta VB-TD1-001.json VB-TD1-002.json
 - Ternary condition state: negative / zero / positive
 - Initial ISA: `NOP`, `LDI`, `MOV`, `ADD`, `SUB`, `NEG`, `ADDI`, `CMP`, `LD`, `ST`, `BRN`, `BRZ`, `BRP`, `JMP`, `HALT`
 
-The physical instruction encoding is **not frozen yet**. Logical execution semantics, the first native semantic-lowering boundary, and a transport-neutral hardware conformance boundary now exist; the eventual 12-trit opcode/register/immediate layout will be versioned only after compiler and first-hardware constraints are reviewed together.
+The physical instruction encoding is **not frozen yet**. Logical execution semantics, the first native semantic-lowering boundary, and a transport-neutral hardware conformance boundary now exist; the eventual 12-trit opcode/register/immediate layout will be versioned only after compiler constraints and measurements from first hardware are reviewed together.
 
 ## Layering
 
@@ -247,20 +284,21 @@ typed operand binding + lowering
       v
 normative render state
       |
-      +------> Engineering projection
-      |
-      +------> Relic projection
-      |
       v
 native geometry scene <------ frozen corpus geometry profile
       |
       +------> geometry delta
       |
       v
-reference SVG renderer ------> visible Engineering / Relic artifact
+Relic execution timeline
+      |
+      +------> deterministic SVG frame manifest
       |
       v
-future interactive / physical control surface
+reference SVG renderer ------> visible Engineering / Relic artifacts
+      |
+      v
+future animated / interactive control surface
       |
       v
 transport-neutral parity harness <------ golden vectors
@@ -281,10 +319,11 @@ physical ternary subsystem
 8. **The renderer is not a source of truth.** It may decide how state is shown, never what state exists.
 9. **Corpus inputs are frozen before use.** A TD-1 revision must be able to identify and reproduce the exact external research input that informed it.
 10. **Geometry is a contract, not decoration.** Corpus-derived topology changes require explicit frozen motif evidence and source provenance.
-11. **Transitions are traced before they are animated.** A future visual effect must consume real execution or geometry change rather than fabricate activity.
+11. **Transitions are traced before they are animated.** A visual effect must consume real execution or geometry change rather than fabricate activity.
 12. **Semantic identity does not hide operands.** Native operations bind concrete machine resources explicitly, and unsupported meanings remain unsupported until engineered.
 13. **Physicality is not correctness.** A board advertises only capabilities it has actually demonstrated through the parity harness.
 14. **Pixels are downstream of truth.** Visible artifacts consume native geometry and preserve its provenance rather than reconstructing state from UI code.
+15. **Playback consumes state transitions.** Timeline frames and deltas are exact; timing and interpolation may never fabricate machine state.
 
 ## Assembly example
 
@@ -307,7 +346,9 @@ HALT
 
 **Pre-alpha / architecture stabilization.**
 
-Machine truth, semantic lowering, frozen corpus provenance, native geometry, deterministic transitions, visible reference rendering, and transport-neutral physical conformance now have explicit contracts. The next major milestones are the first real one-trit hardware adapter, review of the physical program image/instruction encoding, compound State Weave lowering, corpus-backed morph descriptors, and an animated/interactive Relic Mode frontend driven by geometry deltas.
+Machine truth, semantic lowering, frozen corpus provenance, native geometry, deterministic transitions, replayable Relic timelines, visible reference rendering, and transport-neutral physical conformance now have explicit contracts.
+
+The next major software milestone is a browser/WebGL playback frontend that consumes `td1.relic-timeline` and `td1.geometry-delta` without inventing intermediate state. The next physical milestone remains the first real one-trit adapter. Issue #2's physical instruction encoding remains intentionally deferred until first-hardware constraints are measured.
 
 See:
 
@@ -317,6 +358,7 @@ See:
 - [`docs/RENDER_STATE.md`](docs/RENDER_STATE.md)
 - [`docs/GEOMETRY.md`](docs/GEOMETRY.md)
 - [`docs/SVG_RENDERER.md`](docs/SVG_RENDERER.md)
+- [`docs/RELIC_TIMELINE.md`](docs/RELIC_TIMELINE.md)
 - [`docs/TRACE.md`](docs/TRACE.md)
 - [`docs/CORPUS_PIPELINE.md`](docs/CORPUS_PIPELINE.md)
 - [`docs/VEILBREAK_PROVENANCE.md`](docs/VEILBREAK_PROVENANCE.md)
@@ -327,6 +369,6 @@ See:
 
 TD-1 does **not** assume that DMT/Veilbreak reports establish extraterrestrial, interdimensional, or otherwise external intelligences. The project treats those reports as a structured phenomenological corpus capable of generating unconventional interface constraints and testable design hypotheses.
 
-The included corpus fixtures are synthetic test data unless explicitly documented otherwise. State Weave lowering mappings are TD-1 engineering conventions unless explicitly documented otherwise. Loopback conformance proves the host harness only; it is not evidence that physical ternary hardware has passed. SVG styling and projection are presentation conventions and are not additional evidence or machine semantics.
+The included corpus fixtures are synthetic test data unless explicitly documented otherwise. State Weave lowering mappings are TD-1 engineering conventions unless explicitly documented otherwise. Loopback conformance proves the host harness only; it is not evidence that physical ternary hardware has passed. SVG styling, projection, frame timing, and future playback effects are presentation conventions and are not additional evidence or machine semantics.
 
 **Human-built hardware. Exotic design provenance. Bench validation required.**
