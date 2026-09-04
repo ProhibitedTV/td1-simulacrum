@@ -13,6 +13,7 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - the known-good reference model for the 12-trit TD-1 architecture;
 - the assembler/disassembler and deterministic test oracle for physical hardware;
 - the semantic State Weave intermediate representation;
+- the typed compiler boundary from native semantic intent into logical TD-1 instructions;
 - the reversible 27-state microglyph encoding layer;
 - the Observer Continuity reference implementation;
 - the frozen Veilbreak-derived requirement-provenance pipeline;
@@ -24,7 +25,7 @@ The long-term target is **hardware parity**: physical TD-1 subsystems should pro
 
 ## Current capabilities
 
-The v0.6 pre-alpha foundation includes:
+The v0.7 pre-alpha foundation includes:
 
 - balanced ternary conversion and fixed-width arithmetic;
 - a deterministic 12-trit, 9-register, 729-word logical machine;
@@ -33,6 +34,9 @@ The v0.6 pre-alpha foundation includes:
 - deterministic machine-state digests for replay and hardware parity;
 - reversible `3 trits -> 27 microglyph states` encoding;
 - versioned State Weave semantic IR;
+- typed `OperandBindings` separated from semantic identity;
+- versioned `td1.semantic-lowering` artifacts with deterministic recompilation checks;
+- conservative v1 lowering forms for halt, negate, compare, memory read, and memory write;
 - WGS-84 geodetic -> ECEF Observer Continuity groundwork;
 - UTC Julian Date and explicitly approximate Earth Rotation Angle;
 - versioned, round-trippable `td1.render-state` serialization;
@@ -75,6 +79,22 @@ Replay and verify the saved trace:
 ```bash
 td1-sim trace-verify examples/sum.td1 trace.json
 ```
+
+List the complete executable State Weave lowering surface:
+
+```bash
+td1-sim lowerings
+```
+
+Lower native semantic intent into logical TD-1 instructions:
+
+```bash
+td1-sim lower 'TRANSFORM:-' --target R2
+
+td1-sim lower 'MEMORY:0' --target R2 --base R0 --offset 8
+```
+
+Unsupported State Weaves fail explicitly rather than receiving guessed executable meanings.
 
 Inspect the deterministic microglyph IDs for a 12-trit word:
 
@@ -144,7 +164,7 @@ td1-sim corpus-delta VB-TD1-001.json VB-TD1-002.json
 - Ternary condition state: negative / zero / positive
 - Initial ISA: `NOP`, `LDI`, `MOV`, `ADD`, `SUB`, `NEG`, `ADDI`, `CMP`, `LD`, `ST`, `BRN`, `BRZ`, `BRP`, `JMP`, `HALT`
 
-The physical instruction encoding is **not frozen yet**. Logical execution semantics come first; a 12-trit opcode/register/immediate layout will be versioned once assembler, State Weave, and hardware constraints converge.
+The physical instruction encoding is **not frozen yet**. Logical execution semantics and the first native semantic-lowering boundary now exist; the eventual 12-trit opcode/register/immediate layout will be versioned only after compiler and first-hardware constraints are reviewed together.
 
 ## Layering
 
@@ -162,6 +182,9 @@ glyph + State Weave system
       |
       v
 semantic IR
+      |
+      v
+typed operand binding + lowering
       |
       v
 12-trit reference machine ------> execution trace
@@ -200,6 +223,7 @@ physical-hardware parity boundary
 9. **Corpus inputs are frozen before use.** A TD-1 revision must be able to identify and reproduce the exact external research input that informed it.
 10. **Geometry is a contract, not decoration.** Corpus-derived topology changes require explicit frozen motif evidence and source provenance.
 11. **Transitions are traced before they are animated.** A future visual effect must consume real execution or geometry change rather than fabricate activity.
+12. **Semantic identity does not hide operands.** Native operations bind concrete machine resources explicitly, and unsupported meanings remain unsupported until engineered.
 
 ## Assembly example
 
@@ -222,11 +246,12 @@ HALT
 
 **Pre-alpha / architecture stabilization.**
 
-Machine truth, frozen corpus provenance, native geometry, and deterministic transition traces now have explicit contracts. The next major milestones are semantic lowering into the logical ISA, a versioned physical program image, corpus-backed morph descriptors, a reference Relic Mode frontend, and the emulator-to-hardware parity transport.
+Machine truth, semantic lowering, frozen corpus provenance, native geometry, and deterministic transition traces now have explicit contracts. The next major milestones are first-hardware parity transport, review of the physical program image/instruction encoding, compound State Weave lowering, corpus-backed morph descriptors, and a reference Relic Mode frontend.
 
 See:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/SEMANTIC_LOWERING.md`](docs/SEMANTIC_LOWERING.md)
 - [`docs/RENDER_STATE.md`](docs/RENDER_STATE.md)
 - [`docs/GEOMETRY.md`](docs/GEOMETRY.md)
 - [`docs/TRACE.md`](docs/TRACE.md)
@@ -239,6 +264,6 @@ See:
 
 TD-1 does **not** assume that DMT/Veilbreak reports establish extraterrestrial, interdimensional, or otherwise external intelligences. The project treats those reports as a structured phenomenological corpus capable of generating unconventional interface constraints and testable design hypotheses.
 
-The included corpus fixtures are synthetic test data unless explicitly documented otherwise.
+The included corpus fixtures are synthetic test data unless explicitly documented otherwise. State Weave lowering mappings are TD-1 engineering conventions unless explicitly documented otherwise.
 
 **Human-built hardware. Exotic design provenance. Bench validation required.**
