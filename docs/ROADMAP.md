@@ -57,18 +57,25 @@ Next:
 
 ## M3 — Corpus pipeline
 
-Status: **data model only**
+Status: **frozen snapshot foundation implemented**
 
-- source-record model;
+Implemented:
+- source-record observation/interpretation separation;
 - requirement-trace model;
-- corpus revision identifiers.
+- versioned `VB-TD1-*` snapshot schema;
+- deterministic canonical serialization and snapshot digests;
+- explicit Veilbreak export field mapping;
+- versioned motif annotations with annotation-method provenance;
+- strict source -> motif -> requirement trace export;
+- source/annotation/motif snapshot deltas;
+- offline synthetic fixtures independent of live network content.
 
 Next:
-- Veilbreak ingestion adapter;
-- frozen corpus snapshot format (`VB-TD1-*`);
-- motif extraction;
-- design-delta report;
-- source-to-requirement trace export.
+- bind the adapter to a reviewed real public Veilbreak export/API schema;
+- freeze the first real `VB-TD1-*` corpus baseline;
+- model-assisted motif candidate extraction with human review;
+- corpus-backed interface requirement files;
+- design-delta reports linked to TD-1 interface revisions.
 
 ## M4 — Observer Continuity
 

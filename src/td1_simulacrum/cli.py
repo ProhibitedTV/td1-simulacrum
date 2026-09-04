@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from .assembler import assemble
+from .corpus import CorpusSnapshot, compare_snapshots
 from .glyphs import word_to_glyph_ids
 from .machine import Machine
 from .render_state import RenderMode, RenderState, project_render_state
@@ -36,6 +37,26 @@ def _show_glyphs(text: str) -> int:
     return 0
 
 
+def _validate_corpus(path: Path) -> int:
+    snapshot = CorpusSnapshot.from_json(path.read_text(encoding="utf-8"))
+    payload = {
+        "snapshot_id": snapshot.snapshot_id,
+        "digest": snapshot.digest(),
+        "records": len(snapshot.records),
+        "annotations": len(snapshot.annotations),
+        "motif_counts": snapshot.motif_counts(),
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _corpus_delta(before_path: Path, after_path: Path) -> int:
+    before = CorpusSnapshot.from_json(before_path.read_text(encoding="utf-8"))
+    after = CorpusSnapshot.from_json(after_path.read_text(encoding="utf-8"))
+    print(json.dumps(compare_snapshots(before, after).as_dict(), indent=2, sort_keys=True))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="td1-sim",
@@ -62,6 +83,19 @@ def build_parser() -> argparse.ArgumentParser:
     glyph_parser = subparsers.add_parser("glyph", help="map a ternary word to microglyph IDs")
     glyph_parser.add_argument("word")
 
+    corpus_parser = subparsers.add_parser(
+        "corpus-validate",
+        help="validate a frozen TD-1 corpus snapshot and print its digest",
+    )
+    corpus_parser.add_argument("path", type=Path)
+
+    delta_parser = subparsers.add_parser(
+        "corpus-delta",
+        help="compare two frozen TD-1 corpus snapshots",
+    )
+    delta_parser.add_argument("before", type=Path)
+    delta_parser.add_argument("after", type=Path)
+
     return parser
 
 
@@ -73,6 +107,10 @@ def main() -> int:
         return _render_program(args.path, args.max_steps, args.mode)
     if args.command == "glyph":
         return _show_glyphs(args.word)
+    if args.command == "corpus-validate":
+        return _validate_corpus(args.path)
+    if args.command == "corpus-delta":
+        return _corpus_delta(args.before, args.after)
     raise RuntimeError(f"unknown command {args.command!r}")
 
 
