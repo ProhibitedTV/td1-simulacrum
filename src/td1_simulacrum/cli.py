@@ -13,6 +13,7 @@ from .geometry import GeometryProfile, GeometryScene, build_geometry_scene
 from .glyphs import word_to_glyph_ids
 from .lowering import OperandBindings, lower_state_weave, supported_lowerings
 from .machine import Instruction, Machine, Op
+from .machine_state import MachineState
 from .morph import build_morph_plan, build_timeline_morph_manifest
 from .parity import (
     ConformanceReport,
@@ -49,6 +50,84 @@ def _run_program(path: Path, max_steps: int) -> int:
     print(json.dumps(machine.snapshot().as_dict(), indent=2))
     print(f"state_digest={machine.state_digest()}")
     return 0
+
+
+def _write_machine_state(state: MachineState, output: Path | None) -> int:
+    text = json.dumps(state.as_dict(), indent=2, sort_keys=True) + "\n"
+    if output is None:
+        sys.stdout.write(text)
+    else:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(text, encoding="utf-8", newline="\n")
+        print(
+            json.dumps(
+                {
+                    "output": str(output),
+                    "checkpoint_digest": state.digest(),
+                    "machine_digest": state.machine_digest,
+                    "steps": state.steps,
+                    "halted": state.halted,
+                    "nonzero_memory_words": len(state.nonzero_memory),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+    return 0
+
+
+def _machine_state_program(
+    path: Path,
+    max_steps: int,
+    after_steps: int | None,
+    output: Path | None,
+) -> int:
+    if max_steps <= 0:
+        raise ValueError("max_steps must be positive")
+    if after_steps is not None and after_steps < 0:
+        raise ValueError("after_steps must be nonnegative")
+    if after_steps is not None and after_steps > max_steps:
+        raise ValueError("after_steps may not exceed max_steps")
+
+    program = assemble(path.read_text(encoding="utf-8"))
+    machine = Machine()
+    if after_steps is None:
+        machine.run(program, max_steps=max_steps)
+    else:
+        while not machine.halted and machine.steps < after_steps:
+            machine.step(program)
+    return _write_machine_state(MachineState.capture(machine), output)
+
+
+def _machine_state_verify(path: Path) -> int:
+    state = MachineState.from_json(path.read_text(encoding="utf-8"))
+    machine = state.restore_machine()
+    payload = {
+        "verified": True,
+        "checkpoint_digest": state.digest(),
+        "machine_digest": machine.state_digest(include_memory=True),
+        "steps": state.steps,
+        "halted": state.halted,
+        "nonzero_memory_words": len(state.nonzero_memory),
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _machine_state_resume(
+    program_path: Path,
+    checkpoint_path: Path,
+    max_additional_steps: int,
+    output: Path | None,
+) -> int:
+    if max_additional_steps <= 0:
+        raise ValueError("max_additional_steps must be positive")
+    program = assemble(program_path.read_text(encoding="utf-8"))
+    state = MachineState.from_json(checkpoint_path.read_text(encoding="utf-8"))
+    machine = state.restore_machine()
+    if not machine.halted:
+        machine.run(program, max_steps=machine.steps + max_additional_steps)
+    return _write_machine_state(MachineState.capture(machine), output)
 
 
 def _trace_program(path: Path, max_steps: int) -> int:
@@ -493,6 +572,34 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("path", type=Path)
     run_parser.add_argument("--max-steps", type=int, default=100_000)
 
+    machine_state_parser = subparsers.add_parser(
+        "machine-state",
+        help="execute a TD-1 source file and emit a renderer-independent machine checkpoint",
+    )
+    machine_state_parser.add_argument("path", type=Path)
+    machine_state_parser.add_argument("--max-steps", type=int, default=100_000)
+    machine_state_parser.add_argument(
+        "--after-steps",
+        type=int,
+        help="capture after exactly N executed steps, or earlier if the machine halts",
+    )
+    machine_state_parser.add_argument("--output", type=Path)
+
+    machine_state_verify_parser = subparsers.add_parser(
+        "machine-state-verify",
+        help="validate, restore, and fingerprint a saved td1.machine-state checkpoint",
+    )
+    machine_state_verify_parser.add_argument("path", type=Path)
+
+    machine_state_resume_parser = subparsers.add_parser(
+        "machine-state-resume",
+        help="resume a TD-1 source program from a saved logical machine checkpoint",
+    )
+    machine_state_resume_parser.add_argument("path", type=Path, help="TD-1 source program")
+    machine_state_resume_parser.add_argument("checkpoint", type=Path)
+    machine_state_resume_parser.add_argument("--max-additional-steps", type=int, default=100_000)
+    machine_state_resume_parser.add_argument("--output", type=Path)
+
     trace_parser = subparsers.add_parser(
         "trace",
         help="execute a TD-1 source file and emit a deterministic logical transition trace",
@@ -665,6 +772,22 @@ def main() -> int:
     args = build_parser().parse_args()
     if args.command == "run":
         return _run_program(args.path, args.max_steps)
+    if args.command == "machine-state":
+        return _machine_state_program(
+            args.path,
+            args.max_steps,
+            args.after_steps,
+            args.output,
+        )
+    if args.command == "machine-state-verify":
+        return _machine_state_verify(args.path)
+    if args.command == "machine-state-resume":
+        return _machine_state_resume(
+            args.path,
+            args.checkpoint,
+            args.max_additional_steps,
+            args.output,
+        )
     if args.command == "trace":
         return _trace_program(args.path, args.max_steps)
     if args.command == "trace-verify":
