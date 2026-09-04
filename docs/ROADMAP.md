@@ -125,14 +125,29 @@ Exit criterion: at least one physical ternary subsystem replaces its emulated co
 
 ## M6 — Native TD-1 operation
 
-Status: **not started**
+Status: **typed lowering foundation implemented**
 
-- State Weave -> semantic compiler;
-- semantic IR -> logical ISA lowering;
+Implemented:
+- semantic roots and canonical State Weave identity;
+- State Weave v1 semantic IR;
+- explicit `OperandBindings` separated from semantic identity;
+- versioned `td1.semantic-lowering` artifacts and digests;
+- project-defined v1 lowering forms for halt, negate, compare, memory read, and memory write;
+- strict unsupported-weave versus invalid-binding failure modes;
+- compiler introspection and CLI lowering commands;
+- round-trip recompilation checks that reject serialized lowering drift.
+
+Next:
+- compound multi-root semantic forms;
+- multi-instruction lowering plans and temporary allocation;
+- Observer Continuity semantic operations;
+- branch/control-flow semantic forms;
 - geometric control surface;
 - zero-text Relic Mode;
 - sober usability studies;
 - corpus-derived versus control-interface A/B tests.
+
+The first semantic/compiler prerequisite for Issue #2 is now implemented. Physical instruction encoding still waits for first-hardware constraints and explicit encoding review.
 
 ## Non-goals for early revisions
 
@@ -140,4 +155,5 @@ Status: **not started**
 - hiding conventional compute behind a decorative UI;
 - freezing exotic hardware before the reference model is stable;
 - claiming navigation-grade accuracy before the timing/reference stack earns it;
-- inventing animation activity that is not grounded in traced state changes.
+- inventing animation activity that is not grounded in traced state changes;
+- assigning fake executable meanings to unsupported State Weaves for the sake of completeness.
