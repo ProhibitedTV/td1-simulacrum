@@ -36,7 +36,7 @@ Implemented:
 - explicit subsystem-level `ADDI -> add` mapping with no instruction-decode claim;
 - strict campaign re-derivation from the embedded source trace;
 - versioned `td1.parity-campaign-run` artifacts binding campaign oracle to conformance report;
-- dedicated `td1-parity` build/verify/loopback/run-verify CLI;
+- dedicated `td1-parity` build/verify/loopback/wire-loopback/run-verify CLI;
 - deterministic register and ALU golden parity vectors.
 
 Next:
@@ -120,7 +120,7 @@ Next:
 
 ## M5 — Physical parity interface
 
-Status: **transport-neutral conformance + trace-derived campaign foundation implemented**
+Status: **transport-neutral conformance + trace campaigns + deterministic wire framing implemented**
 
 Implemented:
 - capability advertisement;
@@ -133,13 +133,23 @@ Implemented:
 - reference loopback target;
 - deterministic trace-derived parity campaigns and campaign-run artifacts;
 - exact workload event provenance preserved through each derived physical test vector;
-- strict separation between subsystem-operation parity and future physical instruction-decode parity.
+- strict separation between subsystem-operation parity and future physical instruction-decode parity;
+- versioned `td1.parity-wire` envelope around existing parity payloads;
+- canonical UTF-8 JSON Lines framing with explicit maximum frame size;
+- deterministic capability and parity request/response correlation;
+- `JsonLineParityTransport` host adapter over minimal `ParityLineIO`;
+- reference device dispatcher around existing parity targets;
+- in-memory line channel exercising the exact wire codec in CI;
+- first bench telemetry naming conventions for voltage, settling, comparator state, samples, board revision, and optional temperature;
+- `td1-parity wire-loopback` execution of complete trace-derived campaigns through the wire codec.
 
 Next:
-- first real one-trit hardware adapter;
-- voltage/settling/comparator telemetry convention;
+- first real one-trit hardware adapter using the v1 wire contract;
+- concrete UART/USB serial `ParityLineIO` implementation after bench interface choice;
+- measured telemetry capture from TRIT_CELL_REV0;
 - multi-trit register-slice adapter;
 - execute trace-derived campaigns against real adapters;
+- versioned electrical acceptance criteria after measured distributions exist;
 - ALU-board conformance after register-slice success;
 - physical subsystem replacement gate in the emulator runtime.
 
@@ -175,6 +185,7 @@ The semantic/compiler prerequisite for Issue #2 is implemented. Physical instruc
 - hiding conventional compute behind decorative weirdness;
 - freezing physical instruction encoding before hardware measurements exist;
 - claiming trace-derived subsystem parity proves physical instruction decoding;
+- treating wire framing or telemetry as arithmetic semantics;
 - claiming navigation-grade accuracy before the timing/reference stack earns it;
 - inventing animation activity not grounded in traced state changes;
 - fabricating executable meanings for unsupported State Weaves;
