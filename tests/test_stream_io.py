@@ -178,7 +178,7 @@ def test_stream_line_io_exact_maximum_and_oversize_detection() -> None:
         max_frame_bytes=8,
         read_chunk_bytes=64,
     )
-    with pytest.raises(ParityStreamFrameTooLargeError, match="exceeds"):
+    with pytest.raises(ParityStreamFrameTooLargeError, match="maximum frame size"):
         newline_too_late.read_line()
 
 
