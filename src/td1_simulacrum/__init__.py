@@ -61,6 +61,13 @@ from .machine import (
     ProgramCounterError,
     StepLimitExceeded,
 )
+from .machine_state import (
+    MACHINE_STATE_SCHEMA,
+    MACHINE_STATE_SCHEMA_VERSION,
+    MachineMemoryCell,
+    MachineState,
+    MachineStateError,
+)
 from .morph import (
     MORPH_PLAN_SCHEMA,
     MORPH_PLAN_SCHEMA_VERSION,
@@ -224,11 +231,16 @@ __all__ = [
     "LoweredWeave",
     "LoweringError",
     "LoweringForm",
+    "MACHINE_STATE_SCHEMA",
+    "MACHINE_STATE_SCHEMA_VERSION",
     "MORPH_PLAN_SCHEMA",
     "MORPH_PLAN_SCHEMA_VERSION",
     "Machine",
     "MachineError",
+    "MachineMemoryCell",
     "MachineSnapshot",
+    "MachineState",
+    "MachineStateError",
     "MemoryCellRenderState",
     "MemoryDelta",
     "MemoryEffect",
@@ -365,4 +377,4 @@ __all__ = [
     "wrap_int",
 ]
 
-__version__ = "0.12.0a0"
+__version__ = "0.13.0a0"
