@@ -61,6 +61,22 @@ from .machine import (
     ProgramCounterError,
     StepLimitExceeded,
 )
+from .morph import (
+    MORPH_PLAN_SCHEMA,
+    MORPH_PLAN_SCHEMA_VERSION,
+    TIMELINE_MORPH_SCHEMA,
+    TIMELINE_MORPH_SCHEMA_VERSION,
+    AppliedMorphRule,
+    MorphDescriptor,
+    MorphError,
+    MorphIntent,
+    MorphPlan,
+    MorphStrategy,
+    TimelineMorphEntry,
+    TimelineMorphManifest,
+    build_morph_plan,
+    build_timeline_morph_manifest,
+)
 from .observer import ObserverState, geodetic_to_ecef, julian_date_utc
 from .parity import (
     CAPABILITY_SCHEMA,
@@ -156,6 +172,7 @@ from .trace import (
 __all__ = [
     "AnnotationMethod",
     "AppliedGeometryRule",
+    "AppliedMorphRule",
     "AssemblyError",
     "CAPABILITY_SCHEMA",
     "CAPABILITY_SCHEMA_VERSION",
@@ -186,6 +203,8 @@ __all__ = [
     "LoweredWeave",
     "LoweringError",
     "LoweringForm",
+    "MORPH_PLAN_SCHEMA",
+    "MORPH_PLAN_SCHEMA_VERSION",
     "Machine",
     "MachineError",
     "MachineSnapshot",
@@ -193,6 +212,11 @@ __all__ = [
     "MemoryDelta",
     "MemoryEffect",
     "Modifier",
+    "MorphDescriptor",
+    "MorphError",
+    "MorphIntent",
+    "MorphPlan",
+    "MorphStrategy",
     "Motif",
     "MotifAnnotation",
     "MotifSupport",
@@ -243,6 +267,8 @@ __all__ = [
     "SourceRecord",
     "StateWeave",
     "StepLimitExceeded",
+    "TIMELINE_MORPH_SCHEMA",
+    "TIMELINE_MORPH_SCHEMA_VERSION",
     "TIMELINE_SCHEMA",
     "TIMELINE_SCHEMA_VERSION",
     "TIMELINE_SVG_MANIFEST_SCHEMA",
@@ -252,6 +278,8 @@ __all__ = [
     "TernaryWord",
     "TimelineError",
     "TimelineFrame",
+    "TimelineMorphEntry",
+    "TimelineMorphManifest",
     "TimelineSVGEntry",
     "TimelineSVGManifest",
     "TraceError",
@@ -260,7 +288,9 @@ __all__ = [
     "VeilbreakFieldMap",
     "assemble",
     "build_geometry_scene",
+    "build_morph_plan",
     "build_relic_timeline",
+    "build_timeline_morph_manifest",
     "compare_snapshots",
     "diff_geometry",
     "disassemble",
@@ -295,4 +325,4 @@ __all__ = [
     "wrap_int",
 ]
 
-__version__ = "0.10.0a0"
+__version__ = "0.11.0a0"
