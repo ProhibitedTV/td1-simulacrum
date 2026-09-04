@@ -51,11 +51,8 @@ def _canonical_json(payload: object) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
-def _is_sha256(value: str) -> bool:
-    return len(value) == 64 and all(character in "0123456789abcdef" for character in value)
-
-
-def _request_correlation(request: ParityRequest) -> str:
+def parity_request_correlation(request: ParityRequest) -> str:
+    """Return the deterministic v1 correlation ID for one parity request."""
     digest = hashlib.sha256(request.canonical_json().encode("utf-8")).hexdigest()
     return f"REQ-{digest[:24]}"
 
@@ -101,11 +98,18 @@ class ParityWireEnvelope:
         raw_payload = payload.get("payload")
         if not isinstance(raw_payload, Mapping):
             raise ParityWireError("wire payload must be an object")
+        try:
+            schema = str(payload["schema"])
+            version = int(payload["version"])
+            kind = WireKind(str(payload["kind"]))
+            correlation_id = str(payload["correlation_id"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ParityWireError("malformed parity-wire envelope fields") from exc
         return cls(
-            schema=str(payload["schema"]),
-            version=int(payload["version"]),
-            kind=WireKind(str(payload["kind"])),
-            correlation_id=str(payload["correlation_id"]),
+            schema=schema,
+            version=version,
+            kind=kind,
+            correlation_id=correlation_id,
             payload=raw_payload,
         )
 
@@ -210,6 +214,9 @@ class BenchTelemetry:
 
     @classmethod
     def from_pairs(cls, pairs: tuple[tuple[str, int | str], ...]) -> "BenchTelemetry":
+        keys = tuple(key for key, _ in pairs)
+        if len(set(keys)) != len(keys):
+            raise ParityWireError("bench telemetry keys must be unique")
         values = dict(pairs)
         unknown = set(values) - set(BENCH_TELEMETRY_KEYS)
         if unknown:
@@ -263,7 +270,7 @@ class ParityWireDevice:
 
         if envelope.kind is WireKind.PARITY_REQUEST:
             request = ParityRequest.from_dict(envelope.payload)
-            expected = _request_correlation(request)
+            expected = parity_request_correlation(request)
             if envelope.correlation_id != expected:
                 raise ParityWireError("parity request correlation mismatch")
             response_payload = self._target.exchange(request)
@@ -335,7 +342,7 @@ class JsonLineParityTransport:
         return self._cached_capabilities
 
     def exchange(self, request: ParityRequest) -> ParityResponse:
-        correlation = _request_correlation(request)
+        correlation = parity_request_correlation(request)
         envelope = ParityWireEnvelope(
             kind=WireKind.PARITY_REQUEST,
             correlation_id=correlation,
