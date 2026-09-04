@@ -2,11 +2,14 @@ import json
 
 import pytest
 
-from td1_simulacrum import Machine, RenderState, TernaryWord, assemble
-from td1_simulacrum.machine_state import (
+from td1_simulacrum import (
+    Machine,
     MachineMemoryCell,
     MachineState,
     MachineStateError,
+    RenderState,
+    TernaryWord,
+    assemble,
 )
 
 
@@ -57,7 +60,9 @@ def test_intermediate_checkpoint_resumes_to_same_final_machine_as_uninterrupted_
     resumed.run(PROGRAM, max_steps=checkpoint.steps + 100)
 
     assert resumed.snapshot() == uninterrupted.snapshot()
-    assert resumed.state_digest(include_memory=True) == uninterrupted.state_digest(include_memory=True)
+    assert resumed.state_digest(include_memory=True) == uninterrupted.state_digest(
+        include_memory=True
+    )
 
 
 def test_render_state_bridge_copies_only_exact_machine_truth() -> None:
