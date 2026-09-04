@@ -159,6 +159,20 @@ from .render_state import (
     project_render_state,
 )
 from .semantic import Modifier, SemanticIR, SemanticRoot, StateWeave
+from .stream_io import (
+    BinaryByteReader,
+    BinaryByteStream,
+    BinaryByteWriter,
+    ParityStreamEmptyEOFError,
+    ParityStreamEOFError,
+    ParityStreamError,
+    ParityStreamFrameTooLargeError,
+    ParityStreamPartialEOFError,
+    ParityStreamReadError,
+    ParityStreamWriteError,
+    StreamParityLineIO,
+    StreamParityStats,
+)
 from .svg_renderer import (
     SVG_PROJECTION,
     SVG_RENDERER_SCHEMA,
@@ -252,6 +266,9 @@ __all__ = [
     "BENCH_RUN_SCHEMA_VERSION",
     "BENCH_TELEMETRY_KEYS",
     "BenchTelemetry",
+    "BinaryByteReader",
+    "BinaryByteStream",
+    "BinaryByteWriter",
     "CAMPAIGN_RUN_SCHEMA",
     "CAMPAIGN_RUN_SCHEMA_VERSION",
     "CAMPAIGN_SCHEMA",
@@ -338,6 +355,13 @@ __all__ = [
     "ParityRequest",
     "ParityResponse",
     "ParityStatus",
+    "ParityStreamEOFError",
+    "ParityStreamEmptyEOFError",
+    "ParityStreamError",
+    "ParityStreamFrameTooLargeError",
+    "ParityStreamPartialEOFError",
+    "ParityStreamReadError",
+    "ParityStreamWriteError",
     "ParityTranscriptError",
     "ParityTransport",
     "ParityVector",
@@ -385,6 +409,8 @@ __all__ = [
     "SourceRecord",
     "StateWeave",
     "StepLimitExceeded",
+    "StreamParityLineIO",
+    "StreamParityStats",
     "TIMELINE_MORPH_SCHEMA",
     "TIMELINE_MORPH_SCHEMA_VERSION",
     "TIMELINE_SCHEMA",
@@ -463,4 +489,4 @@ __all__ = [
     "wrap_int",
 ]
 
-__version__ = "0.16.0a0"
+__version__ = "0.17.0a0"

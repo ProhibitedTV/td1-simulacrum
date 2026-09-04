@@ -21,26 +21,32 @@ reference model
                                |
                                v
                         td1.parity-wire
-                         /           \
-                        v             v
-               exact transcript   line adapter
-                        |             |
-                        |             v
-                        |       physical target
-                        |             |
-                        |             v
-                        +---- td1.parity-response
-                                      |
-                                      v
-                               td1.parity-report
-                                      |
-                                      v
-                         td1.parity-campaign-run
-                                      |
-                    transcript -------+
-                                      |
-                                      v
-                              td1.parity-bench-run
+                               |
+                               v
+                  RecordingParityLineIO
+                               |
+                               v
+                    StreamParityLineIO
+                               |
+                               v
+                     binary byte stream
+                               |
+                               v
+                        physical target
+                               |
+                               v
+                        td1.parity-response
+                               |
+                               v
+                        td1.parity-report
+                               |
+                               v
+                   td1.parity-campaign-run
+                               |
+                transcript ----+
+                               |
+                               v
+                     td1.parity-bench-run
 ```
 
 > Hardware earns authority through parity.
@@ -54,9 +60,9 @@ A host adapter implements two parity operations:
 - advertise `ParityCapabilities`;
 - exchange a `ParityRequest` for a `ParityResponse`.
 
-`td1.parity-wire` gives those existing contracts a deterministic byte-line representation for first-bench integration. Serial libraries, connector choices, analog sampling, and board-specific behavior remain downstream adapter concerns rather than TD-1 arithmetic semantics.
+`td1.parity-wire` gives those existing contracts a deterministic byte-line representation for first-bench integration. `StreamParityLineIO` now gives that line contract a concrete implementation over ordinary binary reader/writer streams without making pyserial, baud rate, USB identity, connector choices, analog sampling, or board-specific behavior part of TD-1 arithmetic semantics.
 
-The transcript layer records the exact bytes observed at that adapter boundary but likewise remains downstream of parity truth.
+The transcript layer records the exact canonical bytes observed at the line boundary but likewise remains downstream of parity truth.
 
 ## Versioned schemas
 
@@ -80,6 +86,8 @@ The transport-evidence layer adds:
 
 - `td1.parity-wire-transcript`;
 - `td1.parity-bench-run`.
+
+`StreamParityLineIO` is intentionally an adapter implementation rather than a new semantic artifact schema.
 
 Artifacts use deterministic canonical serialization and SHA-256 fingerprints where applicable.
 
@@ -184,6 +192,43 @@ The default maximum frame size is 65,536 bytes including the LF. Decoding reject
 
 See [`PARITY_WIRE.md`](PARITY_WIRE.md) and ADR 0015.
 
+## Stream-backed host line I/O
+
+`StreamParityLineIO` implements the existing `ParityLineIO` boundary over one duplex binary stream or explicit reader/writer streams.
+
+It owns only byte transport concerns:
+
+- deterministic partial-write completion;
+- optional writer `flush()`;
+- fragmented-read buffering;
+- extraction of exactly one LF-terminated frame;
+- preservation of bytes belonging to later frames;
+- enforcement of the existing wire frame ceiling while buffering;
+- distinct empty-EOF and partial-frame EOF failures;
+- explicit invalid return-type, zero-progress, and underlying I/O errors;
+- deterministic bytes/frames/buffered-byte statistics with no wall-clock state.
+
+It deliberately does **not** duplicate canonical JSON validation. `JsonLineParityTransport` and `decode_wire_frame()` remain responsible for wire semantics.
+
+The adapter therefore composes as:
+
+```text
+JsonLineParityTransport
+        |
+        v
+RecordingParityLineIO
+        |
+        v
+StreamParityLineIO
+        |
+        v
+binary stream
+```
+
+A future pyserial-backed UART/USB-CDC path can wrap or directly satisfy the binary stream protocol without changing parity, wire, transcript, or bench-run schemas.
+
+See [`STREAM_LINE_IO.md`](STREAM_LINE_IO.md) and ADR 0017.
+
 ## Exact wire transcripts
 
 `td1.parity-wire-transcript` records the exact canonical traffic successfully observed at `ParityLineIO`.
@@ -200,7 +245,7 @@ Each ordered record preserves:
 
 Every frame is revalidated with the same canonical wire decoder used for live transport. A completed transcript requires alternating host request/device response pairs and matching message classes/correlations.
 
-`RecordingParityLineIO` can wrap the in-memory channel today and a real serial channel later. It does not alter `ParityTransport` semantics.
+`RecordingParityLineIO` can wrap the in-memory channel or the stream-backed channel. It does not alter `ParityTransport` semantics.
 
 `ReplayParityLineIO` is deliberately strict: host request bytes must match the transcript exactly, responses are returned exactly as recorded, and the entire transcript must be consumed.
 
@@ -256,7 +301,7 @@ Loading a report revalidates identities, vector semantics, digests, pass flags, 
 
 A report is the evaluated conformance receipt. A transcript is the wire receipt. A bench run binds the two.
 
-## Reference loopback targets
+## Reference and stream integration targets
 
 `ReferenceLoopbackTransport` implements the parity contract entirely in software. It can return deterministic success, forced fault/timeout/error states, deliberate observed-value corruption, and restricted maximum width.
 
@@ -264,7 +309,7 @@ Passing direct loopback proves the host parity infrastructure, not physical tern
 
 The in-memory wire path wraps the same target with `ParityWireDevice`, `InMemoryParityLineIO`, and `JsonLineParityTransport`. Passing that path additionally proves the canonical wire codec and request/response correlation logic.
 
-Wrapping the path in `RecordingParityLineIO` and successfully replaying the resulting `ParityBenchRun` additionally proves the deterministic transport-evidence stack. It still does not prove physical hardware.
+The v0.17 stream integration replaces the in-memory line channel with a deliberately fragmenting scripted binary stream under `StreamParityLineIO`, while keeping `RecordingParityLineIO` above it. A complete trace-derived campaign must still produce a valid bench bundle and replay identically. That proves stream buffering/composition, not physical hardware.
 
 ## CLI
 
@@ -303,23 +348,27 @@ td1-parity run-verify sum.wire.run.json
 
 Capability rejection can be exercised deliberately with `--target-max-width` in both direct and wire-loopback modes.
 
+`StreamParityLineIO` is a library adapter rather than a new CLI transport selector in v0.17. A real serial CLI belongs after the actual bench interface is selected.
+
 ## Physical adapter sequence
 
 The first real integration remains intentionally small:
 
 1. build and measure one physical trit cell;
-2. implement a concrete `ParityLineIO` using the chosen UART/USB serial path;
-3. implement the same `td1.parity-wire` envelope on the device side;
-4. wrap the host line channel with `RecordingParityLineIO`;
-5. advertise only `trit_hold`, `max_width=1`;
-6. run the three `TRIT-*` fixed golden vectors;
-7. preserve voltage/settling/comparator/sample/board telemetry;
-8. save the conformance report, exact transcript, and linked bench-run bundle;
-9. replay that bundle offline as a regression receipt;
-10. expand capability only after the one-trit report passes;
-11. repeat for a multi-trit register slice;
-12. run workload-derived register campaigns where capabilities allow;
-13. only then begin physical ALU conformance and ALU workload campaigns.
+2. choose the actual UART/USB-CDC/other byte link;
+3. expose that link as a compatible binary reader/writer;
+4. wrap it with `StreamParityLineIO`;
+5. wrap that with `RecordingParityLineIO`;
+6. speak the existing `td1.parity-wire` envelope on the device side;
+7. advertise only `trit_hold`, `max_width=1`;
+8. run the three `TRIT-*` fixed golden vectors;
+9. preserve voltage/settling/comparator/sample/board telemetry;
+10. save the conformance report, exact transcript, and linked bench-run bundle;
+11. replay that bundle offline as a regression receipt;
+12. expand capability only after the one-trit report passes;
+13. repeat for a multi-trit register slice;
+14. run workload-derived register campaigns where capabilities allow;
+15. only then begin physical ALU conformance and ALU workload campaigns.
 
 A board must not advertise capabilities merely because its schematic intends to support them.
 
@@ -329,7 +378,9 @@ This revision does not define:
 
 - physical connector pinout;
 - UART baud rate or USB device identity;
-- concrete host serial library;
+- pyserial or another concrete host serial dependency;
+- COM/tty discovery;
+- retry/reconnect policy;
 - analog threshold values;
 - sample timing;
 - hysteresis/calibration policy;
@@ -340,4 +391,4 @@ This revision does not define:
 - physical instruction fetch/decode;
 - physical 12-trit instruction encoding.
 
-Those decisions belong to later hardware/adapter revisions and can consume the transport-neutral parity, campaign, wire, and transcript contracts without redefining them.
+Those decisions belong to later hardware/adapter revisions and can consume the transport-neutral parity, campaign, wire, stream, and transcript contracts without redefining them.
