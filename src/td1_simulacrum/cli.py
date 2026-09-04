@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from .assembler import assemble
@@ -22,6 +23,7 @@ from .parity import (
 )
 from .render_state import RenderMode, RenderState, project_render_state
 from .semantic import StateWeave
+from .svg_renderer import SVGRenderOptions, SVGTheme, render_svg
 from .ternary import TernaryWord
 from .trace import ExecutionTrace, diff_geometry, trace_program, verify_execution_trace
 
@@ -87,6 +89,41 @@ def _geometry_delta(before_path: Path, after_path: Path) -> int:
     before = GeometryScene.from_json(before_path.read_text(encoding="utf-8"))
     after = GeometryScene.from_json(after_path.read_text(encoding="utf-8"))
     print(json.dumps(diff_geometry(before, after).as_dict(), indent=2, sort_keys=True))
+    return 0
+
+
+def _render_svg_scene(
+    path: Path,
+    theme: str,
+    output: Path | None,
+    labels: bool | None,
+    unit: int,
+    depth_x: int,
+    depth_y: int,
+    margin: int,
+) -> int:
+    scene = GeometryScene.from_json(path.read_text(encoding="utf-8"))
+    options = SVGRenderOptions(
+        theme=SVGTheme(theme),
+        unit=unit,
+        depth_x=depth_x,
+        depth_y=depth_y,
+        margin=margin,
+        show_labels=labels,
+    )
+    artifact = render_svg(scene, options)
+    if output is None:
+        sys.stdout.write(artifact.svg)
+    else:
+        output.write_text(artifact.svg, encoding="utf-8", newline="\n")
+        payload = {
+            "output": str(output),
+            "svg_digest": artifact.digest(),
+            "scene_digest": artifact.scene_digest,
+            "metadata_digest": artifact.metadata_digest,
+            "theme": artifact.theme.value,
+        }
+        print(json.dumps(payload, indent=2, sort_keys=True))
     return 0
 
 
@@ -267,6 +304,26 @@ def build_parser() -> argparse.ArgumentParser:
     geometry_delta_parser.add_argument("before", type=Path)
     geometry_delta_parser.add_argument("after", type=Path)
 
+    svg_parser = subparsers.add_parser(
+        "svg",
+        help="render a saved td1.geometry-scene as deterministic standalone SVG",
+    )
+    svg_parser.add_argument("path", type=Path, help="saved geometry-scene JSON")
+    svg_parser.add_argument(
+        "--theme",
+        choices=[theme.value for theme in SVGTheme],
+        default=SVGTheme.RELIC.value,
+    )
+    svg_parser.add_argument("--output", type=Path, help="write SVG to a file instead of stdout")
+    label_group = svg_parser.add_mutually_exclusive_group()
+    label_group.add_argument("--labels", action="store_true", dest="labels")
+    label_group.add_argument("--no-labels", action="store_false", dest="labels")
+    svg_parser.set_defaults(labels=None)
+    svg_parser.add_argument("--unit", type=int, default=3)
+    svg_parser.add_argument("--depth-x", type=int, default=2)
+    svg_parser.add_argument("--depth-y", type=int, default=1)
+    svg_parser.add_argument("--margin", type=int, default=36)
+
     lower_parser = subparsers.add_parser(
         "lower",
         help="lower one supported State Weave into logical TD-1 instructions",
@@ -354,6 +411,17 @@ def main() -> int:
         )
     if args.command == "geometry-delta":
         return _geometry_delta(args.before, args.after)
+    if args.command == "svg":
+        return _render_svg_scene(
+            args.path,
+            args.theme,
+            args.output,
+            args.labels,
+            args.unit,
+            args.depth_x,
+            args.depth_y,
+            args.margin,
+        )
     if args.command == "lower":
         return _lower_weave(args)
     if args.command == "lowerings":
