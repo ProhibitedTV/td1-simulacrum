@@ -42,26 +42,36 @@ Deterministic render state
 Deterministic native geometry <------ frozen corpus geometry profile
       |
       +------> geometry delta
-      |
-      v
-Relic execution timeline
-      |
-      +------> deterministic SVG frame manifest
-      |
-      v
-Reference SVG renderer ------> visible Engineering / Relic artifact
-      |
-      v
-Future interactive frontend / physical control surface
-      |
-      v
+      |             |
+      |             v
+      |        deterministic morph plan <------ admitted temporal motifs
+      |             |
+      v             v
+Relic execution timeline ------> timeline morph manifest
+      |                              |
+      +--------------+---------------+
+                     |
+         +-----------+-----------+
+         |                       |
+         v                       v
+SVG frame manifest       standalone Relic browser player
+         |                       |
+         v                       v
+Reference SVG renderer    animated endpoint presentation
+         |                       |
+         +-----------+-----------+
+                     |
+                     v
+          Future interactive control surface
+                     |
+                     v
 Transport-neutral parity harness <------ golden vectors
       |
       v
 Physical ternary subsystem
 ```
 
-The arithmetic core must remain independent from phenomenology, geometry, rendering, playback, and transport. Corpus-derived ideas are allowed to shape interface semantics and representation, but not redefine arithmetic correctness. Renderers and players consume already-derived truth rather than reconstructing it from UI rules. Hardware becomes authoritative only after conformance against the reference model.
+The arithmetic core must remain independent from phenomenology, geometry, rendering, playback, and transport. Corpus-derived ideas are allowed to shape interface semantics and representation, but not redefine arithmetic correctness. Renderers and players consume already-derived truth rather than reconstructing it from UI rules. Browser animation is explicitly presentation-only and must terminate at exact authoritative timeline endpoints. Hardware becomes authoritative only after conformance against the reference model.
 
 ## 3. Reference machine
 
@@ -99,6 +109,8 @@ The target 12-trit format remains:
 
 but this is still a target, not yet a normative encoding table. The semantic compiler gives Issue #2 a real lowering boundary to review, and the parity harness gives first hardware a conformance boundary. Physical instruction words should be frozen only after those constraints and real first-hardware measurements are reviewed together.
 
+The browser/player milestones do not relax this gate. Presentation maturity is not evidence that physical instruction encoding constraints are known.
+
 ## 4. Toolchain layer
 
 The text assembler is intentionally conventional. It exists for engineering, test fixtures, and parity work while the native geometric programming language is still being designed.
@@ -116,6 +128,9 @@ The toolchain currently provides:
 - deterministic standalone SVG rendering from saved geometry scenes;
 - replayable execution-to-geometry Relic timelines;
 - deterministic multi-frame SVG export plus timeline manifests;
+- deterministic scene-pair and timeline-wide morph plans;
+- self-contained standalone Relic browser artifact compilation;
+- standalone Relic artifact verification that regenerates deterministic morph plans;
 - frozen corpus validation and delta inspection;
 - State Weave lowering and supported-form introspection;
 - hardware parity vector export, loopback conformance, and report verification.
@@ -212,7 +227,7 @@ Projection, palette, stroke weight, node radius, margin, and label visibility ar
 
 ## 9. Relic execution timeline
 
-`td1.relic-timeline` is the normative bridge between discrete execution and future playback.
+`td1.relic-timeline` is the normative bridge between discrete execution and playback.
 
 A timeline contains frame zero for the exact pre-execution state and then exactly one frame for every logical `ExecutionEvent`.
 
@@ -243,6 +258,46 @@ Timeline v1 deliberately does **not** define:
 - speculative in-between machine states.
 
 Those belong to downstream presentation. Playback consumes state transitions; it does not create them.
+
+### 9.1 Morph planning
+
+`td1.morph-plan` is the renderer-independent transition-intent layer between two exact native-geometry endpoints.
+
+It recomputes the exact `td1.geometry-delta` and maps stable primitive changes to explicit presentation intent:
+
+- `appear` -> `enter`;
+- `disappear` -> `exit`;
+- `move` -> `translate` with exact integer `(dq, dr, dz)`;
+- `topology` -> `reform`;
+- `metadata` -> `retag`.
+
+Without admitted temporal corpus support, strategies remain conservative and endpoint-only. Optional hints such as morphing, context persistence, focus-through, or axial-motion emphasis are admitted only from the frozen geometry profile and carry exact motif/source provenance.
+
+A hint constrains presentation; it does not define duration, easing, spline samples, or intermediate machine state. The q/r mapping used for horizontal/vertical emphasis is explicitly a TD-1 engineering convention, not a claimed corpus translation.
+
+`td1.timeline-morph-manifest` contains exactly one deterministic morph plan for every noninitial timeline frame.
+
+### 9.2 Standalone Relic browser player
+
+The v0.12 browser player is the first animated Relic frontend. It is compiled from one validated timeline and the deterministic morph manifest into a dependency-free standalone HTML artifact.
+
+The artifact embeds canonical timeline and morph-manifest bytes plus a versioned `td1.relic-player-artifact` provenance manifest. Before playback, browser WebCrypto verifies the embedded payload digests and timeline/morph linkage. The Python verifier performs a stronger offline check by reconstructing the embedded timeline and regenerating the expected morph manifest.
+
+The browser uses the same axial/depth projection as the SVG reference renderer and draws `GeometryScene` primitives directly into SVG DOM. Animation is permitted only for primitives named by a morph descriptor.
+
+The player freezes three authority rules:
+
+```text
+endpoint_policy = hard-reconcile-authoritative-scene-after-transition/v1
+unchanged_primitive_policy = no-animation-without-morph-descriptor/v1
+state_interpolation_policy = forbidden/v1
+```
+
+For every completed adjacent transition, transient browser animation state is discarded and the exact target `GeometryScene` is rebuilt. Accumulated CSS/Web Animations state can therefore never become the next TD-1 machine state.
+
+Player timing, easing, playback speed, looping, glow, eligible visual persistence duration, and diagnostic-panel state are presentation configuration only.
+
+The full standalone HTML SHA-256 is reported externally because embedding the hash of the complete file inside that same file would create a self-referential digest problem. Embedded hashes are integrity checks, not authorship signatures.
 
 ## 10. Observer Continuity
 
@@ -300,15 +355,26 @@ execution trace
     -> geometry scenes
       -> geometry deltas
         -> Relic timeline
-          -> deterministic renderer options
-            -> SVG artifacts + manifest
+          -> deterministic morph plans
+            -> timeline morph manifest
+              -> verified standalone browser payloads
+                -> presentation animation
+                  -> hard reconcile exact target scene
+```
+
+Reference still-image presentation follows independently:
+
+```text
+geometry scene
+  -> deterministic SVG renderer options
+    -> SVG artifact + provenance metadata
 ```
 
 The system must never silently collapse a participant's interpretation into an established external cause, silently collapse native semantic identity into hidden register choices, or treat a renderer/player as a source of truth.
 
 ## 12. Determinism
 
-The reference machine exposes deterministic snapshots and a SHA-256 state digest. Semantic lowerings, render state, corpus snapshots, geometry profiles, geometry scenes, transition traces, Relic timelines, SVG artifacts/manifests, parity vectors, and parity reports also expose deterministic canonical serialization and content digests where applicable.
+The reference machine exposes deterministic snapshots and a SHA-256 state digest. Semantic lowerings, render state, corpus snapshots, geometry profiles, geometry scenes, transition traces, Relic timelines, morph plans/manifests, SVG artifacts/manifests, Relic player payload manifests/artifacts, parity vectors, and parity reports also expose deterministic canonical serialization and content digests where applicable.
 
 These digests are intended for:
 
@@ -316,9 +382,12 @@ These digests are intended for:
 - deterministic replay;
 - compiler drift detection;
 - frontend equivalence testing;
+- standalone player payload verification;
 - visual artifact reproducibility;
 - emulator-versus-hardware parity;
 - differential testing across implementations.
+
+The standalone player uses an externally reported full-file HTML digest rather than a self-referential embedded full-file hash.
 
 ## 13. Physical parity boundary
 
@@ -360,18 +429,18 @@ A board earns wider or more complex capability only after its narrower conforman
 
 ### Engineering Mode
 
-Human-readable diagnostics: registers, instruction pointer, semantic IR, lowering artifacts, corpus provenance, observer state, geometry provenance, timeline/event identity, renderer provenance, and hardware parity status.
+Human-readable diagnostics: registers, instruction pointer, semantic IR, lowering artifacts, corpus provenance, observer state, geometry provenance, timeline/event identity, morph descriptors, player verification state, renderer provenance, and hardware parity status.
 
 ### Relic Mode
 
-The exact same underlying state expressed using native TD-1 geometry and interaction semantics. The SVG reference renderer emits no visible English labels in Relic theme by default. Future motion must consume exact Relic timeline frames and deltas.
+The exact same underlying state expressed using native TD-1 geometry and interaction semantics. The SVG reference renderer emits no visible English labels in Relic theme by default. The standalone browser player keeps human-readable diagnostics outside the zero-text native geometry canvas and animates only validated morph intent between exact timeline endpoints.
 
 ### Corpus Mode
 
-Traceability view explaining which versioned source observations contributed to a requirement or corpus-backed geometry rule.
+Traceability view explaining which versioned source observations contributed to a requirement, corpus-backed geometry rule, or eligible temporal presentation hint.
 
 ## 15. Primary engineering rule
 
 **No decorative weirdness, no semantic hand-waving, no renderer exceptionalism, no playback exceptionalism, and no hardware exceptionalism.**
 
-Every glyph, transition, braid, pulse, depth change, topology change, apparent motion, executable semantic mapping, visible primitive, timeline frame, or claimed hardware capability must eventually map to explicit state, a measured event, a documented interface affordance, a versioned compiler/renderer rule, or a passing conformance record.
+Every glyph, transition, braid, pulse, depth change, topology change, apparent motion, executable semantic mapping, visible primitive, timeline frame, morph descriptor, browser animation, or claimed hardware capability must eventually map to explicit state, a measured event, a documented interface affordance, a versioned compiler/renderer/player rule, or a passing conformance record.
