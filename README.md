@@ -15,14 +15,14 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - the semantic State Weave intermediate representation;
 - the reversible 27-state microglyph encoding layer;
 - the Observer Continuity reference implementation;
-- the Veilbreak-derived requirement-provenance model;
+- the frozen Veilbreak-derived requirement-provenance pipeline;
 - the deterministic Engineering/Relic render-state runtime.
 
 The long-term target is **hardware parity**: physical TD-1 subsystems should progressively replace emulated subsystems while preserving identical externally observable state.
 
 ## Current capabilities
 
-The v0.3 pre-alpha foundation includes:
+The v0.4 pre-alpha foundation includes:
 
 - balanced ternary conversion and fixed-width arithmetic;
 - a deterministic 12-trit, 9-register, 729-word logical machine;
@@ -33,10 +33,12 @@ The v0.3 pre-alpha foundation includes:
 - versioned State Weave semantic IR;
 - WGS-84 geodetic -> ECEF Observer Continuity groundwork;
 - UTC Julian Date and explicitly approximate Earth Rotation Angle;
-- corpus/requirement provenance data structures;
 - versioned, round-trippable `td1.render-state` serialization;
 - deterministic Engineering and Relic projections with one shared source digest;
 - sparse memory reconstruction and golden render-state fixtures;
+- frozen `VB-TD1-*` corpus snapshots with canonical serialization and digests;
+- explicit Veilbreak export field mapping that preserves observation vs interpretation;
+- versioned motif annotations, snapshot deltas, and strict source-to-requirement traces;
 - a CLI, examples, unit tests, linting, coverage reporting, and Python-version CI.
 
 ## Quick start
@@ -73,6 +75,18 @@ td1-sim render examples/sum.td1 --mode relic
 
 The two render modes must derive from the same immutable render-state digest.
 
+Validate a frozen corpus snapshot:
+
+```bash
+td1-sim corpus-validate tests/fixtures/corpus_snapshot_v1.json
+```
+
+Compare two corpus revisions:
+
+```bash
+td1-sim corpus-delta VB-TD1-001.json VB-TD1-002.json
+```
+
 ## Baseline architecture
 
 - Balanced ternary trits: `-1`, `0`, `+1`
@@ -91,7 +105,10 @@ The physical instruction encoding is **not frozen yet**. Logical execution seman
 Veilbreak corpus
       |
       v
-phenomenology / provenance model
+frozen corpus snapshot / provenance
+      |
+      v
+motif-backed interface requirements
       |
       v
 glyph + State Weave system
@@ -125,6 +142,7 @@ physical-hardware parity boundary
 6. **Accuracy contracts must be explicit.** Approximate calculations are labeled approximate rather than silently promoted to navigation-grade truth.
 7. **Hardware earns authority through parity.** A physical subsystem replaces an emulated one only after conformance against the reference model.
 8. **The renderer is not a source of truth.** It may decide how state is shown, never what state exists.
+9. **Corpus inputs are frozen before use.** A TD-1 revision must be able to identify and reproduce the exact external research input that informed it.
 
 ## Assembly example
 
@@ -147,12 +165,13 @@ HALT
 
 **Pre-alpha / architecture stabilization.**
 
-The renderer-independent state boundary is now implemented. The next major milestones are corpus snapshot ingestion, geometry/topology rules, semantic lowering, and the hardware parity transport.
+The renderer-independent state boundary and frozen corpus pipeline are now implemented. The next major milestones are corpus-backed deterministic geometry/topology, semantic lowering into the logical ISA, a versioned program image, and the emulator-to-hardware parity transport.
 
 See:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/RENDER_STATE.md`](docs/RENDER_STATE.md)
+- [`docs/CORPUS_PIPELINE.md`](docs/CORPUS_PIPELINE.md)
 - [`docs/VEILBREAK_PROVENANCE.md`](docs/VEILBREAK_PROVENANCE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)

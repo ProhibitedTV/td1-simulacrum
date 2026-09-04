@@ -1,0 +1,43 @@
+{
+  "annotations": [
+    {
+      "confidence_milli": 900,
+      "method": "manual",
+      "motif": "depth",
+      "note": "Synthetic fixture.",
+      "source_id": "VB-SYN-001"
+    },
+    {
+      "confidence_milli": 1000,
+      "method": "manual",
+      "motif": "microglyph",
+      "source_id": "VB-SYN-001"
+    },
+    {
+      "confidence_milli": 1000,
+      "method": "manual",
+      "motif": "lattice",
+      "source_id": "VB-SYN-002"
+    }
+  ],
+  "created_at_utc": "2026-09-04T16:15:00+00:00",
+  "records": [
+    {
+      "corpus_revision": "VB-TD1-001",
+      "interpretation": "Participant attributed the pattern to an external intelligence.",
+      "source_id": "VB-SYN-001",
+      "summary": "Layered tiny symbols appeared behind a foreground geometric structure."
+    },
+    {
+      "corpus_revision": "VB-TD1-001",
+      "source_id": "VB-SYN-002",
+      "summary": "A repeating geometric lattice persisted while attention shifted."
+    }
+  ],
+  "schema": "td1.corpus-snapshot",
+  "snapshot_id": "VB-TD1-001",
+  "source_name": "Veilbreak",
+  "source_revision": "synthetic-001",
+  "source_schema": "veilbreak.synthetic/v1",
+  "version": 1
+}
