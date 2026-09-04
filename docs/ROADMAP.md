@@ -34,7 +34,7 @@ Next:
 
 ## M2 — Native representation
 
-Status: **render-state foundation implemented**
+Status: **native geometry contract implemented**
 
 Implemented:
 - 27-state microglyph IDs;
@@ -46,13 +46,21 @@ Implemented:
 - exact register and sparse-memory reconstruction;
 - shared source digest across modes;
 - golden render-state fixture;
-- quantized Observer Continuity render contract.
+- quantized Observer Continuity render contract;
+- versioned `td1.geometry-scene` schema;
+- integer axial triangular lattice coordinates plus discrete depth;
+- unique reversible geometry for all 27 microglyph states;
+- deterministic four-glyph 12-trit word structures;
+- State Weave topology with ternary terminal semantics;
+- corpus-backed lattice/depth/multiscale/braiding admission rules;
+- per-rule source provenance and geometry-profile digests;
+- CLI geometry export and golden microglyph geometry fixture.
 
 Next:
-- renderer-independent geometry primitives;
-- deterministic morph/topology rules;
-- corpus-derived depth/lattice constraints;
-- projection-to-geometry golden fixtures;
+- renderer-independent morph/transition descriptors;
+- corpus-derived morphing/focus/context constraints;
+- geometry-scene delta/event stream;
+- first SVG/WebGL reference renderer that consumes geometry without inventing state;
 - first interactive Relic Mode frontend.
 
 ## M3 — Corpus pipeline
