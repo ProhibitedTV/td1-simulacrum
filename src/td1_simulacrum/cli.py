@@ -8,9 +8,11 @@ from pathlib import Path
 
 from .assembler import assemble
 from .corpus import CorpusSnapshot, compare_snapshots
+from .geometry import GeometryProfile, build_geometry_scene
 from .glyphs import word_to_glyph_ids
 from .machine import Machine
 from .render_state import RenderMode, RenderState, project_render_state
+from .semantic import StateWeave
 from .ternary import TernaryWord
 
 
@@ -28,6 +30,31 @@ def _render_program(path: Path, max_steps: int, mode: str) -> int:
     state = RenderState.capture(machine)
     projection = project_render_state(state, RenderMode(mode))
     print(json.dumps(projection, indent=2, sort_keys=True))
+    return 0
+
+
+def _geometry_program(
+    path: Path,
+    max_steps: int,
+    corpus_path: Path | None,
+    corpus_threshold: int,
+    weave_text: str | None,
+) -> int:
+    program = assemble(path.read_text(encoding="utf-8"))
+    machine = Machine().run(program, max_steps=max_steps)
+    weave = StateWeave.parse(weave_text) if weave_text is not None else None
+    state = RenderState.capture(machine, weave=weave)
+
+    profile = None
+    if corpus_path is not None:
+        snapshot = CorpusSnapshot.from_json(corpus_path.read_text(encoding="utf-8"))
+        profile = GeometryProfile.from_snapshot(
+            snapshot,
+            threshold_milli=corpus_threshold,
+        )
+
+    scene = build_geometry_scene(state, profile=profile)
+    print(json.dumps(scene.as_dict(), indent=2, sort_keys=True))
     return 0
 
 
@@ -80,6 +107,28 @@ def build_parser() -> argparse.ArgumentParser:
     )
     render_parser.add_argument("--max-steps", type=int, default=100_000)
 
+    geometry_parser = subparsers.add_parser(
+        "geometry",
+        help="emit deterministic native geometry for an executed TD-1 program",
+    )
+    geometry_parser.add_argument("path", type=Path)
+    geometry_parser.add_argument(
+        "--corpus",
+        type=Path,
+        help="optional frozen VB-TD1 corpus snapshot used to admit geometry rules",
+    )
+    geometry_parser.add_argument(
+        "--corpus-threshold",
+        type=int,
+        default=750,
+        help="minimum motif confidence in milli-units (0..1000, default: 750)",
+    )
+    geometry_parser.add_argument(
+        "--weave",
+        help="optional canonical State Weave such as TIME>REFERENCE:+",
+    )
+    geometry_parser.add_argument("--max-steps", type=int, default=100_000)
+
     glyph_parser = subparsers.add_parser("glyph", help="map a ternary word to microglyph IDs")
     glyph_parser.add_argument("word")
 
@@ -105,6 +154,14 @@ def main() -> int:
         return _run_program(args.path, args.max_steps)
     if args.command == "render":
         return _render_program(args.path, args.max_steps, args.mode)
+    if args.command == "geometry":
+        return _geometry_program(
+            args.path,
+            args.max_steps,
+            args.corpus,
+            args.corpus_threshold,
+            args.weave,
+        )
     if args.command == "glyph":
         return _show_glyphs(args.word)
     if args.command == "corpus-validate":
