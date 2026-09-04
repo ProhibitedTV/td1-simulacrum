@@ -23,7 +23,11 @@ HALT
     return path
 
 
-def test_campaign_cli_build_verify_loopbacks_and_bench_replay(tmp_path, monkeypatch, capsys) -> None:
+def test_campaign_cli_build_verify_loopbacks_and_bench_replay(
+    tmp_path,
+    monkeypatch,
+    capsys,
+) -> None:
     program = _write_program(tmp_path)
     campaign_path = tmp_path / "campaign.json"
     run_path = tmp_path / "campaign-run.json"
