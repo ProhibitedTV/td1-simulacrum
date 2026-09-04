@@ -60,7 +60,9 @@ class TimelineFrame:
 
         rebuilt = build_geometry_scene(self.render_state, profile=self.scene.profile)
         if rebuilt.canonical_json() != self.scene.canonical_json():
-            raise TimelineError("timeline scene is not the deterministic projection of render state")
+            raise TimelineError(
+                "timeline scene is not the deterministic projection of render state"
+            )
 
         if self.frame_index == 0:
             if any(
@@ -248,7 +250,10 @@ class RelicTimeline:
             if claimed is not None and int(claimed) != actual:
                 raise TimelineError(f"timeline {key} mismatch")
         claimed_initial = payload.get("initial_machine_digest")
-        if claimed_initial is not None and str(claimed_initial) != timeline.frames[0].machine_digest:
+        if (
+            claimed_initial is not None
+            and str(claimed_initial) != timeline.frames[0].machine_digest
+        ):
             raise TimelineError("timeline initial machine digest mismatch")
         claimed_final = payload.get("final_machine_digest")
         if claimed_final is not None and str(claimed_final) != timeline.final_machine_digest:
