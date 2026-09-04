@@ -79,7 +79,9 @@ class WireTranscriptRecord:
         try:
             envelope = decode_wire_frame(frame)
         except ValueError as exc:
-            raise ParityTranscriptError(f"invalid canonical frame at ordinal {self.ordinal}") from exc
+            raise ParityTranscriptError(
+                f"invalid canonical frame at ordinal {self.ordinal}"
+            ) from exc
         if not _is_sha256(self.frame_sha256) or self.frame_sha256 != _sha256_bytes(frame):
             raise ParityTranscriptError("wire transcript frame SHA-256 mismatch")
         if self.kind is not envelope.kind:
@@ -284,7 +286,9 @@ class ReplayParityLineIO:
     def write_line(self, frame: bytes) -> None:
         record = self._next_record()
         if record.direction is not WireDirection.HOST_TO_DEVICE:
-            raise ParityTranscriptError("wire replay expected device read before another host write")
+            raise ParityTranscriptError(
+                "wire replay expected device read before another host write"
+            )
         if frame != record.frame_bytes:
             raise ParityTranscriptError("wire replay host request bytes disagree with transcript")
         self._cursor += 1
