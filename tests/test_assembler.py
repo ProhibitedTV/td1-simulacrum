@@ -1,5 +1,4 @@
 import pytest
-
 from td1_simulacrum import AssemblyError, Machine, assemble, disassemble
 
 
