@@ -159,6 +159,20 @@ from .render_state import (
     project_render_state,
 )
 from .semantic import Modifier, SemanticIR, SemanticRoot, StateWeave
+from .serial_adapter import (
+    ParitySerialCloseError,
+    ParitySerialClosedError,
+    ParitySerialDependencyError,
+    ParitySerialError,
+    ParitySerialReadError,
+    ParitySerialReadTimeoutError,
+    ParitySerialWriteError,
+    ParitySerialWriteTimeoutError,
+    PySerialByteStream,
+    SerialConfig,
+    SerialPortLike,
+    open_pyserial_stream,
+)
 from .stream_io import (
     BinaryByteReader,
     BinaryByteStream,
@@ -354,6 +368,14 @@ __all__ = [
     "ParityProtocolError",
     "ParityRequest",
     "ParityResponse",
+    "ParitySerialCloseError",
+    "ParitySerialClosedError",
+    "ParitySerialDependencyError",
+    "ParitySerialError",
+    "ParitySerialReadError",
+    "ParitySerialReadTimeoutError",
+    "ParitySerialWriteError",
+    "ParitySerialWriteTimeoutError",
     "ParityStatus",
     "ParityStreamEOFError",
     "ParityStreamEmptyEOFError",
@@ -375,6 +397,7 @@ __all__ = [
     "PrimitiveChange",
     "PrimitiveChangeKind",
     "ProgramCounterError",
+    "PySerialByteStream",
     "RENDER_SCHEMA",
     "RENDER_SCHEMA_VERSION",
     "REPORT_SCHEMA",
@@ -406,6 +429,8 @@ __all__ = [
     "SemanticAction",
     "SemanticIR",
     "SemanticRoot",
+    "SerialConfig",
+    "SerialPortLike",
     "SourceRecord",
     "StateWeave",
     "StepLimitExceeded",
@@ -465,6 +490,7 @@ __all__ = [
     "logical_program_digest",
     "lower_state_weave",
     "microglyph_geometry",
+    "open_pyserial_stream",
     "parity_request_correlation",
     "project_player_translation",
     "project_point",
@@ -489,4 +515,4 @@ __all__ = [
     "wrap_int",
 ]
 
-__version__ = "0.17.0a0"
+__version__ = "0.18.0a0"
