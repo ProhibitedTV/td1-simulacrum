@@ -280,7 +280,9 @@ class ParityCampaign:
 
         expected_entries = _derive_entries(self.trace)
         if self.entries != expected_entries:
-            raise ParityCampaignError("campaign entries disagree with deterministic trace derivation")
+            raise ParityCampaignError(
+                "campaign entries disagree with deterministic trace derivation"
+            )
 
     @property
     def vectors(self) -> tuple[ParityVector, ...]:
