@@ -16,6 +16,7 @@ from .campaign import (
 )
 from .parity import ReferenceLoopbackTransport
 from .trace import trace_program
+from .wire import InMemoryParityLineIO, JsonLineParityTransport, ParityWireDevice
 
 
 def _write_json(payload: dict[str, object], output: Path | None) -> None:
@@ -65,6 +66,30 @@ def _verify(path: Path) -> int:
     return 0
 
 
+def _emit_run(run: ParityCampaignRun, output: Path | None, *, transport: str) -> int:
+    if output is None:
+        _write_json(run.as_dict(), None)
+    else:
+        _write_json(run.as_dict(), output)
+        print(
+            json.dumps(
+                {
+                    "output": str(output),
+                    "transport": transport,
+                    "run_digest": run.digest(),
+                    "campaign_digest": run.campaign.digest(),
+                    "report_digest": run.report.digest(),
+                    "passed": run.report.passed,
+                    "passed_count": run.report.passed_count,
+                    "failed_count": run.report.failed_count,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+    return 0 if run.report.passed else 2
+
+
 def _loopback(
     path: Path,
     target_max_width: int,
@@ -77,26 +102,24 @@ def _loopback(
         max_width=target_max_width,
     )
     run = run_parity_campaign(transport, campaign)
-    if output is None:
-        _write_json(run.as_dict(), None)
-    else:
-        _write_json(run.as_dict(), output)
-        print(
-            json.dumps(
-                {
-                    "output": str(output),
-                    "run_digest": run.digest(),
-                    "campaign_digest": campaign.digest(),
-                    "report_digest": run.report.digest(),
-                    "passed": run.report.passed,
-                    "passed_count": run.report.passed_count,
-                    "failed_count": run.report.failed_count,
-                },
-                indent=2,
-                sort_keys=True,
-            )
-        )
-    return 0 if run.report.passed else 2
+    return _emit_run(run, output, transport="reference-loopback")
+
+
+def _wire_loopback(
+    path: Path,
+    target_max_width: int,
+    target_id: str,
+    output: Path | None,
+) -> int:
+    campaign = ParityCampaign.from_json(path.read_text(encoding="utf-8"))
+    target = ReferenceLoopbackTransport(
+        target_id=target_id,
+        max_width=target_max_width,
+    )
+    line_io = InMemoryParityLineIO(ParityWireDevice(target))
+    transport = JsonLineParityTransport(line_io)
+    run = run_parity_campaign(transport, campaign)
+    return _emit_run(run, output, transport="td1.parity-wire/v1")
 
 
 def _verify_run(path: Path) -> int:
@@ -111,6 +134,12 @@ def _verify_run(path: Path) -> int:
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 0 if run.report.passed else 2
+
+
+def _add_target_options(parser: argparse.ArgumentParser, *, default_id: str) -> None:
+    parser.add_argument("--target-max-width", type=int, default=12)
+    parser.add_argument("--target-id", default=default_id)
+    parser.add_argument("--output", type=Path)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -139,9 +168,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="run a saved campaign through the reference loopback parity target",
     )
     loopback_parser.add_argument("path", type=Path)
-    loopback_parser.add_argument("--target-max-width", type=int, default=12)
-    loopback_parser.add_argument("--target-id", default="simulacrum.trace-loopback")
-    loopback_parser.add_argument("--output", type=Path)
+    _add_target_options(loopback_parser, default_id="simulacrum.trace-loopback")
+
+    wire_loopback_parser = subparsers.add_parser(
+        "wire-loopback",
+        help="run a saved campaign through canonical td1.parity-wire framing",
+    )
+    wire_loopback_parser.add_argument("path", type=Path)
+    _add_target_options(wire_loopback_parser, default_id="simulacrum.wire-loopback")
 
     run_verify_parser = subparsers.add_parser(
         "run-verify",
@@ -160,6 +194,13 @@ def main() -> int:
         return _verify(args.path)
     if args.command == "loopback":
         return _loopback(
+            args.path,
+            args.target_max_width,
+            args.target_id,
+            args.output,
+        )
+    if args.command == "wire-loopback":
+        return _wire_loopback(
             args.path,
             args.target_max_width,
             args.target_id,
