@@ -29,7 +29,10 @@ reference model
                     StreamParityLineIO
                                |
                                v
-                     binary byte stream
+                    PySerialByteStream
+                               |
+                               v
+                    optional serial link
                                |
                                v
                         physical target
@@ -37,13 +40,15 @@ reference model
                                v
                         td1.parity-response
                                |
-                               v
-                        td1.parity-report
+                 +-------------+-------------+
+                 |                           |
+                 v                           v
+        exact wire transcript         td1.parity-report
+                 |                           |
+                 +-------------+-------------+
                                |
                                v
                    td1.parity-campaign-run
-                               |
-                transcript ----+
                                |
                                v
                      td1.parity-bench-run
@@ -53,43 +58,32 @@ reference model
 
 ## Transport neutrality
 
-The parity semantics do not specify USB, UART, CAN, Ethernet, GPIO, SWD, SPI, or another physical link.
+Parity semantics do not specify USB, UART, CAN, Ethernet, GPIO, SWD, SPI, or another physical link.
 
-A host adapter implements two parity operations:
+The existing `ParityTransport` surface remains:
 
 - advertise `ParityCapabilities`;
 - exchange a `ParityRequest` for a `ParityResponse`.
 
-`td1.parity-wire` gives those existing contracts a deterministic byte-line representation for first-bench integration. `StreamParityLineIO` now gives that line contract a concrete implementation over ordinary binary reader/writer streams without making pyserial, baud rate, USB identity, connector choices, analog sampling, or board-specific behavior part of TD-1 arithmetic semantics.
+Everything below that surface is adapter machinery.
 
-The transcript layer records the exact canonical bytes observed at the line boundary but likewise remains downstream of parity truth.
+`td1.parity-wire` defines canonical bytes. `StreamParityLineIO` moves/buffers those bytes. `PySerialByteStream` optionally opens a real serial-class host link. None of them redefine ternary arithmetic or conformance.
 
-## Versioned schemas
+## Versioned contracts
 
-The base layer defines:
+Current semantic/evidence schemas include:
 
 - `td1.parity-capabilities`;
 - `td1.parity-request`;
 - `td1.parity-response`;
-- `td1.parity-report`.
-
-The workload-derived layer adds:
-
+- `td1.parity-report`;
 - `td1.parity-campaign`;
-- `td1.parity-campaign-run`.
-
-The byte-oriented adapter layer adds:
-
-- `td1.parity-wire`.
-
-The transport-evidence layer adds:
-
+- `td1.parity-campaign-run`;
+- `td1.parity-wire`;
 - `td1.parity-wire-transcript`;
 - `td1.parity-bench-run`.
 
-`StreamParityLineIO` is intentionally an adapter implementation rather than a new semantic artifact schema.
-
-Artifacts use deterministic canonical serialization and SHA-256 fingerprints where applicable.
+`StreamParityLineIO`, `SerialConfig`, and `PySerialByteStream` are adapter/runtime implementations rather than new arithmetic schemas.
 
 ## Capability negotiation
 
@@ -101,9 +95,9 @@ A target advertises:
 - maximum ternary slice width;
 - optional telemetry keys.
 
-Unsupported vectors are rejected before exchange and recorded as `unsupported` rather than being misclassified as a target malfunction.
+Unsupported vectors are rejected before device exchange and recorded as `unsupported` rather than being called hardware faults.
 
-Current operation classes are:
+Current parity operations:
 
 - `trit_hold`;
 - `register_load`;
@@ -111,11 +105,13 @@ Current operation classes are:
 - `add`;
 - `sub`.
 
+A target must advertise only capability it has actually demonstrated.
+
 ## Fixed golden vectors
 
-### First physical campaign: trit/register slice
+### First physical campaign: one trit
 
-`golden_register_vectors()` begins with the smallest meaningful physical test:
+The first real target remains deliberately small:
 
 ```text
 -
@@ -125,25 +121,19 @@ Current operation classes are:
 
 Each one-trit state must be driven, held, observed, and returned through the adapter without spontaneous semantic change.
 
-The same vector set then tests register-slice loads at the requested width using zero, +/-1, maximum/minimum representable values, and an alternating ternary pattern.
+This is the bridge from `TRIT_CELL_REV0` bench measurements into software conformance.
 
-This is the intended bridge from `TRIT_CELL_REV0` bench work into software conformance.
+### Later register and ALU campaigns
 
-### Later ALU campaign
+Register-slice vectors exercise zero, +/-1, representable extrema, and alternating ternary patterns at the requested width.
 
-`golden_alu_vectors()` includes negation, basic addition/subtraction, and fixed-width wrap cases.
+ALU vectors cover negation, addition/subtraction, and fixed-width wrap behavior.
 
-Those vectors exist so the reference oracle is stable before physical ALU design begins. They do not imply that an ALU board exists.
+Those vectors define reference expectations. They do not imply that corresponding hardware exists.
 
 ## Trace-derived workload campaigns
 
-Fixed golden vectors answer “does this subsystem handle the reference edge cases?”
-
-`td1.parity-campaign` adds a second question:
-
-> Does this subsystem handle the exact ternary values encountered during a real TD-1 logical workload?
-
-A campaign embeds its complete source `td1.execution-trace`, exact initial/final `td1.machine-state` checkpoints, event provenance, and deterministic subsystem vectors.
+`td1.parity-campaign` adds workload-derived values to the fixed edge cases.
 
 Current mappings are deliberately narrow:
 
@@ -151,132 +141,120 @@ Current mappings are deliberately narrow:
 - `NEG` -> `negate`;
 - `ADD` -> `add`;
 - `SUB` -> `sub`;
-- `ADDI` -> subsystem `add` with the immediate represented as a fixed-width 12-trit operand.
+- `ADDI` -> subsystem `add` using a fixed-width immediate operand.
 
-The `ADDI` mapping does **not** test physical `ADDI` instruction decoding. Likewise, mapping `LD` to a register-load vector tests the destination register value path represented by the current parity surface; it does not claim physical memory-read parity.
+These mappings test represented subsystems only. They do not claim physical instruction decode, physical memory-read semantics, or full-machine execution.
 
-Control-flow, compare, store, no-op, and halt semantics remain unclaimed until the parity operation surface gains faithful tests for them.
+A campaign embeds its complete source trace and exact initial/final machine checkpoints. Saved mappings are re-derived when loaded.
 
-Every saved campaign is re-derived from its embedded trace at load time. `td1.parity-campaign-run` then binds the exact campaign vector set to one exact `td1.parity-report`.
+## Canonical parity wire
 
-See [`PARITY_CAMPAIGNS.md`](PARITY_CAMPAIGNS.md) and ADR 0014.
+Wire v1 uses canonical UTF-8 JSON Lines with exactly one LF terminator.
 
-## Observable state digests
-
-A physical slice result is fingerprinted from width and normalized ternary value.
-
-The response carries the observed value and observed-state digest. The harness recomputes the digest and distinguishes:
-
-1. transport/device status failure;
-2. observed ternary value mismatch;
-3. observed-state digest mismatch.
-
-These are deterministic integrity fingerprints, not cryptographic authorship claims.
-
-## Parity wire framing
-
-Wire v1 uses canonical UTF-8 JSON Lines. Each frame is one canonical JSON object followed by exactly one LF.
-
-Allowed message kinds are:
+Allowed message kinds:
 
 - `capabilities_request`;
 - `capabilities_response`;
 - `parity_request`;
 - `parity_response`.
 
-The envelope wraps the existing parity payload schemas. It does not duplicate or reinterpret their fields.
+The envelope wraps the existing parity payloads instead of duplicating them.
 
-The default maximum frame size is 65,536 bytes including the LF. Decoding rejects empty, malformed, oversized, CRLF, multi-line, invalid-UTF-8, or noncanonical frames.
+The default maximum frame size is 65,536 bytes including LF. Empty, malformed, oversized, CRLF, multi-line, invalid-UTF-8, and noncanonical frames are rejected.
 
-`JsonLineParityTransport` adapts a minimal `ParityLineIO` byte channel to the existing `ParityTransport` interface. `ParityWireDevice` is the reference device-side dispatcher. `InMemoryParityLineIO` lets CI exercise the exact byte codec without a serial device.
+`JsonLineParityTransport` adapts `ParityLineIO` to `ParityTransport`. `ParityWireDevice` is the reference dispatcher used by software integration tests.
 
-See [`PARITY_WIRE.md`](PARITY_WIRE.md) and ADR 0015.
+## Stream-backed host I/O
 
-## Stream-backed host line I/O
+`StreamParityLineIO` implements the line boundary over generic binary reader/writer objects.
 
-`StreamParityLineIO` implements the existing `ParityLineIO` boundary over one duplex binary stream or explicit reader/writer streams.
+It handles:
 
-It owns only byte transport concerns:
+- partial writes;
+- optional flush;
+- fragmented reads;
+- coalesced later frames;
+- bounded buffering;
+- explicit empty EOF / partial EOF / oversized frame / read / write failures;
+- deterministic bytes/frames/buffered-byte statistics.
 
-- deterministic partial-write completion;
-- optional writer `flush()`;
-- fragmented-read buffering;
-- extraction of exactly one LF-terminated frame;
-- preservation of bytes belonging to later frames;
-- enforcement of the existing wire frame ceiling while buffering;
-- distinct empty-EOF and partial-frame EOF failures;
-- explicit invalid return-type, zero-progress, and underlying I/O errors;
-- deterministic bytes/frames/buffered-byte statistics with no wall-clock state.
+Canonical wire validation remains above this layer.
 
-It deliberately does **not** duplicate canonical JSON validation. `JsonLineParityTransport` and `decode_wire_frame()` remain responsible for wire semantics.
+Adapter-specific `ParityStreamError` subclasses are allowed to propagate unchanged so lower transports retain useful diagnostics.
 
-The adapter therefore composes as:
+## Optional live serial adapter
+
+v0.18 adds an optional pyserial-backed deployment path:
 
 ```text
 JsonLineParityTransport
-        |
-        v
-RecordingParityLineIO
-        |
-        v
-StreamParityLineIO
-        |
-        v
-binary stream
+ -> RecordingParityLineIO
+ -> StreamParityLineIO
+ -> PySerialByteStream
+ -> pyserial
+ -> UART / USB CDC target
 ```
 
-A future pyserial-backed UART/USB-CDC path can wrap or directly satisfy the binary stream protocol without changing parity, wire, transcript, or bench-run schemas.
+Core installs remain free of pyserial. Live hosts install the optional `serial` extra.
 
-See [`STREAM_LINE_IO.md`](STREAM_LINE_IO.md) and ADR 0017.
+`SerialConfig` requires explicit:
 
-## Exact wire transcripts
+- port;
+- baud rate;
+- positive finite read timeout;
+- positive finite write timeout.
 
-`td1.parity-wire-transcript` records the exact canonical traffic successfully observed at `ParityLineIO`.
+TD-1 does not auto-discover ports and does not define a default baud rate.
 
-Each ordered record preserves:
+`PySerialByteStream` distinguishes:
 
-- host/device direction;
+- read timeout;
+- write timeout;
+- underlying serial read failure;
+- underlying serial write/flush failure;
+- use after close;
+- close failure;
+- missing optional dependency.
+
+A zero-byte pyserial read with the required finite timeout is a host serial timeout, not EOF and not a target-generated `ParityStatus.TIMEOUT`.
+
+`td1-parity serial-run` executes an existing saved campaign through this exact stack and may emit the same campaign-run, transcript, and bench-run artifacts used by in-memory testing.
+
+Port name, baud rate, host timeout values, and stream counters may appear in CLI diagnostics. They are not silently inserted into canonical parity artifacts.
+
+See [`SERIAL_ADAPTER.md`](SERIAL_ADAPTER.md) and ADR 0018.
+
+## Wire transcripts
+
+`td1.parity-wire-transcript` records exact canonical traffic at `ParityLineIO`.
+
+Each record preserves:
+
+- direction;
 - contiguous ordinal;
-- exact frame text including LF;
-- frame-byte SHA-256;
-- decoded message kind;
+- exact frame bytes represented as canonical frame text;
+- frame SHA-256;
+- message kind;
 - correlation ID;
 - envelope digest.
 
-Every frame is revalidated with the same canonical wire decoder used for live transport. A completed transcript requires alternating host request/device response pairs and matching message classes/correlations.
+`RecordingParityLineIO` composes unchanged above in-memory, generic stream, or serial-backed adapters.
 
-`RecordingParityLineIO` can wrap the in-memory channel or the stream-backed channel. It does not alter `ParityTransport` semantics.
-
-`ReplayParityLineIO` is deliberately strict: host request bytes must match the transcript exactly, responses are returned exactly as recorded, and the entire transcript must be consumed.
-
-A report may contain capability-rejected `unsupported` records that produced no device traffic. `transcript_for_report()` preserves that distinction by reconstructing wire exchanges only for requests the advertised capabilities accepted.
-
-See [`WIRE_TRANSCRIPTS.md`](WIRE_TRANSCRIPTS.md) and ADR 0016.
+`ReplayParityLineIO` requires exact host bytes and returns exact saved device bytes. Replay must consume the entire transcript.
 
 ## Bench-run bundles
 
-`td1.parity-bench-run` binds:
+`td1.parity-bench-run` binds one exact campaign run to the exact transcript implied by its report.
 
-- one exact `td1.parity-campaign-run`;
-- one exact `td1.parity-wire-transcript`.
+Validation prevents substitution of a transcript from a different target, session, vector ordering, response set, or telemetry set.
 
-Validation regenerates the canonical wire conversation implied by the saved report and requires exact transcript equality. A transcript from another target, session, vector order, response set, or telemetry set therefore cannot be silently substituted.
+`replay_bench_run()` reruns the campaign through the ordinary wire transport over replayed bytes and requires the canonical campaign run to match the saved run.
 
-`replay_bench_run()` then runs the saved campaign through normal `JsonLineParityTransport` over `ReplayParityLineIO`, reuses the saved parity session ID, consumes every transcript record, and requires the regenerated campaign run to match canonically.
+This is transport evidence, not authenticated device identity.
 
-This is transport evidence, not authenticated hardware identity. SHA-256 values are integrity fingerprints only.
+## Bench telemetry
 
-## Fault reporting and telemetry
-
-Responses may report:
-
-- `ok`;
-- `unsupported`;
-- `fault`;
-- `timeout`;
-- `error`.
-
-The v1 bench telemetry vocabulary is:
+Current optional telemetry vocabulary:
 
 ```text
 voltage_uv
@@ -287,108 +265,91 @@ board_revision
 temperature_millic
 ```
 
-`voltage_uv`, `settle_us`, `sample_count`, and `temperature_millic` use scaled integers. `comparator_code` and `board_revision` are strings.
+Scaled numeric values use integers. These values are metadata under the current contract and do not alter arithmetic pass/fail evaluation.
 
-These values are metadata only in wire v1. They do not alter arithmetic pass/fail evaluation. Measured electrical acceptance limits require a separate future versioned contract after actual bench distributions exist.
+A future electrical-acceptance contract must be based on actual measured distributions and versioned explicitly.
 
-When telemetry appears in a real device response, the transcript preserves the exact response bytes containing it and the bench bundle links those bytes to the conformance report.
+## Reports versus adapter failures
 
-## Replayable conformance reports
+A `td1.parity-report` records target capability, request/response records, deterministic pass/fail evaluation, and discrepancies.
 
-A `td1.parity-report` stores capability advertisement/digest, vector-set digest, every request/response, deterministic pass/fail evaluation, exact discrepancy text, and summary counts.
+Host adapter errors are different. For example, a pyserial read timeout before a valid response is received means the live session failed at the host transport layer; it is not evidence that the target returned `ParityStatus.TIMEOUT`.
 
-Loading a report revalidates identities, vector semantics, digests, pass flags, discrepancies, capability digest, vector-set digest, and summary.
+This distinction prevents host plumbing from fabricating device claims.
 
-A report is the evaluated conformance receipt. A transcript is the wire receipt. A bench run binds the two.
+## CLI workflows
 
-## Reference and stream integration targets
-
-`ReferenceLoopbackTransport` implements the parity contract entirely in software. It can return deterministic success, forced fault/timeout/error states, deliberate observed-value corruption, and restricted maximum width.
-
-Passing direct loopback proves the host parity infrastructure, not physical ternary hardware.
-
-The in-memory wire path wraps the same target with `ParityWireDevice`, `InMemoryParityLineIO`, and `JsonLineParityTransport`. Passing that path additionally proves the canonical wire codec and request/response correlation logic.
-
-The v0.17 stream integration replaces the in-memory line channel with a deliberately fragmenting scripted binary stream under `StreamParityLineIO`, while keeping `RecordingParityLineIO` above it. A complete trace-derived campaign must still produce a valid bench bundle and replay identically. That proves stream buffering/composition, not physical hardware.
-
-## CLI
-
-Base fixed-vector workflows:
+Reference/software workflows:
 
 ```bash
 td1-sim parity-vectors --width 12
 
-td1-sim parity-vectors --width 3 --register-only
-
 td1-sim parity-loopback --width 12
 
-td1-sim parity-verify report.json
-```
-
-Trace-derived workload workflows:
-
-```bash
 td1-parity build examples/sum.td1 --output sum.campaign.json
-
-td1-parity verify sum.campaign.json
-
-td1-parity loopback sum.campaign.json --output sum.run.json
 
 td1-parity wire-loopback sum.campaign.json \
   --output sum.wire.run.json \
   --transcript-output sum.wire.transcript.json \
   --bench-output sum.bench.json
 
-td1-parity wire-transcript-verify sum.wire.transcript.json
-
 td1-parity bench-run-replay sum.bench.json
-
-td1-parity run-verify sum.wire.run.json
 ```
 
-Capability rejection can be exercised deliberately with `--target-max-width` in both direct and wire-loopback modes.
+Optional live serial workflow:
 
-`StreamParityLineIO` is a library adapter rather than a new CLI transport selector in v0.17. A real serial CLI belongs after the actual bench interface is selected.
+```bash
+python -m pip install -e '.[serial]'
 
-## Physical adapter sequence
+td1-parity serial-run sum.campaign.json \
+  --port /dev/ttyACM0 \
+  --baud 230400 \
+  --read-timeout 2.0 \
+  --write-timeout 2.0 \
+  --output sum.serial.run.json \
+  --transcript-output sum.serial.transcript.json \
+  --bench-output sum.serial.bench.json
+```
 
-The first real integration remains intentionally small:
+All serial deployment values above are examples supplied by the operator, not TD-1 defaults.
 
-1. build and measure one physical trit cell;
-2. choose the actual UART/USB-CDC/other byte link;
-3. expose that link as a compatible binary reader/writer;
-4. wrap it with `StreamParityLineIO`;
-5. wrap that with `RecordingParityLineIO`;
-6. speak the existing `td1.parity-wire` envelope on the device side;
-7. advertise only `trit_hold`, `max_width=1`;
-8. run the three `TRIT-*` fixed golden vectors;
-9. preserve voltage/settling/comparator/sample/board telemetry;
-10. save the conformance report, exact transcript, and linked bench-run bundle;
-11. replay that bundle offline as a regression receipt;
-12. expand capability only after the one-trit report passes;
+## First real adapter sequence
+
+The next physical campaign should remain small and evidence-driven:
+
+1. build and independently measure one `TRIT_CELL_REV0` cell;
+2. choose the actual UART/USB-CDC interface presented by the bench controller;
+3. install the optional serial dependency on the host;
+4. select explicit port/baud/read-timeout/write-timeout values appropriate to that controller;
+5. implement the existing `td1.parity-wire` envelope on the device side;
+6. advertise only `trit_hold`, `max_width=1`;
+7. run the three one-trit golden vectors through `serial-run`;
+8. return real voltage/settling/comparator/sample/board telemetry where available;
+9. save the conformance report, exact transcript, and linked bench-run bundle;
+10. replay that bundle offline;
+11. inspect measured electrical distributions before defining acceptance thresholds;
+12. expand advertised capability only after evidence supports the next subsystem;
 13. repeat for a multi-trit register slice;
-14. run workload-derived register campaigns where capabilities allow;
-15. only then begin physical ALU conformance and ALU workload campaigns.
+14. proceed to physical ALU conformance only after register-slice success.
 
-A board must not advertise capabilities merely because its schematic intends to support them.
+The software stack is now capable of reaching the port. The missing authority is the copper and its measurements.
 
 ## Deferred work
 
 This revision does not define:
 
-- physical connector pinout;
-- UART baud rate or USB device identity;
-- pyserial or another concrete host serial dependency;
-- COM/tty discovery;
+- serial port auto-discovery;
+- a TD-1 default baud rate;
+- USB VID/PID;
+- connector/pinout;
 - retry/reconnect policy;
-- analog threshold values;
-- sample timing;
+- analog thresholds;
+- sample cadence;
 - hysteresis/calibration policy;
-- electrical acceptance thresholds;
+- electrical acceptance limits;
 - authenticated hardware identity;
-- full-machine state replacement;
-- cycle-accurate execution;
+- cycle-accurate full-machine replacement;
 - physical instruction fetch/decode;
 - physical 12-trit instruction encoding.
 
-Those decisions belong to later hardware/adapter revisions and can consume the transport-neutral parity, campaign, wire, stream, and transcript contracts without redefining them.
+Those decisions remain downstream of first-hardware evidence.

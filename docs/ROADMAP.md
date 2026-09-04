@@ -36,7 +36,7 @@ Implemented:
 - explicit subsystem-level `ADDI -> add` mapping with no instruction-decode claim;
 - strict campaign re-derivation from the embedded source trace;
 - versioned `td1.parity-campaign-run` artifacts binding campaign oracle to conformance report;
-- dedicated `td1-parity` build/verify/loopback/wire-loopback/run-verify CLI;
+- dedicated `td1-parity` campaign/parity workflows;
 - deterministic register and ALU golden parity vectors.
 
 Next:
@@ -120,51 +120,42 @@ Next:
 
 ## M5 — Physical parity interface
 
-Status: **conformance + campaigns + wire + evidence + stream host adapter implemented**
+Status: **conformance + campaigns + canonical wire + replayable evidence + stream/serial host path implemented**
 
 Implemented:
-- capability advertisement;
-- versioned parity request/response/report schemas;
+- capability advertisement and versioned parity request/response/report schemas;
 - deterministic ternary slice-state digests;
 - register/trit and ALU golden vectors;
 - explicit `ok`, `unsupported`, `fault`, `timeout`, and `error` outcomes;
-- capability-gated conformance sessions;
-- replayable conformance reports;
-- reference loopback target;
+- capability-gated conformance sessions and replayable reports;
 - deterministic trace-derived parity campaigns and campaign-run artifacts;
-- exact workload event provenance preserved through each derived physical test vector;
 - strict separation between subsystem-operation parity and future physical instruction-decode parity;
-- versioned `td1.parity-wire` envelope around existing parity payloads;
-- canonical UTF-8 JSON Lines framing with explicit maximum frame size;
+- canonical `td1.parity-wire` JSON Lines framing around existing parity payloads;
 - deterministic capability and parity request/response correlation;
-- `JsonLineParityTransport` host adapter over minimal `ParityLineIO`;
-- reference device dispatcher around existing parity targets;
-- in-memory line channel exercising the exact wire codec in CI;
-- first bench telemetry naming conventions for voltage, settling, comparator state, samples, board revision, and optional temperature;
+- `JsonLineParityTransport` over minimal `ParityLineIO`;
+- reference `ParityWireDevice` plus in-memory wire integration;
+- bench telemetry naming conventions for voltage, settling, comparator state, samples, board revision, and optional temperature;
 - versioned `td1.parity-wire-transcript` exact byte-level transport receipts;
-- deterministic frame/envelope integrity fingerprints plus legal request/response ordering;
-- `RecordingParityLineIO` around any existing line channel;
-- strict byte-for-byte `ReplayParityLineIO` with complete-consumption checks;
-- deterministic transcript reconstruction from saved conformance reports;
-- versioned `td1.parity-bench-run` binding one campaign run to its exact wire transcript;
-- offline replay requiring the regenerated campaign report to match the saved report exactly;
-- `td1-parity wire-loopback` optional transcript/bench sidecar emission;
-- transcript verification and bench-run replay CLI workflows;
-- minimal `BinaryByteStream` / reader / writer protocols with no serial-library dependency;
-- `StreamParityLineIO` over duplex or split binary streams;
-- deterministic partial-write completion and optional writer flushing;
-- fragmented/coalesced read buffering with preservation of later frame bytes;
-- bounded incoming-line buffering using the existing parity-wire frame ceiling;
-- explicit empty-EOF, partial-EOF, frame-too-large, read-failure, and write-failure adapter errors;
-- deterministic stream byte/frame/buffer counters with no wall-clock state;
-- full campaign -> stream adapter -> transcript -> bench bundle -> offline replay proof in CI.
+- `RecordingParityLineIO`, strict `ReplayParityLineIO`, deterministic transcript reconstruction, and `td1.parity-bench-run`;
+- offline replay requiring regenerated campaign/report equivalence;
+- minimal binary reader/writer/duplex stream protocols;
+- `StreamParityLineIO` with partial-write completion, fragmented/coalesced read buffering, bounded frame handling, explicit adapter errors, and deterministic counters;
+- complete campaign -> stream -> transcript -> bench bundle -> offline replay proof in CI;
+- optional `serial` dependency extra for pyserial while core installs remain dependency-free;
+- explicit `SerialConfig` deployment settings for port, baud rate, and finite host read/write timeouts;
+- `PySerialByteStream` with lazy pyserial loading, serial timeout/error classification, closed-port protection, and deterministic close/context-manager behavior;
+- preservation of serial-specific stream errors through `StreamParityLineIO`;
+- `td1-parity serial-run` using the unchanged wire/recording/stream stack and optionally emitting ordinary run/transcript/bench artifacts;
+- serial deployment settings and stream counters kept in CLI diagnostics rather than silently inserted into normative parity artifacts;
+- fake/injected serial test infrastructure so default CI requires neither pyserial nor physical hardware.
 
 Next:
-- first real one-trit hardware adapter using the v1 wire contract;
-- select the actual UART/USB-CDC bench interface and add a thin optional serial-library wrapper around `StreamParityLineIO`;
-- measured telemetry capture from TRIT_CELL_REV0;
+- build and measure the first real one-trit hardware adapter;
+- choose explicit deployment settings for the actual UART/USB-CDC bench device and run `serial-run` against it;
+- capture real `voltage_uv`, `settle_us`, `comparator_code`, `sample_count`, and `board_revision` telemetry from TRIT_CELL_REV0;
+- preserve the first genuine hardware campaign run, transcript, and bench bundle;
 - multi-trit register-slice adapter;
-- execute and preserve trace-derived campaigns against real adapters;
+- execute and preserve workload-derived campaigns against real adapters;
 - versioned electrical acceptance criteria after measured distributions exist;
 - optional authenticated hardware identity only if bench provenance actually requires it;
 - ALU-board conformance after register-slice success;
@@ -202,10 +193,11 @@ The semantic/compiler prerequisite for Issue #2 is implemented. Physical instruc
 - hiding conventional compute behind decorative weirdness;
 - freezing physical instruction encoding before hardware measurements exist;
 - claiming trace-derived subsystem parity proves physical instruction decoding;
-- treating wire framing, stream counters, transcript hashes, or telemetry as arithmetic semantics;
+- treating wire framing, stream counters, serial configuration, transcript hashes, or telemetry as arithmetic semantics;
 - treating transcript SHA-256 values as authenticated device signatures;
 - adding nondeterministic wall-clock timestamps to normative transcript artifacts;
-- choosing baud rate, USB identity, connector, pinout, or serial package before the actual bench interface exists;
+- auto-discovering a serial port or defining a TD-1 default baud rate;
+- defining USB identity, connector, pinout, retry/reconnect policy, or electrical thresholds before the bench hardware earns those choices;
 - claiming navigation-grade accuracy before the timing/reference stack earns it;
 - inventing animation activity not grounded in traced state changes;
 - fabricating executable meanings for unsupported State Weaves;

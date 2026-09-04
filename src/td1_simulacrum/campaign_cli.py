@@ -15,6 +15,8 @@ from .campaign import (
     run_parity_campaign,
 )
 from .parity import ReferenceLoopbackTransport
+from .serial_adapter import ParitySerialError, SerialConfig, open_pyserial_stream
+from .stream_io import StreamParityLineIO
 from .trace import trace_program
 from .wire import InMemoryParityLineIO, JsonLineParityTransport, ParityWireDevice
 from .wire_transcript import (
@@ -160,6 +162,70 @@ def _wire_loopback(
     return 0 if run.report.passed else 2
 
 
+def _serial_run(
+    path: Path,
+    port: str,
+    baud: int,
+    read_timeout: float,
+    write_timeout: float,
+    output: Path | None,
+    transcript_output: Path | None,
+    bench_output: Path | None,
+) -> int:
+    campaign = ParityCampaign.from_json(path.read_text(encoding="utf-8"))
+    config = SerialConfig(
+        port=port,
+        baudrate=baud,
+        read_timeout_s=read_timeout,
+        write_timeout_s=write_timeout,
+    )
+
+    with open_pyserial_stream(config) as serial_stream:
+        stream_line = StreamParityLineIO(serial_stream)
+        recording = RecordingParityLineIO(stream_line)
+        transport = JsonLineParityTransport(recording)
+        run = run_parity_campaign(transport, campaign)
+        transcript = recording.transcript()
+        bench = ParityBenchRun(run, transcript)
+        stats = stream_line.stats
+
+    if transcript_output is not None:
+        _write_json(transcript.as_dict(), transcript_output)
+    if bench_output is not None:
+        _write_json(bench.as_dict(), bench_output)
+
+    if output is None:
+        _write_json(run.as_dict(), None)
+    else:
+        _write_json(run.as_dict(), output)
+        payload: dict[str, object] = {
+            "output": str(output),
+            "transport": "td1.parity-wire/v1+serial-stream",
+            "deployment": config.as_dict(),
+            "stream_stats": {
+                "bytes_read": stats.bytes_read,
+                "bytes_written": stats.bytes_written,
+                "frames_read": stats.frames_read,
+                "frames_written": stats.frames_written,
+                "buffered_bytes": stats.buffered_bytes,
+            },
+            "run_digest": run.digest(),
+            "campaign_digest": run.campaign.digest(),
+            "report_digest": run.report.digest(),
+            "transcript_digest": transcript.digest(),
+            "bench_run_digest": bench.digest(),
+            "passed": run.report.passed,
+            "passed_count": run.report.passed_count,
+            "failed_count": run.report.failed_count,
+        }
+        if transcript_output is not None:
+            payload["transcript_output"] = str(transcript_output)
+        if bench_output is not None:
+            payload["bench_output"] = str(bench_output)
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0 if run.report.passed else 2
+
+
 def _verify_run(path: Path) -> int:
     run = ParityCampaignRun.from_json(path.read_text(encoding="utf-8"))
     payload = {
@@ -253,6 +319,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional td1.parity-bench-run artifact path",
     )
 
+    serial_parser = subparsers.add_parser(
+        "serial-run",
+        help="run a saved campaign against an explicitly configured live serial port",
+    )
+    serial_parser.add_argument("path", type=Path)
+    serial_parser.add_argument("--port", required=True)
+    serial_parser.add_argument("--baud", required=True, type=int)
+    serial_parser.add_argument("--read-timeout", required=True, type=float)
+    serial_parser.add_argument("--write-timeout", required=True, type=float)
+    serial_parser.add_argument("--output", type=Path)
+    serial_parser.add_argument("--transcript-output", type=Path)
+    serial_parser.add_argument("--bench-output", type=Path)
+
     run_verify_parser = subparsers.add_parser(
         "run-verify",
         help="verify a saved td1.parity-campaign-run artifact",
@@ -296,6 +375,21 @@ def main() -> int:
             args.transcript_output,
             args.bench_output,
         )
+    if args.command == "serial-run":
+        try:
+            return _serial_run(
+                args.path,
+                args.port,
+                args.baud,
+                args.read_timeout,
+                args.write_timeout,
+                args.output,
+                args.transcript_output,
+                args.bench_output,
+            )
+        except ParitySerialError as exc:
+            print(f"serial adapter error: {exc}", file=sys.stderr)
+            return 3
     if args.command == "run-verify":
         return _verify_run(args.path)
     if args.command == "wire-transcript-verify":
