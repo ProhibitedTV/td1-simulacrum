@@ -19,13 +19,14 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - the frozen Veilbreak-derived requirement-provenance pipeline;
 - the deterministic Engineering/Relic render-state runtime;
 - the renderer-independent native geometry contract used by future visual and physical interfaces;
-- the replayable transition source for future Relic Mode motion and hardware differential testing.
+- the replayable transition source for future Relic Mode motion and hardware differential testing;
+- the transport-neutral conformance harness that physical ternary hardware must pass before replacing emulation.
 
 The long-term target is **hardware parity**: physical TD-1 subsystems should progressively replace emulated subsystems while preserving identical externally observable state.
 
 ## Current capabilities
 
-The v0.7 pre-alpha foundation includes:
+The v0.8 pre-alpha foundation includes:
 
 - balanced ternary conversion and fixed-width arithmetic;
 - a deterministic 12-trit, 9-register, 729-word logical machine;
@@ -52,6 +53,11 @@ The v0.7 pre-alpha foundation includes:
 - versioned `td1.execution-trace` with logical program fingerprints and digest-chained events;
 - deterministic trace replay with exact register and memory deltas;
 - versioned `td1.geometry-delta` with stable-ID transition classifications;
+- transport-neutral hardware capability/request/response/report schemas;
+- deterministic trit/register and ALU golden vectors;
+- explicit hardware `ok`, `unsupported`, `fault`, `timeout`, and `error` outcomes;
+- replayable conformance reports with slice-state digests and discrepancy records;
+- a reference loopback hardware target for proving the harness before real boards arrive;
 - a CLI, examples, golden fixtures, unit tests, linting, coverage reporting, and Python-version CI.
 
 ## Quick start
@@ -95,6 +101,30 @@ td1-sim lower 'MEMORY:0' --target R2 --base R0 --offset 8
 ```
 
 Unsupported State Weaves fail explicitly rather than receiving guessed executable meanings.
+
+Emit the first physical trit/register conformance campaign:
+
+```bash
+td1-sim parity-vectors --width 3 --register-only
+```
+
+Run the complete parity suite through the reference loopback target:
+
+```bash
+td1-sim parity-loopback --width 12
+```
+
+Force capability negotiation to reject widths above a simulated 3-trit target:
+
+```bash
+td1-sim parity-loopback --width 12 --target-max-width 3
+```
+
+Validate and fingerprint a saved conformance report:
+
+```bash
+td1-sim parity-verify report.json
+```
 
 Inspect the deterministic microglyph IDs for a 12-trit word:
 
@@ -164,7 +194,7 @@ td1-sim corpus-delta VB-TD1-001.json VB-TD1-002.json
 - Ternary condition state: negative / zero / positive
 - Initial ISA: `NOP`, `LDI`, `MOV`, `ADD`, `SUB`, `NEG`, `ADDI`, `CMP`, `LD`, `ST`, `BRN`, `BRZ`, `BRP`, `JMP`, `HALT`
 
-The physical instruction encoding is **not frozen yet**. Logical execution semantics and the first native semantic-lowering boundary now exist; the eventual 12-trit opcode/register/immediate layout will be versioned only after compiler and first-hardware constraints are reviewed together.
+The physical instruction encoding is **not frozen yet**. Logical execution semantics, the first native semantic-lowering boundary, and a transport-neutral hardware conformance boundary now exist; the eventual 12-trit opcode/register/immediate layout will be versioned only after compiler and first-hardware constraints are reviewed together.
 
 ## Layering
 
@@ -207,7 +237,10 @@ native geometry scene <------ frozen corpus geometry profile
 frontend / physical control surface
       |
       v
-physical-hardware parity boundary
+transport-neutral parity harness <------ golden vectors
+      |
+      v
+physical ternary subsystem
 ```
 
 ## Design doctrine
@@ -224,6 +257,7 @@ physical-hardware parity boundary
 10. **Geometry is a contract, not decoration.** Corpus-derived topology changes require explicit frozen motif evidence and source provenance.
 11. **Transitions are traced before they are animated.** A future visual effect must consume real execution or geometry change rather than fabricate activity.
 12. **Semantic identity does not hide operands.** Native operations bind concrete machine resources explicitly, and unsupported meanings remain unsupported until engineered.
+13. **Physicality is not correctness.** A board advertises only capabilities it has actually demonstrated through the parity harness.
 
 ## Assembly example
 
@@ -246,12 +280,13 @@ HALT
 
 **Pre-alpha / architecture stabilization.**
 
-Machine truth, semantic lowering, frozen corpus provenance, native geometry, and deterministic transition traces now have explicit contracts. The next major milestones are first-hardware parity transport, review of the physical program image/instruction encoding, compound State Weave lowering, corpus-backed morph descriptors, and a reference Relic Mode frontend.
+Machine truth, semantic lowering, frozen corpus provenance, native geometry, deterministic transitions, and transport-neutral physical conformance now have explicit contracts. The next major milestones are the first real one-trit hardware adapter, review of the physical program image/instruction encoding, compound State Weave lowering, corpus-backed morph descriptors, and a reference Relic Mode frontend.
 
 See:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/SEMANTIC_LOWERING.md`](docs/SEMANTIC_LOWERING.md)
+- [`docs/HARDWARE_PARITY.md`](docs/HARDWARE_PARITY.md)
 - [`docs/RENDER_STATE.md`](docs/RENDER_STATE.md)
 - [`docs/GEOMETRY.md`](docs/GEOMETRY.md)
 - [`docs/TRACE.md`](docs/TRACE.md)
@@ -264,6 +299,6 @@ See:
 
 TD-1 does **not** assume that DMT/Veilbreak reports establish extraterrestrial, interdimensional, or otherwise external intelligences. The project treats those reports as a structured phenomenological corpus capable of generating unconventional interface constraints and testable design hypotheses.
 
-The included corpus fixtures are synthetic test data unless explicitly documented otherwise. State Weave lowering mappings are TD-1 engineering conventions unless explicitly documented otherwise.
+The included corpus fixtures are synthetic test data unless explicitly documented otherwise. State Weave lowering mappings are TD-1 engineering conventions unless explicitly documented otherwise. Loopback conformance proves the host harness only; it is not evidence that physical ternary hardware has passed.
 
 **Human-built hardware. Exotic design provenance. Bench validation required.**

@@ -12,6 +12,14 @@ from .geometry import GeometryProfile, GeometryScene, build_geometry_scene
 from .glyphs import word_to_glyph_ids
 from .lowering import OperandBindings, lower_state_weave, supported_lowerings
 from .machine import Instruction, Machine, Op
+from .parity import (
+    ConformanceReport,
+    ReferenceLoopbackTransport,
+    golden_parity_vectors,
+    golden_register_vectors,
+    run_conformance,
+    vector_set_digest,
+)
 from .render_state import RenderMode, RenderState, project_render_state
 from .semantic import StateWeave
 from .ternary import TernaryWord
@@ -143,14 +151,53 @@ def _lower_weave(args: argparse.Namespace) -> int:
 
 
 def _list_lowerings() -> int:
-    print(
-        json.dumps(
-            {"schema": "td1.semantic-lowering-support", "version": 1,
-             "forms": [form.as_dict() for form in supported_lowerings()]},
-            indent=2,
-            sort_keys=True,
-        )
+    payload = {
+        "schema": "td1.semantic-lowering-support",
+        "version": 1,
+        "forms": [form.as_dict() for form in supported_lowerings()],
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _parity_vectors(width: int, register_only: bool) -> int:
+    vectors = (
+        golden_register_vectors(width)
+        if register_only
+        else golden_parity_vectors(width)
     )
+    payload = {
+        "schema": "td1.parity-vector-set",
+        "version": 1,
+        "width": width,
+        "register_only": register_only,
+        "vector_set_digest": vector_set_digest(vectors),
+        "vectors": [vector.as_dict() for vector in vectors],
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _parity_loopback(width: int, register_only: bool, target_max_width: int) -> int:
+    vectors = (
+        golden_register_vectors(width)
+        if register_only
+        else golden_parity_vectors(width)
+    )
+    transport = ReferenceLoopbackTransport(max_width=target_max_width)
+    report = run_conformance(transport, vectors)
+    print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+    return 0 if report.passed else 2
+
+
+def _parity_verify(path: Path) -> int:
+    report = ConformanceReport.from_json(path.read_text(encoding="utf-8"))
+    payload = {
+        "verified": True,
+        "report_digest": report.digest(),
+        "summary": report.summary(),
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
     return 0
 
 
@@ -242,6 +289,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="list the complete supported v1 State Weave lowering surface",
     )
 
+    parity_vectors_parser = subparsers.add_parser(
+        "parity-vectors",
+        help="emit deterministic register/ALU golden vectors for physical conformance",
+    )
+    parity_vectors_parser.add_argument("--width", type=int, default=12)
+    parity_vectors_parser.add_argument("--register-only", action="store_true")
+
+    parity_loopback_parser = subparsers.add_parser(
+        "parity-loopback",
+        help="run golden vectors through the transport-neutral reference loopback target",
+    )
+    parity_loopback_parser.add_argument("--width", type=int, default=12)
+    parity_loopback_parser.add_argument("--register-only", action="store_true")
+    parity_loopback_parser.add_argument(
+        "--target-max-width",
+        type=int,
+        default=12,
+        help="advertised loopback target width for capability-negotiation testing",
+    )
+
+    parity_verify_parser = subparsers.add_parser(
+        "parity-verify",
+        help="validate and fingerprint a saved TD-1 hardware conformance report",
+    )
+    parity_verify_parser.add_argument("path", type=Path)
+
     glyph_parser = subparsers.add_parser("glyph", help="map a ternary word to microglyph IDs")
     glyph_parser.add_argument("word")
 
@@ -285,6 +358,12 @@ def main() -> int:
         return _lower_weave(args)
     if args.command == "lowerings":
         return _list_lowerings()
+    if args.command == "parity-vectors":
+        return _parity_vectors(args.width, args.register_only)
+    if args.command == "parity-loopback":
+        return _parity_loopback(args.width, args.register_only, args.target_max_width)
+    if args.command == "parity-verify":
+        return _parity_verify(args.path)
     if args.command == "glyph":
         return _show_glyphs(args.word)
     if args.command == "corpus-validate":

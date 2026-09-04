@@ -47,10 +47,13 @@ Deterministic native geometry <------ frozen corpus geometry profile
 Frontend / physical control surface
       |
       v
-Physical hardware parity boundary
+Transport-neutral parity harness <------ golden vectors
+      |
+      v
+Physical ternary subsystem
 ```
 
-The arithmetic core must remain independent from phenomenology, geometry, and rendering. Corpus-derived ideas are allowed to shape interface semantics and representation, but not redefine arithmetic correctness.
+The arithmetic core must remain independent from phenomenology, geometry, rendering, and transport. Corpus-derived ideas are allowed to shape interface semantics and representation, but not redefine arithmetic correctness. Hardware becomes authoritative only after conformance against the reference model.
 
 ## 3. Reference machine
 
@@ -86,7 +89,7 @@ The target 12-trit format remains:
 [ opcode:3 ][ reg A:2 ][ reg B:2 ][ immediate/relative:5 ]
 ```
 
-but this is still a target, not yet a normative encoding table. The v0.7 semantic compiler now gives Issue #2 a real lowering boundary to review, but first-hardware constraints still need to be considered before freezing copper-level words.
+but this is still a target, not yet a normative encoding table. The semantic compiler gives Issue #2 a real lowering boundary to review, and the parity harness now gives first hardware a conformance boundary. Physical instruction words should be frozen only after those constraints are reviewed together.
 
 ## 4. Toolchain layer
 
@@ -103,7 +106,8 @@ The toolchain currently provides:
 - deterministic render-state export;
 - deterministic native-geometry export and geometry deltas;
 - frozen corpus validation and delta inspection;
-- State Weave lowering and supported-form introspection.
+- State Weave lowering and supported-form introspection;
+- hardware parity vector export, loopback conformance, and report verification.
 
 Text assembly is an engineering interface, not the intended final native operator interface.
 
@@ -228,9 +232,9 @@ State Weave
 
 The system must never silently collapse a participant's interpretation into an established external cause or silently collapse native semantic identity into hidden register choices.
 
-## 10. Determinism and parity
+## 10. Determinism
 
-The reference machine exposes deterministic snapshots and a SHA-256 state digest. Semantic lowerings, render state, corpus snapshots, geometry profiles, geometry scenes, and transition traces also expose deterministic canonical serialization and content digests where applicable.
+The reference machine exposes deterministic snapshots and a SHA-256 state digest. Semantic lowerings, render state, corpus snapshots, geometry profiles, geometry scenes, transition traces, parity vectors, and parity reports also expose deterministic canonical serialization and content digests where applicable.
 
 These digests are intended for:
 
@@ -241,13 +245,47 @@ These digests are intended for:
 - emulator-versus-hardware parity;
 - differential testing across implementations.
 
-A physical subsystem is conformant only if it reproduces the reference model's externally observable state for the same inputs and test vectors.
+## 11. Physical parity boundary
 
-## 11. Operating modes
+Physical TD-1 hardware is admitted through a transport-neutral conformance layer.
+
+The v1 parity contracts are:
+
+- `td1.parity-capabilities`;
+- `td1.parity-request`;
+- `td1.parity-response`;
+- `td1.parity-report`.
+
+A target advertises supported operations, protocol versions, maximum slice width, and optional telemetry keys before testing begins.
+
+The initial parity operation surface is:
+
+- `trit_hold`;
+- `register_load`;
+- `negate`;
+- `add`;
+- `sub`.
+
+The first hardware campaign uses only `trit_hold` and register-slice loads. ALU vectors exist as a future oracle but do not imply that physical ALU hardware is available.
+
+Every successful response carries an observed ternary value and a deterministic slice-state digest. The harness distinguishes:
+
+- capability rejection;
+- transport/device fault;
+- timeout;
+- protocol error;
+- observed-value mismatch;
+- observed-state digest mismatch.
+
+The physical link itself is outside the parity semantics. UART, USB, GPIO, Ethernet, or another transport can be implemented later as an adapter.
+
+A board earns wider or more complex capability only after its narrower conformance campaign passes. A physical subsystem may replace its emulated counterpart only after conformance reports demonstrate parity against the reference vectors.
+
+## 12. Operating modes
 
 ### Engineering Mode
 
-Human-readable diagnostics: registers, instruction pointer, semantic IR, lowering artifacts, corpus provenance, observer state, geometry provenance, hardware parity status.
+Human-readable diagnostics: registers, instruction pointer, semantic IR, lowering artifacts, corpus provenance, observer state, geometry provenance, and hardware parity status.
 
 ### Relic Mode
 
@@ -257,8 +295,8 @@ The exact same underlying state expressed using native TD-1 geometry and interac
 
 Traceability view explaining which versioned source observations contributed to a requirement or corpus-backed geometry rule.
 
-## 12. Primary engineering rule
+## 13. Primary engineering rule
 
-**No decorative weirdness and no semantic hand-waving.**
+**No decorative weirdness, no semantic hand-waving, and no hardware exceptionalism.**
 
-Every glyph, transition, braid, pulse, depth change, topology change, apparent motion, or executable semantic mapping must eventually map to explicit state, a measured event, a documented interface affordance, or a versioned compiler rule.
+Every glyph, transition, braid, pulse, depth change, topology change, apparent motion, executable semantic mapping, or claimed hardware capability must eventually map to explicit state, a measured event, a documented interface affordance, a versioned compiler rule, or a passing conformance record.
