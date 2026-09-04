@@ -138,6 +138,8 @@ class StreamParityLineIO:
             remaining = frame[offset:]
             try:
                 written = self._writer.write(remaining)
+            except ParityStreamError:
+                raise
             except Exception as exc:
                 raise ParityStreamWriteError("underlying stream write failed") from exc
             if type(written) is not int:
@@ -153,6 +155,8 @@ class StreamParityLineIO:
         if callable(flush):
             try:
                 flush()
+            except ParityStreamError:
+                raise
             except Exception as exc:
                 raise ParityStreamWriteError("underlying stream flush failed") from exc
         self._frames_written += 1
@@ -184,6 +188,8 @@ class StreamParityLineIO:
             request_size = min(self._read_chunk_bytes, max(1, remaining_capacity))
             try:
                 chunk = self._reader.read(request_size)
+            except ParityStreamError:
+                raise
             except Exception as exc:
                 raise ParityStreamReadError("underlying stream read failed") from exc
             if not isinstance(chunk, bytes):
