@@ -194,11 +194,13 @@ def open_pyserial_stream(
     """Open one configured serial port and return the generic binary-stream wrapper."""
     module = _load_pyserial() if serial_module is None else serial_module
     try:
-        serial_factory = getattr(module, "Serial")
-        serial_exception = getattr(module, "SerialException")
-        serial_timeout_exception = getattr(module, "SerialTimeoutException")
+        serial_factory = module.Serial
+        serial_exception = module.SerialException
+        serial_timeout_exception = module.SerialTimeoutException
     except AttributeError as exc:
-        raise ParitySerialDependencyError("pyserial module is missing required API members") from exc
+        raise ParitySerialDependencyError(
+            "pyserial module is missing required API members"
+        ) from exc
 
     try:
         port = serial_factory(
