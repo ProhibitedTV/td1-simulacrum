@@ -1,140 +1,110 @@
 # TD-1 Simulacrum Roadmap
 
-This roadmap is deliberately milestone-driven rather than date-driven.
+This roadmap is milestone-driven rather than date-driven. Software maturity does not freeze physical design choices that still require bench evidence.
 
 ## M0 — Reference core
 
 Status: **implemented / stabilizing**
 
+Implemented:
 - balanced-ternary arithmetic;
 - 12-trit words;
 - 9-register / 729-word machine;
 - logical ISA;
-- deterministic snapshots;
-- state digest;
+- deterministic snapshots and full machine-state digest;
 - tests and CI.
 
-Exit criterion: repeated deterministic execution with no known semantic ambiguity in the logical ISA.
+Exit criterion: deterministic execution with no known semantic ambiguity in the logical ISA.
 
 ## M1 — Engineering toolchain
 
-Status: **deterministic trace foundation implemented**
+Status: **trace + checkpoint foundation implemented**
 
 Implemented:
-- text assembler/disassembler;
-- labels and relative branches;
-- CLI;
-- executable examples;
-- expanded negative-path tests;
-- versioned `td1.execution-trace` schema;
-- logical-program semantic fingerprints;
-- per-instruction machine digest chain;
-- register and memory deltas;
+- text assembler/disassembler, labels, relative branches, CLI, and examples;
+- versioned `td1.execution-trace` with logical-program fingerprints;
+- per-instruction machine digest chain plus register/memory deltas;
 - deterministic trace replay verification;
+- versioned renderer-independent `td1.machine-state` checkpoints;
+- explicit architecture metadata: word width, register count, and memory size;
+- exact register state plus sparse nonzero memory persistence;
+- canonical checkpoint JSON and SHA-256 digests;
+- strict restore-time validation against the existing complete emulator machine digest;
+- intermediate checkpoint/resume with final-state equivalence to uninterrupted execution;
+- explicit `RenderState -> MachineState` bridge that copies machine truth only;
+- CLI checkpoint emit / verify / resume commands;
 - deterministic register and ALU golden parity vectors.
 
 Next:
-- versioned standalone machine-state serialization independent from renderer contracts;
-- trace export/package suitable for physical parity sessions;
-- versioned program image format only after first-hardware constraints are available.
+- trace-to-parity campaign packaging;
+- checkpoint-aware physical differential testing;
+- versioned program image format after first-hardware constraints are available;
+- optional compact/binary persistence only after the audit-first JSON schemas stabilize.
+
+`td1.machine-state` is not a program-image format and does not freeze Issue #2.
 
 ## M2 — Native representation
 
 Status: **native geometry + transition + morph planning + reference rendering + standalone browser playback implemented**
 
 Implemented:
-- 27-state microglyph IDs;
-- reversible word-to-microglyph mapping;
-- semantic roots;
-- State Weave v1 IR;
-- versioned `td1.render-state` schema;
-- deterministic Engineering/Relic projections;
-- exact register and sparse-memory reconstruction;
-- shared source digest across modes;
-- golden render-state fixture;
-- quantized Observer Continuity render contract;
-- versioned `td1.geometry-scene` schema;
-- integer axial triangular lattice coordinates plus discrete depth;
-- unique reversible geometry for all 27 microglyph states;
-- deterministic four-glyph 12-trit word structures;
-- State Weave topology with ternary terminal semantics;
-- corpus-backed lattice/depth/multiscale/braiding admission rules;
-- per-rule source provenance and geometry-profile digests;
-- CLI geometry export and golden microglyph geometry fixture;
-- versioned `td1.geometry-delta` schema;
-- stable-ID appear/disappear/move/topology/metadata classifications;
-- source scene/render digest preservation across geometry deltas;
-- deterministic `td1.svg-render` reference renderer consuming only geometry scenes;
-- integer axial/depth projection with stable SVG primitive IDs;
-- Relic and Engineering themes with geometry-equivalence tests;
-- zero-display-text Relic output by default;
-- embedded scene/render/machine/profile provenance metadata;
-- XML-safe identifiers/labels and deterministic SVG byte digests;
-- CLI SVG output to stdout or files;
-- versioned `td1.relic-timeline` joining execution events to exact render/geometry frames;
-- frame zero plus one deterministic frame per real execution event;
-- per-frame machine/render/scene digests and event identity;
-- deterministic geometry delta on every noninitial frame;
-- replay-time machine-digest verification against `td1.execution-trace`;
-- timeline deserialization that rebuilds geometry and revalidates every adjacent delta;
-- deterministic `td1.timeline-svg-manifest` plus exact SVG frame sequence export;
-- versioned `td1.morph-plan` transition intent for all geometry-delta change kinds;
-- exact `(dq, dr, dz)` vectors for true native-geometry translations;
-- conservative endpoint-only strategies when no temporal motif is admitted;
-- source-traceable corpus hints for morphing, context persistence, focus-through, and axial motion;
-- explicit project-convention labeling for q/r horizontal/vertical motif mappings;
-- strict morph-plan reconstruction that rejects rule/descriptor/digest drift;
-- versioned `td1.timeline-morph-manifest` with one morph plan per noninitial timeline frame;
-- CLI scene-pair and timeline-wide morph-plan export;
-- versioned `td1.relic-player-config` for presentation-only timing/easing/projection choices;
-- versioned `td1.relic-player-artifact` manifest with canonical timeline/morph payload digests;
-- self-contained dependency-free browser player compiled to a single HTML artifact;
-- browser-side SHA-256 verification of embedded canonical payloads before playback;
-- Python-side artifact verification that regenerates deterministic timeline morph plans;
-- direct SVG DOM rendering from exact `GeometryScene` primitives;
-- projection parity with the reference SVG renderer;
-- morph-descriptor-driven enter/exit/translate/reform/retag presentation;
-- no animated motion for primitives absent from a morph descriptor;
-- hard reconciliation to the authoritative target scene after every animated adjacent transition;
-- explicit Engineering and provenance diagnostics outside the zero-text Relic canvas;
-- CI syntax gating for the packaged vanilla JavaScript player.
+- reversible 27-state microglyph mapping;
+- State Weave semantic IR and typed operand lowering;
+- versioned `td1.render-state` with deterministic Engineering/Relic projections;
+- versioned `td1.geometry-scene` on an integer axial triangular lattice plus depth;
+- reversible geometry for all 27 microglyph states;
+- deterministic register, memory, control, and State Weave geometry;
+- corpus-admitted lattice/depth/multiscale/braiding rules with source provenance;
+- versioned `td1.geometry-delta` stable-ID transition classification;
+- deterministic `td1.svg-render` reference renderer;
+- versioned `td1.relic-timeline` with one exact frame per execution event;
+- versioned `td1.morph-plan` and timeline-wide morph manifests;
+- exact `(dq, dr, dz)` translation vectors for real moves;
+- conservative endpoint-only behavior without admitted temporal evidence;
+- source-traceable temporal presentation hints where admitted;
+- versioned `td1.relic-player-config` and `td1.relic-player-artifact`;
+- dependency-free standalone browser player;
+- browser-side SHA-256 verification of embedded canonical payloads;
+- Python-side artifact verification that regenerates deterministic morph plans;
+- projection parity with the SVG reference renderer;
+- hard reconciliation to exact authoritative endpoint geometry after every animation;
+- zero-text Relic canvas with explicit Engineering/provenance diagnostics;
+- Node syntax gating for the packaged browser runtime.
 
 Next:
 - first interactive Relic Mode semantic control surface while preserving endpoint authority;
-- optional WebGL renderer tested against SVG/native-geometry projection and topology parity;
-- corpus-derived temporal experiments that remain explicit presentation constraints;
-- storage-efficient timeline/event/morph packaging after the audit-first schemas stabilize;
-- broader artifact/browser compatibility tests if the player surface expands.
+- optional WebGL renderer proven equivalent to native/SVG geometry contracts;
+- storage-efficient timeline/morph packaging;
+- broader browser compatibility tests as the player surface expands.
 
 ## M3 — Corpus pipeline
 
 Status: **frozen snapshot foundation implemented**
 
 Implemented:
-- source-record observation/interpretation separation;
+- source observation / interpretation separation;
 - requirement-trace model;
 - versioned `VB-TD1-*` snapshot schema;
-- deterministic canonical serialization and snapshot digests;
-- explicit Veilbreak export field mapping;
-- versioned motif annotations with annotation-method provenance;
-- strict source -> motif -> requirement trace export;
-- source/annotation/motif snapshot deltas;
-- offline synthetic fixtures independent of live network content.
+- canonical serialization and snapshot digests;
+- explicit Veilbreak field mapping;
+- motif annotations with annotation-method provenance;
+- strict source -> motif -> requirement tracing;
+- offline synthetic fixtures.
 
 Next:
 - bind the adapter to a reviewed real public Veilbreak export/API schema;
-- freeze the first real `VB-TD1-*` corpus baseline;
+- freeze the first genuine `VB-TD1-*` baseline;
 - model-assisted motif candidate extraction with human review;
-- corpus-backed interface requirement files;
-- design-delta reports linked to TD-1 interface revisions.
+- corpus-backed interface requirement files and design-delta reports.
 
 ## M4 — Observer Continuity
 
 Status: **terrestrial groundwork implemented**
 
+Implemented:
 - WGS-84 geodetic -> ECEF;
 - UTC Julian Date;
-- approximate Earth Rotation Angle;
+- explicitly approximate Earth Rotation Angle;
 - quantized render-state projection.
 
 Next:
@@ -150,22 +120,21 @@ Next:
 Status: **transport-neutral conformance foundation implemented**
 
 Implemented:
-- transport-neutral capability advertisement;
-- versioned parity request/response schemas;
+- capability advertisement;
+- versioned parity request/response/report schemas;
 - deterministic ternary slice-state digests;
 - register/trit and ALU golden vectors;
-- explicit `ok`, `unsupported`, `fault`, `timeout`, and `error` statuses;
+- explicit `ok`, `unsupported`, `fault`, `timeout`, and `error` outcomes;
 - capability-gated conformance sessions;
-- replayable `td1.parity-report` logs with deterministic pass/fail evaluation;
-- reference loopback target with fault, width, and observed-value injection;
-- CLI vector export, loopback conformance, and report verification;
-- first campaign scoped to `trit_hold` followed by register-slice loads.
+- replayable conformance reports;
+- reference loopback target;
+- first campaign scoped to `trit_hold` then register-slice loads.
 
 Next:
 - first real one-trit hardware adapter;
-- voltage/settling/comparator telemetry schema convention;
+- voltage/settling/comparator telemetry convention;
 - multi-trit register-slice adapter;
-- connect execution traces to physical conformance sessions;
+- connect execution traces and machine checkpoints to physical conformance sessions;
 - ALU-board conformance after register-slice success;
 - physical subsystem replacement gate in the emulator runtime.
 
@@ -177,35 +146,34 @@ Status: **typed lowering foundation implemented**
 
 Implemented:
 - semantic roots and canonical State Weave identity;
-- State Weave v1 semantic IR;
 - explicit `OperandBindings` separated from semantic identity;
-- versioned `td1.semantic-lowering` artifacts and digests;
+- versioned semantic-lowering artifacts and digests;
 - project-defined v1 lowering forms for halt, negate, compare, memory read, and memory write;
 - strict unsupported-weave versus invalid-binding failure modes;
 - compiler introspection and CLI lowering commands;
-- round-trip recompilation checks that reject serialized lowering drift.
+- round-trip recompilation checks.
 
 Next:
 - compound multi-root semantic forms;
-- multi-instruction lowering plans and temporary allocation;
+- temporary allocation and multi-instruction lowering plans;
 - Observer Continuity semantic operations;
 - branch/control-flow semantic forms;
 - geometric control surface;
 - sober usability studies;
 - corpus-derived versus control-interface A/B tests.
 
-The first semantic/compiler prerequisite for Issue #2 is implemented. Physical instruction encoding still waits for first-hardware constraints and explicit encoding review; v0.12 browser work does not change that gate.
+The semantic/compiler prerequisite for Issue #2 is implemented. Physical instruction encoding still waits for first-hardware constraints and explicit encoding review.
 
 ## Non-goals for early revisions
 
-- pretending phenomenology establishes ontology;
-- hiding conventional compute behind a decorative UI;
-- freezing exotic hardware before the reference model is stable;
+- treating phenomenology as proof of ontology;
+- hiding conventional compute behind decorative weirdness;
+- freezing physical instruction encoding before hardware measurements exist;
 - claiming navigation-grade accuracy before the timing/reference stack earns it;
-- inventing animation activity that is not grounded in traced state changes;
-- assigning fake executable meanings to unsupported State Weaves for the sake of completeness;
+- inventing animation activity not grounded in traced state changes;
+- fabricating executable meanings for unsupported State Weaves;
 - treating a physical board as authoritative before deterministic parity passes;
-- allowing a renderer to infer state that is absent from the native geometry scene;
-- allowing playback timing or interpolation to fabricate intermediate machine states;
-- allowing corpus-inspired morph hints to lose source provenance or become machine semantics;
-- allowing accumulated browser animation state to replace an exact authoritative timeline endpoint.
+- allowing renderer/browser state to become machine truth;
+- allowing presentation timing/interpolation to fabricate machine state;
+- allowing corpus-derived hints to lose provenance or become arithmetic semantics;
+- using `td1.render-state` as the long-term persistence format for logical machine execution.
