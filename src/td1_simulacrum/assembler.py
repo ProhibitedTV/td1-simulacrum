@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .machine import Instruction, Op, REGISTER_COUNT
+from .machine import REGISTER_COUNT, Instruction, Op
 
 _LABEL_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _REGISTER_RE = re.compile(r"^[Rr](\d+)$")
