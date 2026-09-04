@@ -160,8 +160,8 @@ from .render_state import (
 )
 from .semantic import Modifier, SemanticIR, SemanticRoot, StateWeave
 from .serial_adapter import (
-    ParitySerialCloseError,
     ParitySerialClosedError,
+    ParitySerialCloseError,
     ParitySerialDependencyError,
     ParitySerialError,
     ParitySerialReadError,
