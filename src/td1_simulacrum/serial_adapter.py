@@ -8,6 +8,7 @@ enter TD-1 parity, wire, transcript, or machine-state semantics.
 from __future__ import annotations
 
 import importlib
+import math
 from dataclasses import dataclass
 from types import ModuleType
 from typing import Protocol
@@ -61,14 +62,14 @@ class SerialConfig:
     write_timeout_s: float
 
     def __post_init__(self) -> None:
-        if not self.port.strip():
+        if not isinstance(self.port, str) or not self.port.strip():
             raise ValueError("serial port must not be empty")
         if type(self.baudrate) is not int or self.baudrate <= 0:
             raise ValueError("serial baudrate must be a positive integer")
-        if self.read_timeout_s <= 0:
-            raise ValueError("serial read_timeout_s must be positive")
-        if self.write_timeout_s <= 0:
-            raise ValueError("serial write_timeout_s must be positive")
+        if not _positive_finite_number(self.read_timeout_s):
+            raise ValueError("serial read_timeout_s must be a positive finite number")
+        if not _positive_finite_number(self.write_timeout_s):
+            raise ValueError("serial write_timeout_s must be a positive finite number")
 
     def as_dict(self) -> dict[str, object]:
         """Return deployment settings for non-normative CLI diagnostics."""
@@ -78,6 +79,12 @@ class SerialConfig:
             "read_timeout_s": self.read_timeout_s,
             "write_timeout_s": self.write_timeout_s,
         }
+
+
+def _positive_finite_number(value: object) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    return value > 0 and math.isfinite(float(value))
 
 
 class SerialPortLike(Protocol):
@@ -159,8 +166,7 @@ class PySerialByteStream:
             self._serial_port.close()
         except self._serial_exception as exc:
             raise ParitySerialCloseError("underlying serial close failed") from exc
-        finally:
-            self._closed = True
+        self._closed = True
 
     def __enter__(self) -> "PySerialByteStream":
         self._require_open()
