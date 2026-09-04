@@ -1,6 +1,6 @@
 import pytest
-from td1_simulacrum import AssemblyError, Machine, assemble, disassemble
 
+from td1_simulacrum import AssemblyError, Machine, assemble, disassemble
 
 SUM_PROGRAM = """
 ; Sum 5 + 4 + 3 + 2 + 1
