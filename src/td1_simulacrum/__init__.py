@@ -1,6 +1,18 @@
 """TD-1 Simulacrum reference emulator."""
 
 from .assembler import AssemblyError, assemble, disassemble
+from .campaign import (
+    CAMPAIGN_RUN_SCHEMA,
+    CAMPAIGN_RUN_SCHEMA_VERSION,
+    CAMPAIGN_SCHEMA,
+    CAMPAIGN_SCHEMA_VERSION,
+    ParityCampaign,
+    ParityCampaignError,
+    ParityCampaignRun,
+    TraceParityEntry,
+    build_parity_campaign,
+    run_parity_campaign,
+)
 from .corpus import (
     CORPUS_SCHEMA,
     CORPUS_SCHEMA_VERSION,
@@ -202,6 +214,10 @@ __all__ = [
     "AppliedGeometryRule",
     "AppliedMorphRule",
     "AssemblyError",
+    "CAMPAIGN_RUN_SCHEMA",
+    "CAMPAIGN_RUN_SCHEMA_VERSION",
+    "CAMPAIGN_SCHEMA",
+    "CAMPAIGN_SCHEMA_VERSION",
     "CAPABILITY_SCHEMA",
     "CAPABILITY_SCHEMA_VERSION",
     "CORPUS_SCHEMA",
@@ -268,6 +284,9 @@ __all__ = [
     "PLAYER_SOURCE_VERSION",
     "PLAYER_STATE_INTERPOLATION_POLICY",
     "PLAYER_UNCHANGED_POLICY",
+    "ParityCampaign",
+    "ParityCampaignError",
+    "ParityCampaignRun",
     "ParityCapabilities",
     "ParityError",
     "ParityExchangeRecord",
@@ -332,12 +351,14 @@ __all__ = [
     "TimelineSVGEntry",
     "TimelineSVGManifest",
     "TraceError",
+    "TraceParityEntry",
     "UnsupportedWeaveError",
     "VeilbreakExportAdapter",
     "VeilbreakFieldMap",
     "assemble",
     "build_geometry_scene",
     "build_morph_plan",
+    "build_parity_campaign",
     "build_relic_player_artifact",
     "build_relic_timeline",
     "build_timeline_morph_manifest",
@@ -364,6 +385,7 @@ __all__ = [
     "render_timeline_svgs",
     "representable_range",
     "run_conformance",
+    "run_parity_campaign",
     "supported_lowerings",
     "supports_weave",
     "ternary_state_digest",
@@ -377,4 +399,4 @@ __all__ = [
     "wrap_int",
 ]
 
-__version__ = "0.13.0a0"
+__version__ = "0.14.0a0"
