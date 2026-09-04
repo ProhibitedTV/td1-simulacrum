@@ -38,11 +38,25 @@ Glyph / State Weave -> semantic IR -> typed lowering
                                  |                       |
                                  |                       v
                                  |                td1.parity-wire
-                                 |                   /       \
-                                 |                  v         v
-                                 |       wire transcript   physical adapter
-                                 |                  |         |
-                                 |                  +----+----+
+                                 |                       |
+                                 |                       v
+                                 |            RecordingParityLineIO
+                                 |                       |
+                                 |                       v
+                                 |              StreamParityLineIO
+                                 |                       |
+                                 |                       v
+                                 |               binary byte stream
+                                 |                       |
+                                 |                       v
+                                 |                physical adapter
+                                 |                       |
+                                 |             +---------+---------+
+                                 |             |                   |
+                                 |             v                   v
+                                 |      wire transcript   td1.parity-response
+                                 |             |                   |
+                                 |             +---------+---------+
                                  |                       |
                                  |                       v
                                  |            td1.parity-campaign-run
@@ -69,7 +83,7 @@ Glyph / State Weave -> semantic IR -> typed lowering
                           standalone Relic player
 ```
 
-The arithmetic core remains independent from phenomenology, rendering, playback, transport framing, and transport evidence. Corpus-derived ideas may shape interface semantics or representation, but they do not redefine arithmetic correctness.
+The arithmetic core remains independent from phenomenology, rendering, playback, transport framing, byte movement, and transport evidence. Corpus-derived ideas may shape interface semantics or representation, but they do not redefine arithmetic correctness.
 
 The authority rules are:
 
@@ -78,12 +92,13 @@ The authority rules are:
 3. execution traces record logical transitions without freezing physical encoding;
 4. parity campaigns derive only subsystem operations faithfully representable by the parity surface;
 5. `td1.parity-wire` transports existing parity contracts but does not redefine them;
-6. wire transcripts preserve exact transport evidence but do not become arithmetic or machine truth;
-7. bench-run bundles bind campaign/report truth to exact wire evidence without claiming device authorship;
-8. render state may describe machine truth plus presentation inputs, but is not persistence authority;
-9. geometry is derived from validated render state;
-10. animation consumes exact geometry transitions and may not invent machine endpoints;
-11. physical hardware becomes authoritative only after deterministic parity testing.
+6. `StreamParityLineIO` moves and buffers bytes but does not interpret parity semantics;
+7. wire transcripts preserve exact transport evidence but do not become arithmetic or machine truth;
+8. bench-run bundles bind campaign/report truth to exact wire evidence without claiming device authorship;
+9. render state may describe machine truth plus presentation inputs, but is not persistence authority;
+10. geometry is derived from validated render state;
+11. animation consumes exact geometry transitions and may not invent machine endpoints;
+12. physical hardware becomes authoritative only after deterministic parity testing.
 
 ## 3. Reference machine
 
@@ -121,7 +136,7 @@ The current target layout remains:
 
 This is a design target, not a normative physical encoding table. Issue #2 remains intentionally deferred until semantic-lowering constraints and first-hardware measurements can be reviewed together.
 
-Neither browser maturity, checkpoint persistence, trace-derived parity campaigns, parity wire framing, nor wire transcripts relax that gate. Campaigns and wire artifacts contain subsystem operands/results and transport evidence, not physical instruction words.
+Neither browser maturity, checkpoint persistence, trace-derived parity campaigns, parity wire framing, stream transport, nor wire transcripts relax that gate. Campaigns and wire artifacts contain subsystem operands/results and transport evidence, not physical instruction words.
 
 ## 4. Standalone machine-state persistence
 
@@ -129,7 +144,7 @@ Neither browser maturity, checkpoint persistence, trace-derived parity campaigns
 
 Schema v1 records architecture invariants, instruction pointer, ternary condition, halted state, step count, all registers, exact sparse nonzero memory, and the complete existing emulator machine-state digest.
 
-It deliberately excludes glyphs, Observer Continuity, State Weaves, geometry, corpus provenance, browser state, transport framing/evidence, and physical instruction encoding.
+It deliberately excludes glyphs, Observer Continuity, State Weaves, geometry, corpus provenance, browser state, transport framing/evidence, stream diagnostics, and physical instruction encoding.
 
 A checkpoint is accepted only if reconstructing a real `Machine` reproduces the claimed complete machine digest. Canonical checkpoint JSON has its own SHA-256 distinct from the reconstructed machine digest.
 
@@ -149,6 +164,7 @@ Current surfaces include:
 - transport-neutral conformance reports;
 - canonical parity wire framing and in-memory wire integration tests;
 - exact wire recording/replay and linked bench-evidence bundles;
+- stream-backed `ParityLineIO` over ordinary binary reader/writer objects;
 - standalone Relic artifact verification.
 
 Text assembly is an engineering interface, not the intended final native operator interface.
@@ -288,7 +304,44 @@ The v1 bench telemetry conventions are `voltage_uv`, `settle_us`, `comparator_co
 
 The wire protocol does not define connector pinout, baud rate, voltage thresholds, sample cadence, hysteresis, calibration, or instruction encoding.
 
-## 11. Wire transcripts and bench evidence
+## 11. Stream-backed line-I/O boundary
+
+`StreamParityLineIO` implements `ParityLineIO` over ordinary binary streams while remaining below canonical wire semantics.
+
+Its structural interfaces are intentionally small:
+
+```text
+BinaryByteReader.read(size) -> bytes
+BinaryByteWriter.write(data) -> int | None
+BinaryByteStream = reader + writer
+```
+
+The adapter may receive one duplex stream or separate reader/writer objects. It completes partial writes, buffers fragmented reads, preserves bytes from coalesced later frames, and enforces the existing parity-wire maximum frame size before unbounded buffering can occur.
+
+It distinguishes empty EOF, partial-frame EOF, invalid stream return values, zero write progress, oversized lines, and underlying read/write/flush failures with adapter-specific exceptions.
+
+`StreamParityStats` exposes deterministic bytes-read, bytes-written, frames-read, frames-written, and buffered-byte counters. It intentionally contains no wall-clock timestamps, throughput estimates, or latency semantics.
+
+`StreamParityLineIO` does not parse JSON or validate canonical framing. `JsonLineParityTransport` / `decode_wire_frame()` continue to own those rules.
+
+The preferred composition is:
+
+```text
+JsonLineParityTransport
+        |
+        v
+RecordingParityLineIO
+        |
+        v
+StreamParityLineIO
+        |
+        v
+binary UART / USB CDC / other stream later
+```
+
+See [`STREAM_LINE_IO.md`](STREAM_LINE_IO.md) and ADR 0017.
+
+## 12. Wire transcripts and bench evidence
 
 `td1.parity-wire-transcript` preserves the exact canonical line traffic observed at `ParityLineIO`.
 
@@ -304,7 +357,7 @@ Each `WireTranscriptRecord` contains:
 
 Every saved frame is revalidated through `decode_wire_frame()`. Completed transcripts require alternating request/response pairs, matching correlations, and matching request/response message classes.
 
-`RecordingParityLineIO` wraps any line channel and captures successful traffic without changing wire semantics. `ReplayParityLineIO` requires future host writes to match the saved request bytes exactly and returns the saved response bytes in order; replay must consume the complete transcript.
+`RecordingParityLineIO` wraps any line channel, including `StreamParityLineIO`, and captures successful traffic without changing wire semantics. `ReplayParityLineIO` requires future host writes to match the saved request bytes exactly and returns the saved response bytes in order; replay must consume the complete transcript.
 
 `transcript_for_report()` deterministically reconstructs the canonical wire conversation implied by a `td1.parity-report`. Capability-rejected vectors correctly produce no device exchange because they never reached `ParityTransport.exchange()`.
 
@@ -312,7 +365,7 @@ Every saved frame is revalidated through `decode_wire_frame()`. Completed transc
 
 Transcript SHA-256 values are integrity fingerprints, not hardware signatures. No normative wall-clock timestamp is included in transcript v1.
 
-## 12. Relic timelines, morphs, and browser playback
+## 13. Relic timelines, morphs, and browser playback
 
 `td1.relic-timeline` joins execution events to exact render/geometry frames. Frame zero is pre-execution state; each later frame corresponds to one logical event.
 
@@ -330,13 +383,13 @@ state_interpolation_policy = forbidden/v1
 
 Transient browser animation state is discarded at every completed transition and the exact target geometry scene is rebuilt.
 
-## 13. Observer Continuity
+## 14. Observer Continuity
 
 Current groundwork includes timezone-aware UTC timestamp, WGS-84 geodetic -> ECEF conversion, UTC Julian Date, and explicitly approximate Earth Rotation Angle.
 
 Precision navigation will require explicit time scales, Earth-orientation data, ephemerides, sensor covariance, and uncertainty contracts.
 
-## 14. Provenance and determinism
+## 15. Provenance and determinism
 
 Major provenance chains remain separate:
 
@@ -347,7 +400,13 @@ State Weave -> OperandBindings -> logical instructions -> execution trace
 
 Machine -> td1.machine-state -> restore Machine -> identical machine digest
 
-execution trace -> td1.parity-campaign -> ParityTransport -> td1.parity-wire -> target
+execution trace -> td1.parity-campaign -> ParityTransport -> td1.parity-wire
+                                           |                   |
+                                           |                   v
+                                           |          StreamParityLineIO
+                                           |                   |
+                                           |                   v
+                                           |                 target
                                            |                   |
                                            |                   v
                                            |          exact wire transcript
@@ -363,7 +422,7 @@ execution trace -> render -> geometry -> timeline/morphs -> browser -> exact end
 
 Reference artifacts expose canonical serialization and digests where applicable. Those digests support regression, replay, integrity, differential testing, and emulator/hardware comparison. They are not authorship signatures unless explicitly stated otherwise.
 
-## 15. Physical parity boundary
+## 16. Physical parity boundary
 
 Current parity operations are:
 
@@ -375,15 +434,15 @@ Current parity operations are:
 
 Targets advertise supported operations and maximum width before testing. The harness distinguishes unsupported capability, fault, timeout, protocol error, value mismatch, and observed-state digest mismatch.
 
-The v1 wire gives those transport-neutral semantics a deterministic line-framed byte representation without selecting the final physical link. The v1 transcript layer can preserve and replay the resulting exact conversation without changing those semantics. UART, USB CDC, or another `ParityLineIO` implementation may be added later.
+The v1 wire gives those transport-neutral semantics a deterministic line-framed byte representation. The stream adapter gives that line interface a concrete binary-stream implementation without choosing pyserial or physical link parameters. The transcript layer can preserve and replay the resulting exact conversation without changing those semantics.
 
-A physical subsystem may replace an emulated counterpart only after conformance demonstrates parity against the reference model. A transcript strengthens the audit trail; it does not lower that bar.
+A physical subsystem may replace an emulated counterpart only after conformance demonstrates parity against the reference model. A transcript strengthens the audit trail; stream statistics help debug transport; neither lowers that bar.
 
-## 16. Operating modes
+## 17. Operating modes
 
 ### Engineering Mode
 
-Human-readable diagnostics include machine/checkpoint digests, execution/campaign provenance, semantic lowering, corpus provenance, geometry/timeline/morph identity, player verification, wire/telemetry/transcript diagnostics, bench-bundle identity, and hardware parity status.
+Human-readable diagnostics include machine/checkpoint digests, execution/campaign provenance, semantic lowering, corpus provenance, geometry/timeline/morph identity, player verification, wire/telemetry/transcript diagnostics, stream adapter counters, bench-bundle identity, and hardware parity status.
 
 ### Relic Mode
 
@@ -393,8 +452,8 @@ The same underlying machine-derived state expressed with native TD-1 geometry an
 
 Traceability view explaining which versioned observations contributed to interface requirements, geometry rules, or eligible temporal presentation hints.
 
-## 17. Primary engineering rule
+## 18. Primary engineering rule
 
-**No decorative weirdness, no semantic hand-waving, no persistence exceptionalism, no renderer exceptionalism, no playback exceptionalism, no campaign exceptionalism, no wire exceptionalism, no transcript exceptionalism, and no hardware exceptionalism.**
+**No decorative weirdness, no semantic hand-waving, no persistence exceptionalism, no renderer exceptionalism, no playback exceptionalism, no campaign exceptionalism, no wire exceptionalism, no stream-adapter exceptionalism, no transcript exceptionalism, and no hardware exceptionalism.**
 
-Every glyph, semantic mapping, checkpoint, execution transition, campaign vector, wire frame, transcript record, visible primitive, browser animation, or claimed hardware capability must map to explicit state, a measured event, a documented engineering convention, a versioned rule, or a passing conformance record.
+Every glyph, semantic mapping, checkpoint, execution transition, campaign vector, wire frame, stream adapter claim, transcript record, visible primitive, browser animation, or claimed hardware capability must map to explicit state, a measured event, a documented engineering convention, a versioned rule, or a passing conformance record.
