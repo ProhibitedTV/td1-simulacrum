@@ -20,13 +20,14 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - the deterministic Engineering/Relic render-state runtime;
 - the renderer-independent native geometry contract used by future visual and physical interfaces;
 - the replayable transition source for future Relic Mode motion and hardware differential testing;
+- the deterministic SVG reference renderer for visible native geometry;
 - the transport-neutral conformance harness that physical ternary hardware must pass before replacing emulation.
 
 The long-term target is **hardware parity**: physical TD-1 subsystems should progressively replace emulated subsystems while preserving identical externally observable state.
 
 ## Current capabilities
 
-The v0.8 pre-alpha foundation includes:
+The v0.9 pre-alpha foundation includes:
 
 - balanced ternary conversion and fixed-width arithmetic;
 - a deterministic 12-trit, 9-register, 729-word logical machine;
@@ -53,6 +54,10 @@ The v0.8 pre-alpha foundation includes:
 - versioned `td1.execution-trace` with logical program fingerprints and digest-chained events;
 - deterministic trace replay with exact register and memory deltas;
 - versioned `td1.geometry-delta` with stable-ID transition classifications;
+- deterministic `td1.svg-render` output consuming only validated native geometry;
+- integer axial/depth SVG projection with embedded scene/render/machine provenance;
+- zero-display-text Relic SVG by default and geometry-equivalent Engineering labels;
+- XML-safe stable IDs and byte-deterministic SVG artifact digests;
 - transport-neutral hardware capability/request/response/report schemas;
 - deterministic trit/register and ALU golden vectors;
 - explicit hardware `ok`, `unsupported`, `fault`, `timeout`, and `error` outcomes;
@@ -149,21 +154,39 @@ The two render modes must derive from the same immutable render-state digest.
 Emit project-native fallback geometry:
 
 ```bash
-td1-sim geometry examples/sum.td1
+td1-sim geometry examples/sum.td1 > scene.json
 ```
 
 Admit geometry rules from a frozen corpus snapshot:
 
 ```bash
 td1-sim geometry examples/sum.td1 \
-  --corpus tests/fixtures/corpus_snapshot_v1.json
+  --corpus tests/fixtures/corpus_snapshot_v1.json > scene.json
 ```
 
 Include a State Weave in the geometry scene:
 
 ```bash
 td1-sim geometry examples/sum.td1 \
-  --weave 'TIME>REFERENCE:+'
+  --weave 'TIME>REFERENCE:+' > scene.json
+```
+
+Render the native scene into zero-text Relic SVG:
+
+```bash
+td1-sim svg scene.json > relic.svg
+```
+
+Render the exact same geometry in Engineering presentation:
+
+```bash
+td1-sim svg scene.json --theme engineering > engineering.svg
+```
+
+Write SVG directly to a file and print artifact/provenance digests:
+
+```bash
+td1-sim svg scene.json --output relic.svg
 ```
 
 Compare two saved geometry scenes:
@@ -234,7 +257,10 @@ native geometry scene <------ frozen corpus geometry profile
       +------> geometry delta
       |
       v
-frontend / physical control surface
+reference SVG renderer ------> visible Engineering / Relic artifact
+      |
+      v
+future interactive / physical control surface
       |
       v
 transport-neutral parity harness <------ golden vectors
@@ -258,6 +284,7 @@ physical ternary subsystem
 11. **Transitions are traced before they are animated.** A future visual effect must consume real execution or geometry change rather than fabricate activity.
 12. **Semantic identity does not hide operands.** Native operations bind concrete machine resources explicitly, and unsupported meanings remain unsupported until engineered.
 13. **Physicality is not correctness.** A board advertises only capabilities it has actually demonstrated through the parity harness.
+14. **Pixels are downstream of truth.** Visible artifacts consume native geometry and preserve its provenance rather than reconstructing state from UI code.
 
 ## Assembly example
 
@@ -280,7 +307,7 @@ HALT
 
 **Pre-alpha / architecture stabilization.**
 
-Machine truth, semantic lowering, frozen corpus provenance, native geometry, deterministic transitions, and transport-neutral physical conformance now have explicit contracts. The next major milestones are the first real one-trit hardware adapter, review of the physical program image/instruction encoding, compound State Weave lowering, corpus-backed morph descriptors, and a reference Relic Mode frontend.
+Machine truth, semantic lowering, frozen corpus provenance, native geometry, deterministic transitions, visible reference rendering, and transport-neutral physical conformance now have explicit contracts. The next major milestones are the first real one-trit hardware adapter, review of the physical program image/instruction encoding, compound State Weave lowering, corpus-backed morph descriptors, and an animated/interactive Relic Mode frontend driven by geometry deltas.
 
 See:
 
@@ -289,6 +316,7 @@ See:
 - [`docs/HARDWARE_PARITY.md`](docs/HARDWARE_PARITY.md)
 - [`docs/RENDER_STATE.md`](docs/RENDER_STATE.md)
 - [`docs/GEOMETRY.md`](docs/GEOMETRY.md)
+- [`docs/SVG_RENDERER.md`](docs/SVG_RENDERER.md)
 - [`docs/TRACE.md`](docs/TRACE.md)
 - [`docs/CORPUS_PIPELINE.md`](docs/CORPUS_PIPELINE.md)
 - [`docs/VEILBREAK_PROVENANCE.md`](docs/VEILBREAK_PROVENANCE.md)
@@ -299,6 +327,6 @@ See:
 
 TD-1 does **not** assume that DMT/Veilbreak reports establish extraterrestrial, interdimensional, or otherwise external intelligences. The project treats those reports as a structured phenomenological corpus capable of generating unconventional interface constraints and testable design hypotheses.
 
-The included corpus fixtures are synthetic test data unless explicitly documented otherwise. State Weave lowering mappings are TD-1 engineering conventions unless explicitly documented otherwise. Loopback conformance proves the host harness only; it is not evidence that physical ternary hardware has passed.
+The included corpus fixtures are synthetic test data unless explicitly documented otherwise. State Weave lowering mappings are TD-1 engineering conventions unless explicitly documented otherwise. Loopback conformance proves the host harness only; it is not evidence that physical ternary hardware has passed. SVG styling and projection are presentation conventions and are not additional evidence or machine semantics.
 
 **Human-built hardware. Exotic design provenance. Bench validation required.**
