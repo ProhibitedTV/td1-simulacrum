@@ -27,6 +27,10 @@ class TraceError(ValueError):
     """Raised when a deterministic TD-1 trace cannot be validated or replayed."""
 
 
+def _canonical_json(payload: object) -> str:
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
 @dataclass(frozen=True, slots=True)
 class RegisterDelta:
     index: int
@@ -94,7 +98,12 @@ class ExecutionEvent:
             "event_index": self.event_index,
             "machine_step": self.machine_step,
             "instruction_index": self.instruction_index,
-            "instruction": {"op": self.op, "a": self.a, "b": self.b, "imm": self.imm},
+            "instruction": {
+                "op": self.op,
+                "a": self.a,
+                "b": self.b,
+                "imm": self.imm,
+            },
             "before_digest": self.before_digest,
             "after_digest": self.after_digest,
             "ip_before": self.ip_before,
@@ -153,20 +162,22 @@ class ExecutionTrace:
             raise TraceError(f"unsupported execution trace schema {self.schema!r}")
         if self.version != TRACE_SCHEMA_VERSION:
             raise TraceError(f"unsupported execution trace schema version {self.version}")
-        if tuple(event.event_index for event in self.events) != tuple(range(len(self.events))):
+        indices = tuple(event.event_index for event in self.events)
+        if indices != tuple(range(len(self.events))):
             raise TraceError("execution event indices must be contiguous from zero")
-        if self.events:
-            if self.events[0].before_digest != self.initial_state.machine_digest:
-                raise TraceError("first event does not begin at the initial machine digest")
-            if self.events[-1].after_digest != self.final_state.machine_digest:
-                raise TraceError("last event does not end at the final machine digest")
-            for left, right in zip(self.events, self.events[1:], strict=False):
-                if left.after_digest != right.before_digest:
-                    raise TraceError("execution event digest chain is broken")
-                if left.machine_step + 1 != right.machine_step:
-                    raise TraceError("execution machine steps are not contiguous")
-        elif self.initial_state.machine_digest != self.final_state.machine_digest:
-            raise TraceError("empty trace must preserve the initial machine state")
+        if not self.events:
+            if self.initial_state.machine_digest != self.final_state.machine_digest:
+                raise TraceError("empty trace must preserve the initial machine state")
+            return
+        if self.events[0].before_digest != self.initial_state.machine_digest:
+            raise TraceError("first event does not begin at the initial machine digest")
+        if self.events[-1].after_digest != self.final_state.machine_digest:
+            raise TraceError("last event does not end at the final machine digest")
+        for left, right in zip(self.events, self.events[1:], strict=False):
+            if left.after_digest != right.before_digest:
+                raise TraceError("execution event digest chain is broken")
+            if left.machine_step + 1 != right.machine_step:
+                raise TraceError("execution machine steps are not contiguous")
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -179,7 +190,7 @@ class ExecutionTrace:
         }
 
     def canonical_json(self) -> str:
-        return json.dumps(self.as_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        return _canonical_json(self.as_dict())
 
     def digest(self) -> str:
         return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
@@ -213,11 +224,15 @@ class ExecutionTrace:
 def logical_program_digest(program: Sequence[Instruction]) -> str:
     """Fingerprint logical instruction semantics without freezing physical encoding."""
     payload = [
-        {"op": instruction.op.name, "a": instruction.a, "b": instruction.b, "imm": instruction.imm}
+        {
+            "op": instruction.op.name,
+            "a": instruction.a,
+            "b": instruction.b,
+            "imm": instruction.imm,
+        }
         for instruction in program
     ]
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
+    return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
 
 
 def trace_program(
@@ -229,11 +244,11 @@ def trace_program(
     """Execute a logical program while recording replayable state transitions."""
     if max_steps <= 0:
         raise ValueError("max_steps must be positive")
-
-    if initial_machine is None:
-        machine = Machine()
-    else:
-        machine = RenderState.capture(initial_machine).restore_machine()
+    machine = (
+        Machine()
+        if initial_machine is None
+        else RenderState.capture(initial_machine).restore_machine()
+    )
     initial_state = RenderState.capture(machine)
     events: list[ExecutionEvent] = []
 
@@ -246,7 +261,6 @@ def trace_program(
                 f"instruction pointer out of program range: {instruction_index}"
             )
         instruction = program[instruction_index]
-
         before_digest = machine.state_digest(include_memory=True)
         before_registers = tuple(str(word) for word in machine.registers)
         before_memory = tuple(str(word) for word in machine.memory)
@@ -267,10 +281,11 @@ def trace_program(
         )
         memory_deltas = tuple(
             MemoryDelta(address, before, after)
-            for address, (before, after) in enumerate(zip(before_memory, after_memory, strict=True))
+            for address, (before, after) in enumerate(
+                zip(before_memory, after_memory, strict=True)
+            )
             if before != after
         )
-        after_digest = machine.state_digest(include_memory=True)
         events.append(
             ExecutionEvent(
                 event_index=len(events),
@@ -281,7 +296,7 @@ def trace_program(
                 b=instruction.b,
                 imm=instruction.imm,
                 before_digest=before_digest,
-                after_digest=after_digest,
+                after_digest=machine.state_digest(include_memory=True),
                 ip_before=ip_before,
                 ip_after=machine.ip,
                 cond_before=cond_before,
@@ -302,7 +317,7 @@ def trace_program(
 
 
 def verify_execution_trace(program: Sequence[Instruction], trace: ExecutionTrace) -> None:
-    """Replay a trace from its captured initial state and require byte-equivalent truth."""
+    """Replay a trace from its captured initial state and require canonical equality."""
     if logical_program_digest(program) != trace.program_digest:
         raise TraceError("logical program digest does not match execution trace")
     replay = trace_program(
@@ -332,15 +347,17 @@ class PrimitiveChange:
     def __post_init__(self) -> None:
         if not self.primitive_id.strip():
             raise TraceError("primitive change ID must not be empty")
-        if self.kind is PrimitiveChangeKind.APPEAR and (self.before is not None or self.after is None):
+        if self.kind is PrimitiveChangeKind.APPEAR and (
+            self.before is not None or self.after is None
+        ):
             raise TraceError("appear change requires only an after primitive")
         if self.kind is PrimitiveChangeKind.DISAPPEAR and (
             self.before is None or self.after is not None
         ):
             raise TraceError("disappear change requires only a before primitive")
-        if self.kind not in {PrimitiveChangeKind.APPEAR, PrimitiveChangeKind.DISAPPEAR}:
-            if self.before is None or self.after is None:
-                raise TraceError("primitive mutation requires both before and after primitives")
+        terminal = {PrimitiveChangeKind.APPEAR, PrimitiveChangeKind.DISAPPEAR}
+        if self.kind not in terminal and (self.before is None or self.after is None):
+            raise TraceError("primitive mutation requires both before and after primitives")
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -396,7 +413,7 @@ class GeometryDelta:
         }
 
     def canonical_json(self) -> str:
-        return json.dumps(self.as_dict(), sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        return _canonical_json(self.as_dict())
 
     def digest(self) -> str:
         return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
@@ -439,30 +456,26 @@ def _primitive_metadata(primitive: GeometryPrimitive) -> tuple[object, ...]:
 def _is_translation(before: GeometryPrimitive, after: GeometryPrimitive) -> bool:
     if len(before.points) != len(after.points) or not before.points:
         return False
-    first_before = before.points[0]
-    first_after = after.points[0]
-    delta = (
-        first_after.q - first_before.q,
-        first_after.r - first_before.r,
-        first_after.z - first_before.z,
-    )
+    old = before.points[0]
+    new = after.points[0]
+    delta = (new.q - old.q, new.r - old.r, new.z - old.z)
     if delta == (0, 0, 0):
         return False
     return all(
         (
-            after_point.q - before_point.q,
-            after_point.r - before_point.r,
-            after_point.z - before_point.z,
+            new_point.q - old_point.q,
+            new_point.r - old_point.r,
+            new_point.z - old_point.z,
         )
         == delta
-        for before_point, after_point in zip(before.points, after.points, strict=True)
+        for old_point, new_point in zip(before.points, after.points, strict=True)
     )
 
 
 def diff_geometry(before: GeometryScene, after: GeometryScene) -> GeometryDelta:
     """Classify stable-ID geometry changes without assigning animation timing."""
-    before_by_id = {primitive.primitive_id: primitive for primitive in before.primitives}
-    after_by_id = {primitive.primitive_id: primitive for primitive in after.primitives}
+    before_by_id = {item.primitive_id: item for item in before.primitives}
+    after_by_id = {item.primitive_id: item for item in after.primitives}
     changes: list[PrimitiveChange] = []
 
     for primitive_id in sorted(set(before_by_id) | set(after_by_id)):
@@ -478,11 +491,9 @@ def diff_geometry(before: GeometryScene, after: GeometryScene) -> GeometryDelta:
             continue
         if old is None or new is None or old == new:
             continue
-        old_metadata = _primitive_metadata(old)
-        new_metadata = _primitive_metadata(new)
         if old.points == new.points:
             kind = PrimitiveChangeKind.METADATA
-        elif old_metadata == new_metadata and _is_translation(old, new):
+        elif _primitive_metadata(old) == _primitive_metadata(new) and _is_translation(old, new):
             kind = PrimitiveChangeKind.MOVE
         else:
             kind = PrimitiveChangeKind.TOPOLOGY
