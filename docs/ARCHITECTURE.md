@@ -24,7 +24,10 @@ Glyph + State Weave system
 Semantic intermediate representation
       |
       v
-12-trit reference machine
+Typed operand binding + semantic lowering
+      |
+      v
+12-trit reference machine ------> execution trace
       |
       +------> Observer Continuity
       |
@@ -37,6 +40,8 @@ Deterministic render state
       |
       v
 Deterministic native geometry <------ frozen corpus geometry profile
+      |
+      +------> geometry delta
       |
       v
 Frontend / physical control surface
@@ -81,7 +86,7 @@ The target 12-trit format remains:
 [ opcode:3 ][ reg A:2 ][ reg B:2 ][ immediate/relative:5 ]
 ```
 
-but this is still a target, not yet a normative encoding table. Freezing opcodes too early would couple hardware to unresolved semantic/compiler requirements.
+but this is still a target, not yet a normative encoding table. The v0.7 semantic compiler now gives Issue #2 a real lowering boundary to review, but first-hardware constraints still need to be considered before freezing copper-level words.
 
 ## 4. Toolchain layer
 
@@ -94,9 +99,11 @@ The toolchain currently provides:
 - register and immediate validation;
 - canonical disassembly;
 - CLI execution;
+- deterministic execution traces and replay verification;
 - deterministic render-state export;
-- deterministic native-geometry export;
-- frozen corpus validation and delta inspection.
+- deterministic native-geometry export and geometry deltas;
+- frozen corpus validation and delta inspection;
+- State Weave lowering and supported-form introspection.
 
 Text assembly is an engineering interface, not the intended final native operator interface.
 
@@ -112,7 +119,25 @@ Balanced-ternary modifiers carry directional semantics:
 - `0`: inspect / hold / neutral / current;
 - `+`: forward / acquire / expand / allow.
 
-Compound operations are represented as **State Weaves**. v1 freezes ordering, identity, modifier state, canonical serialization, and semantic IR. Geometry v1 now gives these structures a deterministic topology, while semantic lowering into the ISA remains open.
+Compound operations are represented as **State Weaves**. v1 freezes ordering, identity, modifier state, canonical serialization, and semantic IR. Geometry v1 gives these structures deterministic topology.
+
+### 5.1 Typed lowering boundary
+
+State Weave identity does not implicitly select machine registers or addresses.
+
+`OperandBindings` supplies concrete machine resources. `lower_state_weave()` combines one supported weave with those bindings and emits a versioned `td1.semantic-lowering` artifact containing exact logical instructions, register read/write metadata, memory effect, canonical serialization, and a digest.
+
+The initial executable forms are deliberately conservative:
+
+- `EXECUTION:-` -> `HALT`;
+- `TRANSFORM:-` -> `NEG`;
+- `STATE:0` -> `CMP`;
+- `MEMORY:0` -> `LD`;
+- `MEMORY:+` -> `ST`.
+
+These are **TD-1 engineering conventions**, not corpus translations. Unsupported State Weaves fail explicitly rather than receiving fabricated opcode aliases.
+
+A serialized lowering is validated by recompiling its source weave and bindings and requiring canonical equivalence. That prevents a saved native semantic artifact from quietly carrying a different logical instruction sequence.
 
 ## 6. Microglyph state encoding
 
@@ -191,16 +216,27 @@ frozen motif annotation
       -> deterministic geometry scene
 ```
 
-The system must never silently collapse a participant's interpretation into an established external cause.
+Executable semantics follow a separate engineering chain:
+
+```text
+State Weave
+  -> explicit OperandBindings
+    -> deterministic semantic lowering
+      -> logical instructions
+        -> execution trace
+```
+
+The system must never silently collapse a participant's interpretation into an established external cause or silently collapse native semantic identity into hidden register choices.
 
 ## 10. Determinism and parity
 
-The reference machine exposes deterministic snapshots and a SHA-256 state digest. Render state, corpus snapshots, geometry profiles, and geometry scenes also expose deterministic canonical serialization and content digests.
+The reference machine exposes deterministic snapshots and a SHA-256 state digest. Semantic lowerings, render state, corpus snapshots, geometry profiles, geometry scenes, and transition traces also expose deterministic canonical serialization and content digests where applicable.
 
 These digests are intended for:
 
 - regression fixtures;
 - deterministic replay;
+- compiler drift detection;
 - frontend equivalence testing;
 - emulator-versus-hardware parity;
 - differential testing across implementations.
@@ -211,7 +247,7 @@ A physical subsystem is conformant only if it reproduces the reference model's e
 
 ### Engineering Mode
 
-Human-readable diagnostics: registers, instruction pointer, semantic IR, corpus provenance, observer state, geometry provenance, hardware parity status.
+Human-readable diagnostics: registers, instruction pointer, semantic IR, lowering artifacts, corpus provenance, observer state, geometry provenance, hardware parity status.
 
 ### Relic Mode
 
@@ -223,6 +259,6 @@ Traceability view explaining which versioned source observations contributed to 
 
 ## 12. Primary engineering rule
 
-**No decorative weirdness.**
+**No decorative weirdness and no semantic hand-waving.**
 
-Every glyph, transition, braid, pulse, depth change, topology change, or apparent motion must eventually map to explicit state, a measured event, or a documented interface affordance.
+Every glyph, transition, braid, pulse, depth change, topology change, apparent motion, or executable semantic mapping must eventually map to explicit state, a measured event, a documented interface affordance, or a versioned compiler rule.
