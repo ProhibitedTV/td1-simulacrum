@@ -1,0 +1,34 @@
+{
+  "cond": -1,
+  "halted": false,
+  "ip": 4,
+  "machine_digest": "c6c733c271c1eae871cc65bbed19d3207c6ce108e2d5bba337ac2e6bb5c9f5cd",
+  "memory_size": 729,
+  "nonzero_memory": [
+    {
+      "address": 10,
+      "glyph_ids": [13, 13, 13, 20],
+      "ternary": "000000000+-+"
+    },
+    {
+      "address": 728,
+      "glyph_ids": [13, 13, 13, 4],
+      "ternary": "000000000-00"
+    }
+  ],
+  "planes": ["carrier", "machine"],
+  "registers": [
+    {"glyph_ids": [13, 13, 13, 18], "index": 0, "ternary": "000000000+--", "value": 5},
+    {"glyph_ids": [13, 13, 13, 11], "index": 1, "ternary": "0000000000-+", "value": -2},
+    {"glyph_ids": [13, 13, 13, 13], "index": 2, "ternary": "000000000000", "value": 0},
+    {"glyph_ids": [13, 13, 13, 13], "index": 3, "ternary": "000000000000", "value": 0},
+    {"glyph_ids": [13, 13, 13, 13], "index": 4, "ternary": "000000000000", "value": 0},
+    {"glyph_ids": [13, 13, 13, 13], "index": 5, "ternary": "000000000000", "value": 0},
+    {"glyph_ids": [13, 13, 13, 13], "index": 6, "ternary": "000000000000", "value": 0},
+    {"glyph_ids": [13, 13, 13, 13], "index": 7, "ternary": "000000000000", "value": 0},
+    {"glyph_ids": [13, 13, 15, 1], "index": 8, "ternary": "0000000+---0", "value": 42}
+  ],
+  "schema": "td1.render-state",
+  "steps": 11,
+  "version": 1
+}

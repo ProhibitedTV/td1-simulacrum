@@ -17,6 +17,17 @@ from .machine import (
     StepLimitExceeded,
 )
 from .observer import ObserverState, geodetic_to_ecef, julian_date_utc
+from .render_state import (
+    RENDER_SCHEMA,
+    RENDER_SCHEMA_VERSION,
+    MemoryCellRenderState,
+    ObserverRenderState,
+    RegisterRenderState,
+    RenderMode,
+    RenderPlane,
+    RenderState,
+    project_render_state,
+)
 from .semantic import Modifier, SemanticIR, SemanticRoot, StateWeave
 from .ternary import (
     TernaryWord,
@@ -32,10 +43,18 @@ __all__ = [
     "Machine",
     "MachineError",
     "MachineSnapshot",
+    "MemoryCellRenderState",
     "Modifier",
+    "ObserverRenderState",
     "ObserverState",
     "Op",
     "ProgramCounterError",
+    "RENDER_SCHEMA",
+    "RENDER_SCHEMA_VERSION",
+    "RegisterRenderState",
+    "RenderMode",
+    "RenderPlane",
+    "RenderState",
     "SemanticIR",
     "SemanticRoot",
     "StateWeave",
@@ -48,6 +67,7 @@ __all__ = [
     "glyph_ids_to_word",
     "int_to_trits",
     "julian_date_utc",
+    "project_render_state",
     "representable_range",
     "triad_to_glyph_id",
     "trits_to_int",
@@ -55,4 +75,4 @@ __all__ = [
     "wrap_int",
 ]
 
-__version__ = "0.2.0a0"
+__version__ = "0.3.0a0"

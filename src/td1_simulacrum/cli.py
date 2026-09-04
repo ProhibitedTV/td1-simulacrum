@@ -9,6 +9,7 @@ from pathlib import Path
 from .assembler import assemble
 from .glyphs import word_to_glyph_ids
 from .machine import Machine
+from .render_state import RenderMode, RenderState, project_render_state
 from .ternary import TernaryWord
 
 
@@ -17,6 +18,15 @@ def _run_program(path: Path, max_steps: int) -> int:
     machine = Machine().run(program, max_steps=max_steps)
     print(json.dumps(machine.snapshot().as_dict(), indent=2))
     print(f"state_digest={machine.state_digest()}")
+    return 0
+
+
+def _render_program(path: Path, max_steps: int, mode: str) -> int:
+    program = assemble(path.read_text(encoding="utf-8"))
+    machine = Machine().run(program, max_steps=max_steps)
+    state = RenderState.capture(machine)
+    projection = project_render_state(state, RenderMode(mode))
+    print(json.dumps(projection, indent=2, sort_keys=True))
     return 0
 
 
@@ -37,6 +47,18 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("path", type=Path)
     run_parser.add_argument("--max-steps", type=int, default=100_000)
 
+    render_parser = subparsers.add_parser(
+        "render",
+        help="execute a TD-1 source file and emit a deterministic render projection",
+    )
+    render_parser.add_argument("path", type=Path)
+    render_parser.add_argument(
+        "--mode",
+        choices=[mode.value for mode in RenderMode],
+        default=RenderMode.ENGINEERING.value,
+    )
+    render_parser.add_argument("--max-steps", type=int, default=100_000)
+
     glyph_parser = subparsers.add_parser("glyph", help="map a ternary word to microglyph IDs")
     glyph_parser.add_argument("word")
 
@@ -47,6 +69,8 @@ def main() -> int:
     args = build_parser().parse_args()
     if args.command == "run":
         return _run_program(args.path, args.max_steps)
+    if args.command == "render":
+        return _render_program(args.path, args.max_steps, args.mode)
     if args.command == "glyph":
         return _show_glyphs(args.word)
     raise RuntimeError(f"unknown command {args.command!r}")

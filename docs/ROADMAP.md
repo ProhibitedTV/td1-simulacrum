@@ -30,22 +30,30 @@ Next:
 - program image format;
 - versioned machine-state serialization;
 - trace/event stream;
-- golden test vectors.
+- hardware-oriented golden vectors.
 
 ## M2 — Native representation
 
-Status: **foundation implemented**
+Status: **render-state foundation implemented**
 
+Implemented:
 - 27-state microglyph IDs;
 - reversible word-to-microglyph mapping;
 - semantic roots;
-- State Weave v1 IR.
+- State Weave v1 IR;
+- versioned `td1.render-state` schema;
+- deterministic Engineering/Relic projections;
+- exact register and sparse-memory reconstruction;
+- shared source digest across modes;
+- golden render-state fixture;
+- quantized Observer Continuity render contract.
 
 Next:
-- renderer-independent geometry schema;
+- renderer-independent geometry primitives;
 - deterministic morph/topology rules;
-- render-state serialization;
-- Engineering/Relic equivalence tests.
+- corpus-derived depth/lattice constraints;
+- projection-to-geometry golden fixtures;
+- first interactive Relic Mode frontend.
 
 ## M3 — Corpus pipeline
 
@@ -68,7 +76,8 @@ Status: **terrestrial groundwork implemented**
 
 - WGS-84 geodetic -> ECEF;
 - UTC Julian Date;
-- approximate Earth Rotation Angle.
+- approximate Earth Rotation Angle;
+- quantized render-state projection.
 
 Next:
 - velocity/orientation state;

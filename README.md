@@ -16,13 +16,13 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - the reversible 27-state microglyph encoding layer;
 - the Observer Continuity reference implementation;
 - the Veilbreak-derived requirement-provenance model;
-- the engineering/relic-mode runtime used to validate the native interaction model.
+- the deterministic Engineering/Relic render-state runtime.
 
 The long-term target is **hardware parity**: physical TD-1 subsystems should progressively replace emulated subsystems while preserving identical externally observable state.
 
 ## Current capabilities
 
-The v0.2 foundation includes:
+The v0.3 pre-alpha foundation includes:
 
 - balanced ternary conversion and fixed-width arithmetic;
 - a deterministic 12-trit, 9-register, 729-word logical machine;
@@ -34,6 +34,9 @@ The v0.2 foundation includes:
 - WGS-84 geodetic -> ECEF Observer Continuity groundwork;
 - UTC Julian Date and explicitly approximate Earth Rotation Angle;
 - corpus/requirement provenance data structures;
+- versioned, round-trippable `td1.render-state` serialization;
+- deterministic Engineering and Relic projections with one shared source digest;
+- sparse memory reconstruction and golden render-state fixtures;
 - a CLI, examples, unit tests, linting, coverage reporting, and Python-version CI.
 
 ## Quick start
@@ -55,6 +58,20 @@ Inspect the deterministic microglyph IDs for a 12-trit word:
 ```bash
 td1-sim glyph '+0--+000-++0'
 ```
+
+Emit Engineering Mode state:
+
+```bash
+td1-sim render examples/sum.td1 --mode engineering
+```
+
+Emit Relic Mode state:
+
+```bash
+td1-sim render examples/sum.td1 --mode relic
+```
+
+The two render modes must derive from the same immutable render-state digest.
 
 ## Baseline architecture
 
@@ -88,7 +105,11 @@ semantic IR
       +------> Observer Continuity
       |
       v
-deterministic renderer
+normative render state
+      |
+      +------> Engineering projection
+      |
+      +------> Relic projection
       |
       v
 physical-hardware parity boundary
@@ -103,6 +124,7 @@ physical-hardware parity boundary
 5. **Determinism wins.** Same state + same inputs + same corpus revision must produce the same output and geometry.
 6. **Accuracy contracts must be explicit.** Approximate calculations are labeled approximate rather than silently promoted to navigation-grade truth.
 7. **Hardware earns authority through parity.** A physical subsystem replaces an emulated one only after conformance against the reference model.
+8. **The renderer is not a source of truth.** It may decide how state is shown, never what state exists.
 
 ## Assembly example
 
@@ -125,11 +147,12 @@ HALT
 
 **Pre-alpha / architecture stabilization.**
 
-The next major milestone is to freeze the first semantic and glyph schemas, add deterministic render-state serialization, and define a versioned 12-trit instruction encoding only after those constraints are understood.
+The renderer-independent state boundary is now implemented. The next major milestones are corpus snapshot ingestion, geometry/topology rules, semantic lowering, and the hardware parity transport.
 
 See:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/RENDER_STATE.md`](docs/RENDER_STATE.md)
 - [`docs/VEILBREAK_PROVENANCE.md`](docs/VEILBREAK_PROVENANCE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
