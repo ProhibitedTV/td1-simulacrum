@@ -12,7 +12,6 @@ from td1_simulacrum import (
     assemble,
 )
 
-
 PROGRAM = assemble(
     """
 LDI R0, 4
