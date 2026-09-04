@@ -18,23 +18,29 @@ Exit criterion: repeated deterministic execution with no known semantic ambiguit
 
 ## M1 — Engineering toolchain
 
-Status: **initial implementation**
+Status: **deterministic trace foundation implemented**
 
+Implemented:
 - text assembler/disassembler;
 - labels and relative branches;
 - CLI;
 - executable examples;
-- expanded negative-path tests.
+- expanded negative-path tests;
+- versioned `td1.execution-trace` schema;
+- logical-program semantic fingerprints;
+- per-instruction machine digest chain;
+- register and memory deltas;
+- deterministic trace replay verification.
 
 Next:
-- program image format;
-- versioned machine-state serialization;
-- trace/event stream;
-- hardware-oriented golden vectors.
+- versioned program image format;
+- versioned standalone machine-state serialization;
+- hardware-oriented golden vectors;
+- trace export suitable for physical parity sessions.
 
 ## M2 — Native representation
 
-Status: **native geometry contract implemented**
+Status: **native geometry + transition contract implemented**
 
 Implemented:
 - 27-state microglyph IDs;
@@ -54,12 +60,14 @@ Implemented:
 - State Weave topology with ternary terminal semantics;
 - corpus-backed lattice/depth/multiscale/braiding admission rules;
 - per-rule source provenance and geometry-profile digests;
-- CLI geometry export and golden microglyph geometry fixture.
+- CLI geometry export and golden microglyph geometry fixture;
+- versioned `td1.geometry-delta` schema;
+- stable-ID appear/disappear/move/topology/metadata classifications;
+- source scene/render digest preservation across geometry deltas.
 
 Next:
-- renderer-independent morph/transition descriptors;
+- renderer-independent morph/transition descriptors driven by geometry deltas;
 - corpus-derived morphing/focus/context constraints;
-- geometry-scene delta/event stream;
 - first SVG/WebGL reference renderer that consumes geometry without inventing state;
 - first interactive Relic Mode frontend.
 
@@ -110,7 +118,8 @@ Status: **not started**
 - register/ALU differential test harness;
 - deterministic parity packets;
 - fault injection;
-- physical subsystem conformance reports.
+- physical subsystem conformance reports;
+- execution-trace comparison against physical observations.
 
 Exit criterion: at least one physical ternary subsystem replaces its emulated counterpart and passes the same golden vectors.
 
@@ -130,4 +139,5 @@ Status: **not started**
 - pretending phenomenology establishes ontology;
 - hiding conventional compute behind a decorative UI;
 - freezing exotic hardware before the reference model is stable;
-- claiming navigation-grade accuracy before the timing/reference stack earns it.
+- claiming navigation-grade accuracy before the timing/reference stack earns it;
+- inventing animation activity that is not grounded in traced state changes.
