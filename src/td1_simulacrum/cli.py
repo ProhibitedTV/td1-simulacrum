@@ -22,6 +22,12 @@ from .parity import (
     run_conformance,
     vector_set_digest,
 )
+from .player import (
+    PlayerEasing,
+    RelicPlayerConfig,
+    build_relic_player_artifact,
+    verify_relic_player_html,
+)
 from .render_state import RenderMode, RenderState, project_render_state
 from .semantic import StateWeave
 from .svg_renderer import SVGRenderOptions, SVGTheme, render_svg
@@ -274,6 +280,51 @@ def _timeline_svgs(
     return 0
 
 
+def _relic_player(
+    path: Path,
+    output: Path,
+    frame_ms: int,
+    transition_ms: int,
+    persistence_ms: int,
+    easing: str,
+    autoplay: bool,
+    loop: bool,
+    engineering_overlay: bool,
+    provenance_open: bool,
+    unit: int,
+    depth_x: int,
+    depth_y: int,
+    margin: int,
+) -> int:
+    timeline = RelicTimeline.from_json(path.read_text(encoding="utf-8"))
+    config = RelicPlayerConfig(
+        frame_ms=frame_ms,
+        transition_ms=transition_ms,
+        persistence_ms=persistence_ms,
+        easing=PlayerEasing(easing),
+        autoplay=autoplay,
+        loop=loop,
+        engineering_overlay=engineering_overlay,
+        provenance_open=provenance_open,
+        unit=unit,
+        depth_x=depth_x,
+        depth_y=depth_y,
+        margin=margin,
+    )
+    artifact = build_relic_player_artifact(timeline, config)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(artifact.html, encoding="utf-8", newline="\n")
+    payload = {"output": str(output), **artifact.summary()}
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _relic_player_verify(path: Path) -> int:
+    verification = verify_relic_player_html(path.read_text(encoding="utf-8"))
+    print(json.dumps(verification.as_dict(), indent=2, sort_keys=True))
+    return 0
+
+
 def _show_glyphs(text: str) -> int:
     word = TernaryWord.parse(text)
     print(" ".join(f"G{glyph_id:02d}" for glyph_id in word_to_glyph_ids(word)))
@@ -411,6 +462,26 @@ def _add_corpus_geometry_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_player_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--frame-ms", type=int, default=1100)
+    parser.add_argument("--transition-ms", type=int, default=620)
+    parser.add_argument("--persistence-ms", type=int, default=260)
+    parser.add_argument(
+        "--easing",
+        choices=[easing.value for easing in PlayerEasing],
+        default=PlayerEasing.EASE_IN_OUT.value,
+    )
+    parser.add_argument("--no-autoplay", action="store_false", dest="autoplay")
+    parser.add_argument("--no-loop", action="store_false", dest="loop")
+    parser.set_defaults(autoplay=True, loop=True)
+    parser.add_argument("--engineering-overlay", action="store_true")
+    parser.add_argument("--provenance-open", action="store_true")
+    parser.add_argument("--unit", type=int, default=3)
+    parser.add_argument("--depth-x", type=int, default=2)
+    parser.add_argument("--depth-y", type=int, default=1)
+    parser.add_argument("--margin", type=int, default=36)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="td1-sim",
@@ -508,6 +579,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     timeline_morph_parser.add_argument("path", type=Path, help="saved Relic timeline JSON")
     timeline_morph_parser.add_argument("--output", type=Path)
+
+    relic_player_parser = subparsers.add_parser(
+        "relic-player",
+        help="compile a saved Relic timeline into self-contained browser playback HTML",
+    )
+    relic_player_parser.add_argument("path", type=Path, help="saved Relic timeline JSON")
+    relic_player_parser.add_argument("--output", type=Path, required=True)
+    _add_player_options(relic_player_parser)
+
+    relic_player_verify_parser = subparsers.add_parser(
+        "relic-player-verify",
+        help="validate embedded payloads and provenance in standalone Relic player HTML",
+    )
+    relic_player_verify_parser.add_argument("path", type=Path)
 
     lower_parser = subparsers.add_parser(
         "lower",
@@ -633,6 +718,25 @@ def main() -> int:
         )
     if args.command == "timeline-morphs":
         return _timeline_morphs(args.path, args.output)
+    if args.command == "relic-player":
+        return _relic_player(
+            args.path,
+            args.output,
+            args.frame_ms,
+            args.transition_ms,
+            args.persistence_ms,
+            args.easing,
+            args.autoplay,
+            args.loop,
+            args.engineering_overlay,
+            args.provenance_open,
+            args.unit,
+            args.depth_x,
+            args.depth_y,
+            args.margin,
+        )
+    if args.command == "relic-player-verify":
+        return _relic_player_verify(args.path)
     if args.command == "lower":
         return _lower_weave(args)
     if args.command == "lowerings":

@@ -1,0 +1,329 @@
+:root {
+  color-scheme: dark;
+  --bg: #020506;
+  --panel: rgba(4, 13, 16, 0.92);
+  --panel-soft: rgba(5, 20, 22, 0.72);
+  --line: rgba(99, 245, 223, 0.28);
+  --cyan: #63f5df;
+  --cyan-soft: rgba(99, 245, 223, 0.48);
+  --gold: #ffd166;
+  --muted: #7c9b99;
+  --warn: #ff8c61;
+  --fault: #ff4d6d;
+  --ok: #79ffa8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(21, 76, 72, 0.14), transparent 42%),
+    linear-gradient(180deg, #020506 0%, #010303 100%);
+  color: var(--cyan);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+button {
+  font: inherit;
+}
+
+#td1-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  isolation: isolate;
+}
+
+#td1-stage-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+#td1-stage-wrap::before,
+#td1-stage-wrap::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: 2;
+}
+
+#td1-stage-wrap::before {
+  inset: 0;
+  background:
+    linear-gradient(rgba(99, 245, 223, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99, 245, 223, 0.018) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(circle at center, black, transparent 78%);
+}
+
+#td1-stage-wrap::after {
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(99, 245, 223, 0.015) 50%,
+    transparent 100%
+  );
+  background-size: 100% 5px;
+  opacity: 0.48;
+}
+
+#td1-stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: transparent;
+  shape-rendering: geometricPrecision;
+}
+
+.td1-primitive {
+  fill: none;
+  stroke: var(--cyan);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  filter:
+    drop-shadow(0 0 2px rgba(99, 245, 223, 0.55))
+    drop-shadow(0 0 8px rgba(99, 245, 223, 0.16));
+}
+
+.td1-node {
+  fill: var(--gold);
+  stroke: var(--gold);
+  filter:
+    drop-shadow(0 0 3px rgba(255, 209, 102, 0.72))
+    drop-shadow(0 0 10px rgba(255, 209, 102, 0.18));
+}
+
+.td1-transient {
+  pointer-events: none;
+}
+
+.td1-morph-eligible {
+  filter:
+    drop-shadow(0 0 3px rgba(99, 245, 223, 0.68))
+    drop-shadow(0 0 13px rgba(99, 245, 223, 0.24));
+}
+
+.td1-focus-eligible {
+  filter:
+    drop-shadow(0 0 3px rgba(255, 209, 102, 0.78))
+    drop-shadow(0 0 15px rgba(99, 245, 223, 0.22));
+}
+
+#td1-controls {
+  position: absolute;
+  z-index: 10;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 7px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: rgba(1, 6, 7, 0.78);
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  opacity: 0.22;
+  transition: opacity 160ms linear;
+}
+
+#td1-controls:hover,
+#td1-controls:focus-within {
+  opacity: 1;
+}
+
+#td1-controls button {
+  min-width: 34px;
+  height: 31px;
+  padding: 0 8px;
+  border: 1px solid rgba(99, 245, 223, 0.22);
+  border-radius: 3px;
+  background: rgba(8, 26, 28, 0.72);
+  color: var(--cyan);
+  cursor: pointer;
+  transition:
+    background 120ms linear,
+    border-color 120ms linear,
+    box-shadow 120ms linear;
+}
+
+#td1-controls button:hover,
+#td1-controls button:focus-visible,
+#td1-controls button[aria-pressed="true"] {
+  outline: none;
+  border-color: rgba(99, 245, 223, 0.72);
+  background: rgba(13, 54, 54, 0.9);
+  box-shadow: 0 0 12px rgba(99, 245, 223, 0.12);
+}
+
+.td1-status {
+  position: absolute;
+  z-index: 9;
+  top: 18px;
+  right: 18px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 12px rgba(255, 140, 97, 0.8);
+}
+
+.td1-status[data-state="verified"] {
+  background: var(--ok);
+  box-shadow: 0 0 12px rgba(121, 255, 168, 0.82);
+}
+
+.td1-status[data-state="failed"] {
+  width: 10px;
+  height: 10px;
+  background: var(--fault);
+  box-shadow: 0 0 16px rgba(255, 77, 109, 0.95);
+}
+
+#td1-frame-mark {
+  position: absolute;
+  z-index: 3;
+  top: 18px;
+  left: 18px;
+  width: 26px;
+  height: 26px;
+  opacity: 0.18;
+  border-top: 1px solid var(--cyan);
+  border-left: 1px solid var(--cyan);
+}
+
+#td1-frame-mark::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  border: 1px solid var(--gold);
+}
+
+#td1-engineering-panel,
+#td1-provenance-panel {
+  position: absolute;
+  z-index: 12;
+  top: 18px;
+  bottom: 66px;
+  width: min(440px, calc(100vw - 36px));
+  overflow: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel);
+  color: #b7d8d4;
+  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(12px);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+#td1-engineering-panel {
+  left: 18px;
+}
+
+#td1-provenance-panel {
+  right: 18px;
+}
+
+#td1-engineering-panel[hidden],
+#td1-provenance-panel[hidden] {
+  display: none;
+}
+
+.td1-panel-title {
+  margin: 0 0 12px;
+  color: var(--gold);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.td1-kv {
+  display: grid;
+  grid-template-columns: minmax(104px, auto) 1fr;
+  gap: 4px 10px;
+  margin-bottom: 13px;
+}
+
+.td1-kv dt {
+  color: var(--muted);
+}
+
+.td1-kv dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #d2eeea;
+}
+
+.td1-list {
+  margin: 7px 0 14px;
+  padding-left: 18px;
+}
+
+.td1-list li {
+  margin: 3px 0;
+}
+
+.td1-digest {
+  color: var(--cyan);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.td1-rule {
+  margin: 6px 0;
+  padding: 7px 8px;
+  border-left: 2px solid var(--cyan-soft);
+  background: var(--panel-soft);
+}
+
+.td1-fault {
+  color: var(--fault);
+}
+
+@media (max-width: 720px) {
+  #td1-controls {
+    bottom: 10px;
+    gap: 4px;
+    padding: 5px;
+  }
+
+  #td1-controls button {
+    min-width: 30px;
+    height: 29px;
+    padding: 0 6px;
+  }
+
+  #td1-engineering-panel,
+  #td1-provenance-panel {
+    top: 12px;
+    right: 12px;
+    bottom: 56px;
+    left: 12px;
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #td1-controls,
+  #td1-controls button {
+    transition: none;
+  }
+}
