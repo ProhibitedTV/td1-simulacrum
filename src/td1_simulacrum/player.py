@@ -180,7 +180,9 @@ class RelicPlayerManifest:
         if any(not _is_sha256(value) for value in digests):
             raise PlayerArtifactError("Relic player manifest digests must be SHA-256 hex")
         if self.timeline_digest != self.timeline_bytes_sha256:
-            raise PlayerArtifactError("timeline digest must identify the exact embedded canonical bytes")
+            raise PlayerArtifactError(
+                "timeline digest must identify the exact embedded canonical bytes"
+            )
         if self.morph_manifest_digest != self.morph_manifest_bytes_sha256:
             raise PlayerArtifactError(
                 "morph manifest digest must identify the exact embedded canonical bytes"
@@ -533,7 +535,9 @@ def verify_relic_player_html(html: str) -> PlayerArtifactVerification:
     if canonical_morph_payload.encode("utf-8") != morph_bytes:
         raise PlayerArtifactError("embedded timeline morph manifest is not canonical JSON")
     if canonical_morph_payload != expected_morphs.canonical_json():
-        raise PlayerArtifactError("embedded morph manifest disagrees with deterministic timeline plans")
+        raise PlayerArtifactError(
+            "embedded morph manifest disagrees with deterministic timeline plans"
+        )
     if expected_morphs.digest() != manifest.morph_manifest_digest:
         raise PlayerArtifactError("embedded morph-manifest digest disagrees with manifest")
     if len(timeline.frames) != manifest.frame_count or timeline.event_count != manifest.event_count:
