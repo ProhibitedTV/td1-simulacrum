@@ -1,4 +1,16 @@
-from td1_simulacrum import Instruction, Machine, Op, TernaryWord, int_to_trits, trits_to_int
+import pytest
+
+from td1_simulacrum import (
+    Instruction,
+    Machine,
+    Op,
+    ProgramCounterError,
+    StepLimitExceeded,
+    TernaryWord,
+    int_to_trits,
+    representable_range,
+    trits_to_int,
+)
 
 
 def test_balanced_ternary_round_trip() -> None:
@@ -14,8 +26,13 @@ def test_balanced_ternary_negation_is_trit_inversion() -> None:
 
 
 def test_fixed_width_wrap() -> None:
-    # Three trits represent -13..+13; +14 wraps to -13.
     assert TernaryWord.from_int(14, 3).value == -13
+    assert TernaryWord.from_int(-14, 3).value == 13
+
+
+def test_representable_range() -> None:
+    assert representable_range(3) == (-13, 13)
+    assert representable_range(12) == (-265720, 265720)
 
 
 def test_reference_sum_program() -> None:
@@ -50,3 +67,23 @@ def test_memory_address_wrap() -> None:
     ]
     machine.run(program)
     assert machine.memory[728].value == 42
+
+
+def test_state_digest_is_deterministic_and_memory_sensitive() -> None:
+    program = [Instruction(Op.LDI, a=0, imm=7), Instruction(Op.HALT)]
+    left = Machine().run(program)
+    right = Machine().run(program)
+
+    assert left.state_digest() == right.state_digest()
+    digest_before = right.state_digest()
+    right.memory[0] = TernaryWord.from_int(1)
+    assert right.state_digest() != digest_before
+    assert right.state_digest(include_memory=False) == left.state_digest(include_memory=False)
+
+
+def test_program_counter_error_and_step_limit() -> None:
+    with pytest.raises(ProgramCounterError):
+        Machine().run([Instruction(Op.NOP)])
+
+    with pytest.raises(StepLimitExceeded):
+        Machine().run([Instruction(Op.JMP, imm=-1)], max_steps=5)

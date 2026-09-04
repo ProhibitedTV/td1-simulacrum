@@ -1,0 +1,15 @@
+; TD-1 logical assembly reference program
+; Computes 5 + 4 + 3 + 2 + 1 and stores 15 at memory word 10.
+
+LDI R0, 5
+LDI R1, 0
+
+sum_loop:
+ADD R1, R0
+ADDI R0, -1
+LDI R2, 0
+CMP R0, R2
+BRP sum_loop
+
+ST R1, R2, 10
+HALT

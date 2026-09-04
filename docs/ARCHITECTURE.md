@@ -1,18 +1,18 @@
 # TD-1 Simulacrum Architecture
 
-## 1. Scope
+## 1. Normative role
 
-The Simulacrum is the executable reference definition of TD-1. It exists to make the machine's behavior precise before physical ternary subsystems are fabricated.
+The Simulacrum is the executable reference definition of TD-1. It makes the machine's behavior precise before physical ternary subsystems are fabricated.
 
-The emulator is not a visual mockup. It is the normative machine model against which later hardware is compared.
+The emulator is not a visual mockup. It is the **normative machine model** against which later hardware is compared.
 
-## 2. Layering
+## 2. Architectural boundary
 
 ```text
 Veilbreak corpus
       |
       v
-Phenomenology model
+Phenomenology / provenance model
       |
       v
 Glyph + State Weave system
@@ -26,113 +26,152 @@ Semantic intermediate representation
       +------> Observer Continuity
       |
       v
-Deterministic renderer
+Deterministic render state
+      |
+      v
+Physical hardware parity boundary
 ```
 
-The arithmetic core must remain independent from the phenomenology and rendering layers.
+The arithmetic core must remain independent from phenomenology and rendering. Corpus-derived ideas are allowed to shape interface semantics and representation, but not redefine arithmetic correctness.
 
 ## 3. Reference machine
 
-Baseline machine parameters:
+Baseline parameters:
 
-- radix: balanced ternary
-- trit values: `-1`, `0`, `+1`
-- machine word: 12 trits
-- signed representable range: `-265720` through `+265720`
-- general-purpose registers: 9
-- initial memory: 729 words
-- condition state: negative / zero / positive
+- radix: balanced ternary;
+- trit values: `-1`, `0`, `+1`;
+- word width: 12 trits;
+- signed range: `-265720 .. +265720`;
+- general-purpose registers: 9;
+- initial memory: 729 words;
+- condition state: negative / zero / positive.
 
 ### 3.1 Fixed-width arithmetic
 
 Arithmetic wraps modulo `3^12`, mapped back into the symmetric balanced-ternary interval. Negation is exact tritwise sign inversion.
 
-### 3.2 Initial instruction semantics
+### 3.2 Logical ISA
 
-The first executable model exposes:
+Current operations:
 
 `NOP`, `LDI`, `MOV`, `ADD`, `SUB`, `NEG`, `ADDI`, `CMP`, `LD`, `ST`, `BRN`, `BRZ`, `BRP`, `JMP`, `HALT`.
 
-Instruction encoding into a physical 12-trit word is deliberately not frozen by the first software implementation. Execution semantics are frozen first; bit/trit-level encoding will be versioned separately once assembler and hardware requirements converge.
+Branches use offsets relative to the instruction following the branch. Memory addresses are formed from a base register plus immediate offset and wrap modulo 729.
 
-## 4. Semantic layer
+### 3.3 Instruction encoding policy
 
-TD-1's native operator model is intended to use semantic roots rather than alphabetic text. Candidate roots include:
+The logical ISA is implemented before physical encoding is frozen.
 
-- OBSERVER
-- ORIGIN
-- TIME
-- REFERENCE
-- MOTION
-- MEMORY
-- LINK
-- STATE
-- FRAME
-- AXIS
-- SIGNAL
-- COGNITION
-- EXECUTION
-- TRANSFORM
-- ISOLATION
-- DOMAIN
+The target 12-trit format remains:
 
-Balanced-ternary modifiers alter topology and semantics:
+```text
+[ opcode:3 ][ reg A:2 ][ reg B:2 ][ immediate/relative:5 ]
+```
 
-- `-`: reverse / remove / contract / deny
-- `0`: inspect / hold / neutral / current
-- `+`: forward / acquire / expand / allow
+but this is still a target, not yet a normative encoding table. Freezing opcodes too early would couple hardware to unresolved semantic/compiler requirements.
 
-Compound semantic operations are represented as **State Weaves**. The State Weave compiler will lower validated geometric/semantic structures into a stable intermediate representation before translation into machine instructions.
+## 4. Toolchain layer
 
-## 5. Glyph encoding
+The text assembler is intentionally conventional. It exists for engineering, test fixtures, and parity work while the native geometric programming language is still being designed.
 
-A 12-trit word is naturally partitioned into four 3-trit cells. Each cell has `3^3 = 27` possible states.
+The toolchain currently provides:
 
-TD-1 will therefore define a deterministic 27-form microglyph vocabulary. Four microglyphs reconstruct one complete 12-trit word. Relic Mode may hide the human-readable ternary symbols, but no information may be lost.
+- labels;
+- relative branches;
+- register and immediate validation;
+- canonical disassembly;
+- CLI execution.
 
-## 6. Observer Continuity
+Text assembly is an engineering interface, not the intended final native operator interface.
 
-Observer Continuity is the permanent background process of TD-1. The software model begins with explicit observer inputs such as:
+## 5. Semantic layer
 
-- timestamp / time standard
-- latitude / longitude / altitude
-- orientation
-- velocity
+TD-1's native operator model uses semantic roots rather than alphabetic text. v1 roots are:
 
-The subsystem will progress from terrestrial reference frames toward solar-system and astronomical reference frames as the implementation matures.
+`OBSERVER`, `ORIGIN`, `TIME`, `REFERENCE`, `MOTION`, `MEMORY`, `LINK`, `STATE`, `FRAME`, `AXIS`, `SIGNAL`, `COGNITION`, `EXECUTION`, `TRANSFORM`, `ISOLATION`, `DOMAIN`.
 
-Rendered motion in the deep field must be driven by actual observer-state changes, not arbitrary animation.
+Balanced-ternary modifiers carry directional semantics:
 
-## 7. Operating modes
+- `-`: reverse / remove / contract / deny;
+- `0`: inspect / hold / neutral / current;
+- `+`: forward / acquire / expand / allow.
+
+Compound operations are represented as **State Weaves**. v1 deliberately freezes only ordering, identity, modifier state, canonical serialization, and semantic IR. Final geometry and lowering rules remain open.
+
+## 6. Microglyph state encoding
+
+A 12-trit word partitions into four 3-trit cells. Each cell has `3^3 = 27` states.
+
+The stable data mapping is:
+
+```text
+glyph_id = balanced_ternary_value(triad) + 13
+```
+
+yielding `G00 .. G26`.
+
+This mapping is reversible and renderer-independent. Future glyph geometry may change across visual revisions, but it must not break the underlying state identity without an explicit schema migration.
+
+## 7. Observer Continuity
+
+Observer Continuity is TD-1's permanent background state model.
+
+The initial implementation supports:
+
+- timezone-aware timestamp;
+- WGS-84 latitude / longitude / altitude;
+- geodetic-to-ECEF conversion;
+- UTC-based Julian Date;
+- explicitly approximate Earth Rotation Angle using UTC as a proxy for UT1.
+
+The approximation is intentional and labeled. Precision navigation will require explicit treatment of UT1-UTC, TT/TDB, leap seconds, Earth orientation parameters, ephemerides, uncertainty, and sensor covariance.
+
+Rendered deep-field motion must ultimately be driven by observer-state changes rather than arbitrary animation.
+
+## 8. Provenance model
+
+Corpus-derived requirements must preserve the chain:
+
+```text
+source record
+  -> reported observation
+    -> normalized motif
+      -> engineering requirement
+        -> implementation
+          -> validation result
+```
+
+The system must never silently collapse a participant's interpretation into an established external cause.
+
+## 9. Determinism and parity
+
+The reference machine exposes deterministic snapshots and a SHA-256 state digest.
+
+The digest is intended for:
+
+- regression fixtures;
+- deterministic replay;
+- emulator-versus-hardware parity;
+- differential testing across implementations.
+
+A physical subsystem is conformant only if it reproduces the reference model's externally observable state for the same inputs and test vectors.
+
+## 10. Operating modes
 
 ### Engineering Mode
 
-Exposes registers, machine state, instruction pointer, semantic IR, corpus provenance, diagnostics, and human-readable labels.
+Human-readable diagnostics: registers, instruction pointer, semantic IR, corpus provenance, observer state, hardware parity status.
 
 ### Relic Mode
 
-Displays the same underlying state using only the native TD-1 representation. It must not invent state or hide errors behind decorative behavior.
+The exact same underlying state expressed using native TD-1 geometry and interaction semantics.
 
 ### Corpus Mode
 
-Explains which versioned phenomenological observations contributed to interface requirements. This mode exists for provenance and research review, not for asserting an external origin for the source reports.
+Traceability view explaining which versioned source observations contributed to a requirement.
 
-## 8. Hardware replacement model
-
-The emulator should support progressive substitution of physical hardware for emulated components.
-
-Example progression:
-
-```text
-emulated register -> physical ternary register
-emulated ALU      -> physical ternary arithmetic slice
-emulated control  -> physical ternary control board
-```
-
-A hardware-backed subsystem is considered conformant only if it reproduces the reference machine's observable state under the same inputs and test vectors.
-
-## 9. Primary engineering rule
+## 11. Primary engineering rule
 
 **No decorative weirdness.**
 
-Every glyph, transition, braid, pulse, depth change, and topology change should eventually map to an explicit state or event in the system.
+Every glyph, transition, braid, pulse, depth change, topology change, or apparent motion must eventually map to explicit state, a measured event, or a documented interface affordance.
