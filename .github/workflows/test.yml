@@ -21,6 +21,16 @@ jobs:
       - name: Ruff
         run: ruff check .
 
+  web-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Check Relic player JavaScript
+        run: node --check src/td1_simulacrum/web_assets/relic_player.js
+
   test:
     runs-on: ubuntu-latest
     strategy:
