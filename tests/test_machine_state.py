@@ -130,3 +130,27 @@ def test_machine_state_rejects_bad_condition_steps_and_render_bridge_object() ->
 
     with pytest.raises(MachineStateError, match="restore boundary"):
         MachineState.from_render_state(object())
+
+
+def test_machine_state_rejects_schema_type_coercion() -> None:
+    state = MachineState.capture(_intermediate_machine())
+
+    halted_payload = json.loads(state.canonical_json())
+    halted_payload["halted"] = "false"
+    with pytest.raises(MachineStateError, match="halted must be a boolean"):
+        MachineState.from_dict(halted_payload)
+
+    integer_payload = json.loads(state.canonical_json())
+    integer_payload["steps"] = "5"
+    with pytest.raises(MachineStateError, match="steps must be an integer"):
+        MachineState.from_dict(integer_payload)
+
+    register_payload = json.loads(state.canonical_json())
+    register_payload["registers"][0] = 0
+    with pytest.raises(MachineStateError, match="registers must contain"):
+        MachineState.from_dict(register_payload)
+
+    memory_payload = json.loads(state.canonical_json())
+    memory_payload["nonzero_memory"] = ["not-an-object"]
+    with pytest.raises(MachineStateError, match="entries must be objects"):
+        MachineState.from_dict(memory_payload)
