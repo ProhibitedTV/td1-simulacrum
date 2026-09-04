@@ -21,18 +21,26 @@ reference model
                                |
                                v
                         td1.parity-wire
-                               |
-                               v
-                          line adapter
-                               |
-                               v
-                        physical target
-                               |
-                               v
-                        td1.parity-response
-                               |
-                               v
-                        td1.parity-report
+                         /           \
+                        v             v
+               exact transcript   line adapter
+                        |             |
+                        |             v
+                        |       physical target
+                        |             |
+                        |             v
+                        +---- td1.parity-response
+                                      |
+                                      v
+                               td1.parity-report
+                                      |
+                                      v
+                         td1.parity-campaign-run
+                                      |
+                    transcript -------+
+                                      |
+                                      v
+                              td1.parity-bench-run
 ```
 
 > Hardware earns authority through parity.
@@ -46,7 +54,9 @@ A host adapter implements two parity operations:
 - advertise `ParityCapabilities`;
 - exchange a `ParityRequest` for a `ParityResponse`.
 
-`td1.parity-wire` now gives those existing contracts a deterministic byte-line representation for first-bench integration. Serial libraries, connector choices, analog sampling, and board-specific behavior remain downstream adapter concerns rather than TD-1 arithmetic semantics.
+`td1.parity-wire` gives those existing contracts a deterministic byte-line representation for first-bench integration. Serial libraries, connector choices, analog sampling, and board-specific behavior remain downstream adapter concerns rather than TD-1 arithmetic semantics.
+
+The transcript layer records the exact bytes observed at that adapter boundary but likewise remains downstream of parity truth.
 
 ## Versioned schemas
 
@@ -62,9 +72,14 @@ The workload-derived layer adds:
 - `td1.parity-campaign`;
 - `td1.parity-campaign-run`.
 
-The first byte-oriented adapter layer adds:
+The byte-oriented adapter layer adds:
 
 - `td1.parity-wire`.
+
+The transport-evidence layer adds:
+
+- `td1.parity-wire-transcript`;
+- `td1.parity-bench-run`.
 
 Artifacts use deterministic canonical serialization and SHA-256 fingerprints where applicable.
 
@@ -169,6 +184,43 @@ The default maximum frame size is 65,536 bytes including the LF. Decoding reject
 
 See [`PARITY_WIRE.md`](PARITY_WIRE.md) and ADR 0015.
 
+## Exact wire transcripts
+
+`td1.parity-wire-transcript` records the exact canonical traffic successfully observed at `ParityLineIO`.
+
+Each ordered record preserves:
+
+- host/device direction;
+- contiguous ordinal;
+- exact frame text including LF;
+- frame-byte SHA-256;
+- decoded message kind;
+- correlation ID;
+- envelope digest.
+
+Every frame is revalidated with the same canonical wire decoder used for live transport. A completed transcript requires alternating host request/device response pairs and matching message classes/correlations.
+
+`RecordingParityLineIO` can wrap the in-memory channel today and a real serial channel later. It does not alter `ParityTransport` semantics.
+
+`ReplayParityLineIO` is deliberately strict: host request bytes must match the transcript exactly, responses are returned exactly as recorded, and the entire transcript must be consumed.
+
+A report may contain capability-rejected `unsupported` records that produced no device traffic. `transcript_for_report()` preserves that distinction by reconstructing wire exchanges only for requests the advertised capabilities accepted.
+
+See [`WIRE_TRANSCRIPTS.md`](WIRE_TRANSCRIPTS.md) and ADR 0016.
+
+## Bench-run bundles
+
+`td1.parity-bench-run` binds:
+
+- one exact `td1.parity-campaign-run`;
+- one exact `td1.parity-wire-transcript`.
+
+Validation regenerates the canonical wire conversation implied by the saved report and requires exact transcript equality. A transcript from another target, session, vector order, response set, or telemetry set therefore cannot be silently substituted.
+
+`replay_bench_run()` then runs the saved campaign through normal `JsonLineParityTransport` over `ReplayParityLineIO`, reuses the saved parity session ID, consumes every transcript record, and requires the regenerated campaign run to match canonically.
+
+This is transport evidence, not authenticated hardware identity. SHA-256 values are integrity fingerprints only.
+
 ## Fault reporting and telemetry
 
 Responses may report:
@@ -194,13 +246,15 @@ temperature_millic
 
 These values are metadata only in wire v1. They do not alter arithmetic pass/fail evaluation. Measured electrical acceptance limits require a separate future versioned contract after actual bench distributions exist.
 
+When telemetry appears in a real device response, the transcript preserves the exact response bytes containing it and the bench bundle links those bytes to the conformance report.
+
 ## Replayable conformance reports
 
 A `td1.parity-report` stores capability advertisement/digest, vector-set digest, every request/response, deterministic pass/fail evaluation, exact discrepancy text, and summary counts.
 
 Loading a report revalidates identities, vector semantics, digests, pass flags, discrepancies, capability digest, vector-set digest, and summary.
 
-A report is a bench receipt rather than a screenshot saying “it worked.”
+A report is the evaluated conformance receipt. A transcript is the wire receipt. A bench run binds the two.
 
 ## Reference loopback targets
 
@@ -208,7 +262,9 @@ A report is a bench receipt rather than a screenshot saying “it worked.”
 
 Passing direct loopback proves the host parity infrastructure, not physical ternary hardware.
 
-The v0.15 in-memory wire path wraps the same target with `ParityWireDevice`, `InMemoryParityLineIO`, and `JsonLineParityTransport`. Passing that path additionally proves the canonical wire codec and request/response correlation logic, still not physical hardware.
+The in-memory wire path wraps the same target with `ParityWireDevice`, `InMemoryParityLineIO`, and `JsonLineParityTransport`. Passing that path additionally proves the canonical wire codec and request/response correlation logic.
+
+Wrapping the path in `RecordingParityLineIO` and successfully replaying the resulting `ParityBenchRun` additionally proves the deterministic transport-evidence stack. It still does not prove physical hardware.
 
 ## CLI
 
@@ -233,7 +289,14 @@ td1-parity verify sum.campaign.json
 
 td1-parity loopback sum.campaign.json --output sum.run.json
 
-td1-parity wire-loopback sum.campaign.json --output sum.wire.run.json
+td1-parity wire-loopback sum.campaign.json \
+  --output sum.wire.run.json \
+  --transcript-output sum.wire.transcript.json \
+  --bench-output sum.bench.json
+
+td1-parity wire-transcript-verify sum.wire.transcript.json
+
+td1-parity bench-run-replay sum.bench.json
 
 td1-parity run-verify sum.wire.run.json
 ```
@@ -247,13 +310,16 @@ The first real integration remains intentionally small:
 1. build and measure one physical trit cell;
 2. implement a concrete `ParityLineIO` using the chosen UART/USB serial path;
 3. implement the same `td1.parity-wire` envelope on the device side;
-4. advertise only `trit_hold`, `max_width=1`;
-5. run the three `TRIT-*` fixed golden vectors;
-6. preserve voltage/settling/comparator/sample/board telemetry;
-7. expand capability only after the one-trit report passes;
-8. repeat for a multi-trit register slice;
-9. run workload-derived register campaigns where capabilities allow;
-10. only then begin physical ALU conformance and ALU workload campaigns.
+4. wrap the host line channel with `RecordingParityLineIO`;
+5. advertise only `trit_hold`, `max_width=1`;
+6. run the three `TRIT-*` fixed golden vectors;
+7. preserve voltage/settling/comparator/sample/board telemetry;
+8. save the conformance report, exact transcript, and linked bench-run bundle;
+9. replay that bundle offline as a regression receipt;
+10. expand capability only after the one-trit report passes;
+11. repeat for a multi-trit register slice;
+12. run workload-derived register campaigns where capabilities allow;
+13. only then begin physical ALU conformance and ALU workload campaigns.
 
 A board must not advertise capabilities merely because its schematic intends to support them.
 
@@ -268,9 +334,10 @@ This revision does not define:
 - sample timing;
 - hysteresis/calibration policy;
 - electrical acceptance thresholds;
+- authenticated hardware identity;
 - full-machine state replacement;
 - cycle-accurate execution;
 - physical instruction fetch/decode;
 - physical 12-trit instruction encoding.
 
-Those decisions belong to later hardware/adapter revisions and can consume the transport-neutral parity, campaign, and wire contracts without redefining them.
+Those decisions belong to later hardware/adapter revisions and can consume the transport-neutral parity, campaign, wire, and transcript contracts without redefining them.

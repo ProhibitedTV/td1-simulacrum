@@ -120,7 +120,7 @@ Next:
 
 ## M5 — Physical parity interface
 
-Status: **transport-neutral conformance + trace campaigns + deterministic wire framing implemented**
+Status: **conformance + workload campaigns + wire framing + replayable transport evidence implemented**
 
 Implemented:
 - capability advertisement;
@@ -141,19 +141,28 @@ Implemented:
 - reference device dispatcher around existing parity targets;
 - in-memory line channel exercising the exact wire codec in CI;
 - first bench telemetry naming conventions for voltage, settling, comparator state, samples, board revision, and optional temperature;
-- `td1-parity wire-loopback` execution of complete trace-derived campaigns through the wire codec.
+- versioned `td1.parity-wire-transcript` exact byte-level transport receipts;
+- deterministic frame/envelope integrity fingerprints plus legal request/response ordering;
+- `RecordingParityLineIO` around any existing line channel;
+- strict byte-for-byte `ReplayParityLineIO` with complete-consumption checks;
+- deterministic transcript reconstruction from saved conformance reports;
+- versioned `td1.parity-bench-run` binding one campaign run to its exact wire transcript;
+- offline replay requiring the regenerated campaign report to match the saved report exactly;
+- `td1-parity wire-loopback` optional transcript/bench sidecar emission;
+- transcript verification and bench-run replay CLI workflows.
 
 Next:
 - first real one-trit hardware adapter using the v1 wire contract;
 - concrete UART/USB serial `ParityLineIO` implementation after bench interface choice;
 - measured telemetry capture from TRIT_CELL_REV0;
 - multi-trit register-slice adapter;
-- execute trace-derived campaigns against real adapters;
+- execute and preserve trace-derived campaigns against real adapters;
 - versioned electrical acceptance criteria after measured distributions exist;
+- optional authenticated hardware identity only if bench provenance actually requires it;
 - ALU-board conformance after register-slice success;
 - physical subsystem replacement gate in the emulator runtime.
 
-Exit criterion: at least one physical ternary subsystem replaces its emulated counterpart and passes the same reference/campaign vectors.
+Exit criterion: at least one physical ternary subsystem replaces its emulated counterpart and passes the same reference/campaign vectors with preserved bench evidence.
 
 ## M6 — Native TD-1 operation
 
@@ -185,7 +194,9 @@ The semantic/compiler prerequisite for Issue #2 is implemented. Physical instruc
 - hiding conventional compute behind decorative weirdness;
 - freezing physical instruction encoding before hardware measurements exist;
 - claiming trace-derived subsystem parity proves physical instruction decoding;
-- treating wire framing or telemetry as arithmetic semantics;
+- treating wire framing, transcript hashes, or telemetry as arithmetic semantics;
+- treating transcript SHA-256 values as authenticated device signatures;
+- adding nondeterministic wall-clock timestamps to normative transcript artifacts;
 - claiming navigation-grade accuracy before the timing/reference stack earns it;
 - inventing animation activity not grounded in traced state changes;
 - fabricating executable meanings for unsupported State Weaves;

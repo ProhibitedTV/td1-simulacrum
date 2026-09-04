@@ -26,11 +26,12 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - a self-contained browser Relic player;
 - transport-neutral physical parity contracts and golden vectors;
 - trace-derived parity campaigns that turn real logical workloads into reproducible subsystem conformance vectors;
-- **a deterministic canonical wire protocol that can carry those parity contracts to first-bench hardware without becoming machine semantics.**
+- a deterministic canonical wire protocol that can carry those parity contracts to first-bench hardware without becoming machine semantics;
+- **deterministic wire transcripts and replayable bench-run bundles that preserve exact transport evidence without promoting it into arithmetic truth.**
 
 The long-term target is **hardware parity**: physical TD-1 subsystems progressively replace emulated subsystems while preserving identical externally observable behavior.
 
-## Current baseline — v0.15 pre-alpha
+## Current baseline — v0.16 pre-alpha
 
 ### Logical machine
 
@@ -92,7 +93,12 @@ The long-term target is **hardware parity**: physical TD-1 subsystems progressiv
 - host-side `JsonLineParityTransport` over minimal byte-line I/O;
 - reference device-side dispatcher plus in-memory end-to-end wire loopback;
 - bench telemetry conventions for voltage, settling, comparator state, sample count, board revision, and optional temperature;
-- dedicated `td1-parity` CLI including `wire-loopback`.
+- versioned `td1.parity-wire-transcript` exact line-level evidence;
+- `RecordingParityLineIO` and strict byte-for-byte `ReplayParityLineIO`;
+- deterministic transcript reconstruction from conformance reports;
+- versioned `td1.parity-bench-run` linking campaign/report truth to exact wire evidence;
+- offline replay requiring an identical regenerated campaign-run artifact;
+- dedicated `td1-parity` CLI for campaign, wire, transcript, and bench-run workflows.
 
 ## Quick start
 
@@ -137,7 +143,7 @@ td1-sim machine-state-resume examples/sum.td1 step4.machine.json \
   --output resumed.machine.json
 ```
 
-`td1.machine-state` contains execution truth only. It does not contain glyphs, Observer data, State Weaves, geometry, corpus provenance, browser state, wire framing, or physical instruction words.
+`td1.machine-state` contains execution truth only. It does not contain glyphs, Observer data, State Weaves, geometry, corpus provenance, browser state, wire framing/evidence, or physical instruction words.
 
 ## Execution traces
 
@@ -221,7 +227,7 @@ That distinction remains central until the physical instruction layer exists.
 
 ## Parity wire protocol
 
-v0.15 adds `td1.parity-wire`: a canonical byte-oriented adapter layer beneath the existing `ParityTransport` contract.
+`td1.parity-wire` is a canonical byte-oriented adapter layer beneath the existing `ParityTransport` contract.
 
 The message kinds are:
 
@@ -288,6 +294,48 @@ temperature_millic
 ```
 
 The scaled numeric fields use integers. Telemetry remains metadata only in v1 and cannot change arithmetic pass/fail evaluation. Electrical acceptance criteria will be versioned later after real bench measurements exist.
+
+## Wire transcripts and bench evidence
+
+v0.16 adds deterministic transport receipts around the same wire protocol.
+
+Record a campaign-run artifact plus exact wire transcript and linked bench bundle:
+
+```bash
+td1-parity wire-loopback sum.campaign.json \
+  --output sum.wire.run.json \
+  --transcript-output sum.wire.transcript.json \
+  --bench-output sum.bench.json
+```
+
+Verify the exact transcript independently:
+
+```bash
+td1-parity wire-transcript-verify sum.wire.transcript.json
+```
+
+Replay the complete bench bundle through the normal wire stack without the original target:
+
+```bash
+td1-parity bench-run-replay sum.bench.json
+```
+
+`td1.parity-wire-transcript` preserves, for every successful line operation:
+
+- `host_to_device` / `device_to_host` direction;
+- contiguous ordinal;
+- exact canonical frame text including LF;
+- SHA-256 of exact frame bytes;
+- decoded message kind and correlation ID;
+- envelope digest.
+
+Every embedded frame is revalidated with the live wire decoder. A completed transcript must alternate request/response pairs with matching kinds and correlations.
+
+`RecordingParityLineIO` can wrap any future real `ParityLineIO`. `ReplayParityLineIO` requires host requests to match the saved bytes exactly, returns exact saved responses, and refuses an incomplete replay.
+
+`td1.parity-bench-run` links one exact campaign run to the exact canonical transcript implied by its saved report. The bundle cannot silently accept a transcript from a different target, session, vector order, response set, or telemetry set.
+
+A valid transcript proves what bytes the software artifact records at the line boundary. It does **not** prove which physical device authored those bytes. Transcript hashes are integrity fingerprints, not signatures.
 
 ## Base hardware parity vectors
 
@@ -419,7 +467,7 @@ The target 12-trit layout remains a design candidate:
 
 It is **not frozen**.
 
-The project now has logical execution, semantic lowering, exact checkpoints, execution traces, workload-derived parity campaigns, a transport-neutral hardware conformance boundary, and deterministic wire framing for the first adapter. None of those replace the missing input that matters for Issue #2: measurements and constraints from first physical ternary hardware.
+The project now has logical execution, semantic lowering, exact checkpoints, execution traces, workload-derived parity campaigns, a transport-neutral hardware conformance boundary, deterministic wire framing, and replayable transport evidence. None of those replace the missing input that matters for Issue #2: measurements and constraints from first physical ternary hardware.
 
 Software does not get to vote copper out of the room.
 
@@ -451,12 +499,16 @@ State Weave semantic IR -> typed lowering
       |                                |
       |                                v
       |                         td1.parity-wire
+      |                         /             \
+      |                        v               v
+      |             wire transcript    physical subsystem
+      |                        \               /
+      |                         +------v-------+
       |                                |
-      |                                v
-      |                     physical ternary subsystem
-      |                                |
-      |                                v
       |                     td1.parity-campaign-run
+      |                                |
+      |                                v
+      |                       td1.parity-bench-run
       |
       v
 render state -> native geometry -> delta/morph -> Relic timeline
@@ -467,7 +519,7 @@ render state -> native geometry -> delta/morph -> Relic timeline
                 reference SVG                         standalone browser player
 ```
 
-Machine persistence, physical conformance, transport framing, and presentation remain separate contracts.
+Machine persistence, physical conformance, transport framing/evidence, and presentation remain separate contracts.
 
 ## Design doctrine
 
@@ -481,20 +533,21 @@ Machine persistence, physical conformance, transport framing, and presentation r
 8. **Browser animation is presentation.** It cannot create machine endpoints.
 9. **Trace-derived campaigns test subsystems, not imaginary instruction decoders.**
 10. **Wire framing transports parity semantics; it does not create them.**
-11. **Physicality is not correctness.** A board advertises only capabilities it has demonstrated.
-12. **Hardware earns authority through parity.**
-13. **Determinism wins.** Equivalent inputs and versioned contracts must reproduce equivalent artifacts.
-14. **Accuracy contracts are explicit.** Approximation is labeled rather than promoted silently.
-15. **Corpus inputs are frozen before they influence a revision.**
-16. **Physical instruction encoding waits for physical evidence.**
+11. **Wire transcripts preserve evidence; they do not authenticate hardware or define arithmetic.**
+12. **Physicality is not correctness.** A board advertises only capabilities it has demonstrated.
+13. **Hardware earns authority through parity.**
+14. **Determinism wins.** Equivalent inputs and versioned contracts must reproduce equivalent artifacts.
+15. **Accuracy contracts are explicit.** Approximation is labeled rather than promoted silently.
+16. **Corpus inputs are frozen before they influence a revision.**
+17. **Physical instruction encoding waits for physical evidence.**
 
 ## Repository status
 
 **Pre-alpha / architecture stabilization.**
 
-The software stack now has explicit contracts from semantic intent through logical execution, checkpoint persistence, workload-derived subsystem conformance, deterministic wire framing, native geometry, deterministic playback, and physical parity reporting.
+The software stack now has explicit contracts from semantic intent through logical execution, checkpoint persistence, workload-derived subsystem conformance, deterministic wire framing, exact transport recording/replay, native geometry, deterministic playback, and physical parity reporting.
 
-The next physical milestone is the first real one-trit adapter speaking the v1 parity wire over a concrete byte link and returning measured bench telemetry. The next software work should therefore stay close to copper: a real serial `ParityLineIO`, adapter diagnostics, and measured acceptance tooling. Issue #2 remains intentionally deferred until first-hardware constraints are measured.
+The next physical milestone is still the first real one-trit adapter speaking the v1 parity wire over a concrete byte link and returning measured bench telemetry. The transcript stack means that when those bytes finally come from copper, we can preserve and replay the exact session. The next software work should stay close to that milestone rather than inventing hardware properties we have not measured. Issue #2 remains intentionally deferred.
 
 ## Documentation
 
@@ -503,6 +556,7 @@ The next physical milestone is the first real one-trit adapter speaking the v1 p
 - [`docs/TRACE.md`](docs/TRACE.md)
 - [`docs/PARITY_CAMPAIGNS.md`](docs/PARITY_CAMPAIGNS.md)
 - [`docs/PARITY_WIRE.md`](docs/PARITY_WIRE.md)
+- [`docs/WIRE_TRANSCRIPTS.md`](docs/WIRE_TRANSCRIPTS.md)
 - [`docs/HARDWARE_PARITY.md`](docs/HARDWARE_PARITY.md)
 - [`docs/SEMANTIC_LOWERING.md`](docs/SEMANTIC_LOWERING.md)
 - [`docs/RENDER_STATE.md`](docs/RENDER_STATE.md)
@@ -521,8 +575,8 @@ The next physical milestone is the first real one-trit adapter speaking the v1 p
 
 TD-1 does **not** assume that DMT/Veilbreak reports establish extraterrestrial, interdimensional, or otherwise external intelligences. The project treats those reports as a structured phenomenological corpus capable of generating unconventional interface constraints and testable design hypotheses.
 
-A valid machine checkpoint proves only that it reconstructs the logical reference state it claims. A valid campaign proves only that its subsystem vectors were deterministically derived from the embedded logical trace. A passing conformance report proves only the tested operations against the target and capabilities represented by that report. Passing wire-loopback proves only the host parity + framing + correlation stack. None of those prove physical ternary hardware.
+A valid machine checkpoint proves only that it reconstructs the logical reference state it claims. A valid campaign proves only that its subsystem vectors were deterministically derived from the embedded logical trace. A passing conformance report proves only the tested operations against the target and capabilities represented by that report. A valid transcript proves only the canonical byte conversation it contains. A valid bench bundle proves that the transcript matches the wire conversation implied by its saved campaign report and can replay to the same result. Passing loopback or replay does not prove physical ternary hardware or authenticated device identity.
 
-State Weave lowering mappings, glyph geometry, axial projection, corpus-to-interface mappings, and wire transport choices are TD-1 engineering conventions unless explicitly documented otherwise.
+State Weave lowering mappings, glyph geometry, axial projection, corpus-to-interface mappings, wire transport choices, and transcript conventions are TD-1 engineering conventions unless explicitly documented otherwise.
 
 **Human-built hardware. Exotic design provenance. Bench validation required.**
