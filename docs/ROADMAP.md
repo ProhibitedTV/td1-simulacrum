@@ -40,7 +40,7 @@ Next:
 
 ## M2 — Native representation
 
-Status: **native geometry + transition + reference SVG renderer implemented**
+Status: **native geometry + transition + reference rendering + replay timeline implemented**
 
 Implemented:
 - 27-state microglyph IDs;
@@ -70,14 +70,22 @@ Implemented:
 - zero-display-text Relic output by default;
 - embedded scene/render/machine/profile provenance metadata;
 - XML-safe identifiers/labels and deterministic SVG byte digests;
-- CLI SVG output to stdout or files.
+- CLI SVG output to stdout or files;
+- versioned `td1.relic-timeline` joining execution events to exact render/geometry frames;
+- frame zero plus one deterministic frame per real execution event;
+- per-frame machine/render/scene digests and event identity;
+- deterministic geometry delta on every noninitial frame;
+- replay-time machine-digest verification against `td1.execution-trace`;
+- timeline deserialization that rebuilds geometry and revalidates every adjacent delta;
+- deterministic `td1.timeline-svg-manifest` plus exact SVG frame sequence export.
 
 Next:
-- renderer-independent morph/transition descriptors driven by geometry deltas;
+- renderer-independent morph/transition descriptors driven by timeline geometry deltas;
 - corpus-derived morphing/focus/context constraints;
-- animated browser frontend consuming geometry deltas rather than pixel diffs;
+- animated browser frontend consuming `td1.relic-timeline` rather than pixel diffs;
 - first interactive Relic Mode control surface;
-- optional WebGL renderer tested against the SVG reference topology.
+- optional WebGL renderer tested against the SVG reference topology;
+- storage-efficient timeline/event packaging after the audit-first schema stabilizes.
 
 ## M3 — Corpus pipeline
 
@@ -179,4 +187,5 @@ The first semantic/compiler prerequisite for Issue #2 is now implemented. Physic
 - inventing animation activity that is not grounded in traced state changes;
 - assigning fake executable meanings to unsupported State Weaves for the sake of completeness;
 - treating a physical board as authoritative before deterministic parity passes;
-- allowing a renderer to infer state that is absent from the native geometry scene.
+- allowing a renderer to infer state that is absent from the native geometry scene;
+- allowing playback timing or interpolation to fabricate intermediate machine states.
