@@ -20,6 +20,7 @@ classifiers = [
 
 [project.scripts]
 td1-sim = "td1_simulacrum.cli:main"
+td1-parity = "td1_simulacrum.campaign_cli:main"
 
 [project.optional-dependencies]
 dev = [
