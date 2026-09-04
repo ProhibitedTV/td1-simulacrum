@@ -34,13 +34,13 @@ Implemented:
 - deterministic register and ALU golden parity vectors.
 
 Next:
-- versioned program image format;
-- versioned standalone machine-state serialization;
-- trace export suitable for physical parity sessions.
+- versioned standalone machine-state serialization independent from renderer contracts;
+- trace export/package suitable for physical parity sessions;
+- versioned program image format only after first-hardware constraints are available.
 
 ## M2 — Native representation
 
-Status: **native geometry + transition + morph planning + reference rendering + replay timeline implemented**
+Status: **native geometry + transition + morph planning + reference rendering + standalone browser playback implemented**
 
 Implemented:
 - 27-state microglyph IDs;
@@ -85,15 +85,26 @@ Implemented:
 - explicit project-convention labeling for q/r horizontal/vertical motif mappings;
 - strict morph-plan reconstruction that rejects rule/descriptor/digest drift;
 - versioned `td1.timeline-morph-manifest` with one morph plan per noninitial timeline frame;
-- CLI scene-pair and timeline-wide morph-plan export.
+- CLI scene-pair and timeline-wide morph-plan export;
+- versioned `td1.relic-player-config` for presentation-only timing/easing/projection choices;
+- versioned `td1.relic-player-artifact` manifest with canonical timeline/morph payload digests;
+- self-contained dependency-free browser player compiled to a single HTML artifact;
+- browser-side SHA-256 verification of embedded canonical payloads before playback;
+- Python-side artifact verification that regenerates deterministic timeline morph plans;
+- direct SVG DOM rendering from exact `GeometryScene` primitives;
+- projection parity with the reference SVG renderer;
+- morph-descriptor-driven enter/exit/translate/reform/retag presentation;
+- no animated motion for primitives absent from a morph descriptor;
+- hard reconciliation to the authoritative target scene after every animated adjacent transition;
+- explicit Engineering and provenance diagnostics outside the zero-text Relic canvas;
+- CI syntax gating for the packaged vanilla JavaScript player.
 
 Next:
-- first animated browser frontend consuming `td1.relic-timeline` plus `td1.timeline-morph-manifest`;
-- presentation-only timing/easing policy with exact endpoint preservation;
-- first interactive Relic Mode control surface;
-- optional WebGL renderer tested against the SVG reference topology;
+- first interactive Relic Mode semantic control surface while preserving endpoint authority;
+- optional WebGL renderer tested against SVG/native-geometry projection and topology parity;
 - corpus-derived temporal experiments that remain explicit presentation constraints;
-- storage-efficient timeline/event/morph packaging after the audit-first schemas stabilize.
+- storage-efficient timeline/event/morph packaging after the audit-first schemas stabilize;
+- broader artifact/browser compatibility tests if the player surface expands.
 
 ## M3 — Corpus pipeline
 
@@ -180,11 +191,10 @@ Next:
 - Observer Continuity semantic operations;
 - branch/control-flow semantic forms;
 - geometric control surface;
-- zero-text Relic Mode;
 - sober usability studies;
 - corpus-derived versus control-interface A/B tests.
 
-The first semantic/compiler prerequisite for Issue #2 is now implemented. Physical instruction encoding still waits for first-hardware constraints and explicit encoding review.
+The first semantic/compiler prerequisite for Issue #2 is implemented. Physical instruction encoding still waits for first-hardware constraints and explicit encoding review; v0.12 browser work does not change that gate.
 
 ## Non-goals for early revisions
 
@@ -197,4 +207,5 @@ The first semantic/compiler prerequisite for Issue #2 is now implemented. Physic
 - treating a physical board as authoritative before deterministic parity passes;
 - allowing a renderer to infer state that is absent from the native geometry scene;
 - allowing playback timing or interpolation to fabricate intermediate machine states;
-- allowing corpus-inspired morph hints to lose source provenance or become machine semantics.
+- allowing corpus-inspired morph hints to lose source provenance or become machine semantics;
+- allowing accumulated browser animation state to replace an exact authoritative timeline endpoint.

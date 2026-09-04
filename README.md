@@ -18,18 +18,19 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - the Observer Continuity reference implementation;
 - the frozen Veilbreak-derived requirement-provenance pipeline;
 - the deterministic Engineering/Relic render-state runtime;
-- the renderer-independent native geometry contract used by future visual and physical interfaces;
-- the replayable transition source for future Relic Mode motion and hardware differential testing;
+- the renderer-independent native geometry contract used by visual and physical interfaces;
+- the replayable transition source for Relic Mode motion and hardware differential testing;
 - the deterministic SVG reference renderer for visible native geometry;
-- the replayable execution-to-geometry Relic timeline for future playback;
+- the replayable execution-to-geometry Relic timeline;
 - the corpus-traceable morph-planning contract constraining how exact geometry changes may be presented;
+- the self-contained browser Relic player that animates exact timeline endpoints without becoming a second machine-state authority;
 - the transport-neutral conformance harness that physical ternary hardware must pass before replacing emulation.
 
 The long-term target is **hardware parity**: physical TD-1 subsystems should progressively replace emulated subsystems while preserving identical externally observable state.
 
 ## Current capabilities
 
-The v0.11 pre-alpha foundation includes:
+The v0.12 pre-alpha foundation includes:
 
 - balanced ternary conversion and fixed-width arithmetic;
 - a deterministic 12-trit, 9-register, 729-word logical machine;
@@ -70,12 +71,20 @@ The v0.11 pre-alpha foundation includes:
 - conservative morph fallbacks when no temporal corpus motif is admitted;
 - optional source-traceable morphing, context-persistence, focus-through, horizontal-motion, and vertical-motion presentation hints;
 - versioned `td1.timeline-morph-manifest` with one plan per noninitial Relic timeline frame;
+- versioned `td1.relic-player-config` for explicitly non-normative playback choices;
+- versioned `td1.relic-player-artifact` provenance embedded in standalone player HTML;
+- dependency-free browser playback of native geometry using the same axial/depth projection as the SVG reference renderer;
+- browser-side SHA-256 verification of embedded canonical timeline/morph payloads before playback;
+- Python-side standalone artifact verification that regenerates deterministic morph plans from the embedded timeline;
+- descriptor-driven enter/exit/translate/reform/retag presentation with no inferred movement for unchanged primitives;
+- hard reconciliation to the exact authoritative target `GeometryScene` after every adjacent animated transition;
+- zero-text Relic canvas by default with explicit Engineering and provenance diagnostics;
 - transport-neutral hardware capability/request/response/report schemas;
 - deterministic trit/register and ALU golden vectors;
 - explicit hardware `ok`, `unsupported`, `fault`, `timeout`, and `error` outcomes;
 - replayable conformance reports with slice-state digests and discrepancy records;
 - a reference loopback hardware target for proving the harness before real boards arrive;
-- a CLI, examples, golden fixtures, unit tests, linting, coverage reporting, and Python-version CI.
+- a CLI, examples, golden fixtures, unit tests, Python-version CI, Ruff linting, and explicit Relic-player JavaScript syntax gating.
 
 ## Quick start
 
@@ -124,6 +133,48 @@ Validate the saved timeline and all embedded render/geometry/delta relationships
 td1-sim timeline-verify timeline.json
 ```
 
+Derive renderer-independent transition intent for every timeline transition:
+
+```bash
+td1-sim timeline-morphs timeline.json --output morphs.json
+```
+
+Compile the exact timeline into a self-contained Relic Mode browser artifact:
+
+```bash
+td1-sim relic-player timeline.json --output relic.html
+```
+
+Open `relic.html` directly in a modern browser. The artifact contains its canonical timeline and deterministic morph manifest and verifies those embedded payloads before playback begins.
+
+Verify the standalone artifact offline from the engineering toolchain:
+
+```bash
+td1-sim relic-player-verify relic.html
+```
+
+Customize presentation timing without changing machine state:
+
+```bash
+td1-sim relic-player timeline.json \
+  --output relic.html \
+  --frame-ms 1100 \
+  --transition-ms 620 \
+  --persistence-ms 260 \
+  --easing ease-in-out
+```
+
+Disable automatic playback or looping:
+
+```bash
+td1-sim relic-player timeline.json \
+  --output relic.html \
+  --no-autoplay \
+  --no-loop
+```
+
+Timing, easing, glow, playback speed, looping, and eligible visual persistence are presentation choices only. Every completed adjacent transition is discarded and rebuilt from the exact target geometry scene.
+
 Render every exact timeline frame to deterministic Relic SVG:
 
 ```bash
@@ -133,12 +184,6 @@ td1-sim timeline-svgs timeline.json \
 ```
 
 The output directory contains `frame-0000.svg`, one SVG for every later execution frame, and a deterministic `manifest.json` with timeline/scene/SVG digests.
-
-Derive renderer-independent transition intent for every timeline transition:
-
-```bash
-td1-sim timeline-morphs timeline.json --output morphs.json
-```
 
 Or derive one exact morph plan between two saved native geometry scenes:
 
@@ -314,21 +359,28 @@ native geometry scene <------ frozen corpus geometry profile
       |             |
       v             v
 Relic execution timeline ------> timeline morph manifest
-      |
+      |                              |
+      +------------------------------+
+      |                              |
       +------> deterministic SVG frame manifest
-      |
-      v
-reference SVG renderer ------> visible Engineering / Relic artifacts
-      |
-      v
-future animated / interactive control surface
-      |
-      v
+      |                              |
+      v                              v
+reference SVG renderer       standalone Relic browser player
+      |                              |
+      v                              v
+exact visible frames          animated endpoint presentation
+                                     |
+                                     v
+                          future interactive control surface
+                                     |
+                                     v
 transport-neutral parity harness <------ golden vectors
       |
       v
 physical ternary subsystem
 ```
+
+The visual branch and physical-conformance branch share machine truth but do not grant each other authority. The browser player consumes exact timeline/morph contracts; it does not define machine behavior. Physical hardware earns authority only through parity.
 
 ## Design doctrine
 
@@ -348,6 +400,7 @@ physical ternary subsystem
 14. **Pixels are downstream of truth.** Visible artifacts consume native geometry and preserve its provenance rather than reconstructing state from UI code.
 15. **Playback consumes state transitions.** Timeline frames and deltas are exact; timing and interpolation may never fabricate machine state.
 16. **Morph planning constrains presentation.** Corpus-inspired transition hints are explicit and source-traceable; they never create intermediate machine state.
+17. **Browser animation is presentation.** Every adjacent animation terminates by hard-reconciling to the exact authoritative target scene.
 
 ## Assembly example
 
@@ -370,9 +423,9 @@ HALT
 
 **Pre-alpha / architecture stabilization.**
 
-Machine truth, semantic lowering, frozen corpus provenance, native geometry, deterministic transitions, replayable Relic timelines, renderer-independent morph intent, visible reference rendering, and transport-neutral physical conformance now have explicit contracts.
+Machine truth, semantic lowering, frozen corpus provenance, native geometry, deterministic transitions, replayable Relic timelines, renderer-independent morph intent, deterministic SVG rendering, a self-contained animated browser player, and transport-neutral physical conformance now have explicit contracts.
 
-The next major software milestone is a browser/WebGL playback frontend that consumes `td1.relic-timeline`, `td1.timeline-morph-manifest`, and the exact geometry endpoints without inventing state. The next physical milestone remains the first real one-trit adapter. Issue #2's physical instruction encoding remains intentionally deferred until first-hardware constraints are measured.
+The next software priorities are standalone machine-state serialization, trace-to-parity campaign packaging, richer but still endpoint-authoritative interactive Relic controls, and optional renderer-parity experiments such as WebGL. The next physical milestone remains the first real one-trit adapter. Issue #2's physical instruction encoding remains intentionally deferred until first-hardware constraints are measured.
 
 See:
 
@@ -384,6 +437,7 @@ See:
 - [`docs/SVG_RENDERER.md`](docs/SVG_RENDERER.md)
 - [`docs/RELIC_TIMELINE.md`](docs/RELIC_TIMELINE.md)
 - [`docs/MORPH_PLANS.md`](docs/MORPH_PLANS.md)
+- [`docs/RELIC_PLAYER.md`](docs/RELIC_PLAYER.md)
 - [`docs/TRACE.md`](docs/TRACE.md)
 - [`docs/CORPUS_PIPELINE.md`](docs/CORPUS_PIPELINE.md)
 - [`docs/VEILBREAK_PROVENANCE.md`](docs/VEILBREAK_PROVENANCE.md)
@@ -394,6 +448,6 @@ See:
 
 TD-1 does **not** assume that DMT/Veilbreak reports establish extraterrestrial, interdimensional, or otherwise external intelligences. The project treats those reports as a structured phenomenological corpus capable of generating unconventional interface constraints and testable design hypotheses.
 
-The included corpus fixtures are synthetic test data unless explicitly documented otherwise. State Weave lowering mappings are TD-1 engineering conventions unless explicitly documented otherwise. Loopback conformance proves the host harness only; it is not evidence that physical ternary hardware has passed. SVG styling, projection, frame timing, morph strategies, and future playback effects are presentation conventions and are not additional evidence or machine semantics. Corpus-backed morph rules preserve source provenance but do not claim that participant reports specify TD-1 animation algorithms.
+The included corpus fixtures are synthetic test data unless explicitly documented otherwise. State Weave lowering mappings are TD-1 engineering conventions unless explicitly documented otherwise. Loopback conformance proves the host harness only; it is not evidence that physical ternary hardware has passed. SVG styling, projection, browser timing/easing/glow/persistence, morph strategies, and other playback effects are presentation conventions and are not additional evidence or machine semantics. Corpus-backed morph rules preserve source provenance but do not claim that participant reports specify TD-1 animation algorithms. Embedded player hashes provide integrity checks, not authorship signatures.
 
 **Human-built hardware. Exotic design provenance. Bench validation required.**
