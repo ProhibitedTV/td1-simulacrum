@@ -44,7 +44,10 @@ Deterministic native geometry <------ frozen corpus geometry profile
       +------> geometry delta
       |
       v
-Frontend / physical control surface
+Reference SVG renderer ------> visible Engineering / Relic artifact
+      |
+      v
+Future interactive frontend / physical control surface
       |
       v
 Transport-neutral parity harness <------ golden vectors
@@ -53,7 +56,7 @@ Transport-neutral parity harness <------ golden vectors
 Physical ternary subsystem
 ```
 
-The arithmetic core must remain independent from phenomenology, geometry, rendering, and transport. Corpus-derived ideas are allowed to shape interface semantics and representation, but not redefine arithmetic correctness. Hardware becomes authoritative only after conformance against the reference model.
+The arithmetic core must remain independent from phenomenology, geometry, rendering, and transport. Corpus-derived ideas are allowed to shape interface semantics and representation, but not redefine arithmetic correctness. Renderers consume native geometry rather than reconstructing truth from UI rules. Hardware becomes authoritative only after conformance against the reference model.
 
 ## 3. Reference machine
 
@@ -89,7 +92,7 @@ The target 12-trit format remains:
 [ opcode:3 ][ reg A:2 ][ reg B:2 ][ immediate/relative:5 ]
 ```
 
-but this is still a target, not yet a normative encoding table. The semantic compiler gives Issue #2 a real lowering boundary to review, and the parity harness now gives first hardware a conformance boundary. Physical instruction words should be frozen only after those constraints are reviewed together.
+but this is still a target, not yet a normative encoding table. The semantic compiler gives Issue #2 a real lowering boundary to review, and the parity harness gives first hardware a conformance boundary. Physical instruction words should be frozen only after those constraints are reviewed together.
 
 ## 4. Toolchain layer
 
@@ -105,6 +108,7 @@ The toolchain currently provides:
 - deterministic execution traces and replay verification;
 - deterministic render-state export;
 - deterministic native-geometry export and geometry deltas;
+- deterministic standalone SVG rendering from saved geometry scenes;
 - frozen corpus validation and delta inspection;
 - State Weave lowering and supported-form introspection;
 - hardware parity vector export, loopback conformance, and report verification.
@@ -182,7 +186,26 @@ Current corpus-admitted transforms are:
 
 No frozen motif support means no corpus-derived rule is claimed.
 
-## 8. Observer Continuity
+## 8. Reference SVG renderer
+
+`td1.svg-render` is the first visible reference implementation of `td1.geometry-scene`.
+
+It accepts only a validated geometry scene and does not read machine state, execute semantic operations, or query corpus data. Its integer projection is:
+
+```text
+x = (2q + r) * unit + z * depth_x
+y = 3r * unit - z * depth_y
+```
+
+The renderer preserves primitive membership and topology. It embeds source scene/render/machine digests and optional corpus profile provenance into SVG metadata.
+
+Relic and Engineering themes share the same projected native geometry. Relic is zero-display-text by default. Engineering labels are derived only from existing `primitive_id` and `role` metadata.
+
+Projection, palette, stroke weight, node radius, margin, and label visibility are presentation choices rather than machine semantics. Identical geometry plus identical renderer options must produce byte-identical SVG.
+
+Future animated frontends should consume execution traces and `td1.geometry-delta`; they must not infer state changes by comparing rendered pixels.
+
+## 9. Observer Continuity
 
 Observer Continuity is TD-1's permanent background state model.
 
@@ -198,7 +221,7 @@ The approximation is intentional and labeled. Precision navigation will require 
 
 Rendered deep-field motion must ultimately be driven by observer-state changes rather than arbitrary animation.
 
-## 9. Provenance model
+## 10. Provenance model
 
 Corpus-derived requirements must preserve the chain:
 
@@ -230,11 +253,19 @@ State Weave
         -> execution trace
 ```
 
-The system must never silently collapse a participant's interpretation into an established external cause or silently collapse native semantic identity into hidden register choices.
+Visible presentation follows:
 
-## 10. Determinism
+```text
+geometry scene
+  -> deterministic renderer options
+    -> SVG artifact + embedded provenance
+```
 
-The reference machine exposes deterministic snapshots and a SHA-256 state digest. Semantic lowerings, render state, corpus snapshots, geometry profiles, geometry scenes, transition traces, parity vectors, and parity reports also expose deterministic canonical serialization and content digests where applicable.
+The system must never silently collapse a participant's interpretation into an established external cause, silently collapse native semantic identity into hidden register choices, or treat a renderer as a source of truth.
+
+## 11. Determinism
+
+The reference machine exposes deterministic snapshots and a SHA-256 state digest. Semantic lowerings, render state, corpus snapshots, geometry profiles, geometry scenes, transition traces, SVG artifacts, parity vectors, and parity reports also expose deterministic canonical serialization and content digests where applicable.
 
 These digests are intended for:
 
@@ -242,10 +273,11 @@ These digests are intended for:
 - deterministic replay;
 - compiler drift detection;
 - frontend equivalence testing;
+- visual artifact reproducibility;
 - emulator-versus-hardware parity;
 - differential testing across implementations.
 
-## 11. Physical parity boundary
+## 12. Physical parity boundary
 
 Physical TD-1 hardware is admitted through a transport-neutral conformance layer.
 
@@ -281,22 +313,22 @@ The physical link itself is outside the parity semantics. UART, USB, GPIO, Ether
 
 A board earns wider or more complex capability only after its narrower conformance campaign passes. A physical subsystem may replace its emulated counterpart only after conformance reports demonstrate parity against the reference vectors.
 
-## 12. Operating modes
+## 13. Operating modes
 
 ### Engineering Mode
 
-Human-readable diagnostics: registers, instruction pointer, semantic IR, lowering artifacts, corpus provenance, observer state, geometry provenance, and hardware parity status.
+Human-readable diagnostics: registers, instruction pointer, semantic IR, lowering artifacts, corpus provenance, observer state, geometry provenance, renderer provenance, and hardware parity status.
 
 ### Relic Mode
 
-The exact same underlying state expressed using native TD-1 geometry and interaction semantics.
+The exact same underlying state expressed using native TD-1 geometry and interaction semantics. The SVG reference renderer emits no visible English labels in Relic theme by default.
 
 ### Corpus Mode
 
 Traceability view explaining which versioned source observations contributed to a requirement or corpus-backed geometry rule.
 
-## 13. Primary engineering rule
+## 14. Primary engineering rule
 
-**No decorative weirdness, no semantic hand-waving, and no hardware exceptionalism.**
+**No decorative weirdness, no semantic hand-waving, no renderer exceptionalism, and no hardware exceptionalism.**
 
-Every glyph, transition, braid, pulse, depth change, topology change, apparent motion, executable semantic mapping, or claimed hardware capability must eventually map to explicit state, a measured event, a documented interface affordance, a versioned compiler rule, or a passing conformance record.
+Every glyph, transition, braid, pulse, depth change, topology change, apparent motion, executable semantic mapping, visible primitive, or claimed hardware capability must eventually map to explicit state, a measured event, a documented interface affordance, a versioned compiler/renderer rule, or a passing conformance record.

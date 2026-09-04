@@ -103,6 +103,17 @@ from .render_state import (
     project_render_state,
 )
 from .semantic import Modifier, SemanticIR, SemanticRoot, StateWeave
+from .svg_renderer import (
+    SVG_PROJECTION,
+    SVG_RENDERER_SCHEMA,
+    SVG_RENDERER_VERSION,
+    SVGRenderArtifact,
+    SVGRendererError,
+    SVGRenderOptions,
+    SVGTheme,
+    project_point,
+    render_svg,
+)
 from .ternary import (
     TernaryWord,
     int_to_trits,
@@ -205,6 +216,13 @@ __all__ = [
     "RenderPlane",
     "RenderState",
     "RequirementTrace",
+    "SVG_PROJECTION",
+    "SVG_RENDERER_SCHEMA",
+    "SVG_RENDERER_VERSION",
+    "SVGRenderArtifact",
+    "SVGRendererError",
+    "SVGRenderOptions",
+    "SVGTheme",
     "SemanticAction",
     "SemanticIR",
     "SemanticRoot",
@@ -236,7 +254,9 @@ __all__ = [
     "logical_program_digest",
     "lower_state_weave",
     "microglyph_geometry",
+    "project_point",
     "project_render_state",
+    "render_svg",
     "representable_range",
     "run_conformance",
     "supported_lowerings",
@@ -251,4 +271,4 @@ __all__ = [
     "wrap_int",
 ]
 
-__version__ = "0.8.0a0"
+__version__ = "0.9.0a0"
