@@ -17,6 +17,12 @@ from .campaign import (
 from .parity import ReferenceLoopbackTransport
 from .trace import trace_program
 from .wire import InMemoryParityLineIO, JsonLineParityTransport, ParityWireDevice
+from .wire_transcript import (
+    ParityBenchRun,
+    ParityWireTranscript,
+    RecordingParityLineIO,
+    replay_bench_run,
+)
 
 
 def _write_json(payload: dict[str, object], output: Path | None) -> None:
@@ -110,6 +116,8 @@ def _wire_loopback(
     target_max_width: int,
     target_id: str,
     output: Path | None,
+    transcript_output: Path | None,
+    bench_output: Path | None,
 ) -> int:
     campaign = ParityCampaign.from_json(path.read_text(encoding="utf-8"))
     target = ReferenceLoopbackTransport(
@@ -117,9 +125,39 @@ def _wire_loopback(
         max_width=target_max_width,
     )
     line_io = InMemoryParityLineIO(ParityWireDevice(target))
-    transport = JsonLineParityTransport(line_io)
+    recording = RecordingParityLineIO(line_io)
+    transport = JsonLineParityTransport(recording)
     run = run_parity_campaign(transport, campaign)
-    return _emit_run(run, output, transport="td1.parity-wire/v1")
+    transcript = recording.transcript()
+    bench = ParityBenchRun(run, transcript)
+
+    if transcript_output is not None:
+        _write_json(transcript.as_dict(), transcript_output)
+    if bench_output is not None:
+        _write_json(bench.as_dict(), bench_output)
+
+    if output is None:
+        _write_json(run.as_dict(), None)
+    else:
+        _write_json(run.as_dict(), output)
+        payload: dict[str, object] = {
+            "output": str(output),
+            "transport": "td1.parity-wire/v1",
+            "run_digest": run.digest(),
+            "campaign_digest": run.campaign.digest(),
+            "report_digest": run.report.digest(),
+            "transcript_digest": transcript.digest(),
+            "bench_run_digest": bench.digest(),
+            "passed": run.report.passed,
+            "passed_count": run.report.passed_count,
+            "failed_count": run.report.failed_count,
+        }
+        if transcript_output is not None:
+            payload["transcript_output"] = str(transcript_output)
+        if bench_output is not None:
+            payload["bench_output"] = str(bench_output)
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0 if run.report.passed else 2
 
 
 def _verify_run(path: Path) -> int:
@@ -134,6 +172,34 @@ def _verify_run(path: Path) -> int:
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 0 if run.report.passed else 2
+
+
+def _verify_transcript(path: Path) -> int:
+    transcript = ParityWireTranscript.from_json(path.read_text(encoding="utf-8"))
+    payload = {
+        "verified": True,
+        "transcript_digest": transcript.digest(),
+        "records": len(transcript.records),
+        "exchanges": transcript.exchange_count,
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _replay_bench(path: Path) -> int:
+    bench = ParityBenchRun.from_json(path.read_text(encoding="utf-8"))
+    replayed = replay_bench_run(bench)
+    payload = {
+        "verified": True,
+        "replayed": True,
+        "bench_run_digest": bench.digest(),
+        "transcript_digest": bench.transcript.digest(),
+        "campaign_run_digest": replayed.digest(),
+        "report_digest": replayed.report.digest(),
+        "passed": replayed.report.passed,
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0 if replayed.report.passed else 2
 
 
 def _add_target_options(parser: argparse.ArgumentParser, *, default_id: str) -> None:
@@ -176,12 +242,34 @@ def build_parser() -> argparse.ArgumentParser:
     )
     wire_loopback_parser.add_argument("path", type=Path)
     _add_target_options(wire_loopback_parser, default_id="simulacrum.wire-loopback")
+    wire_loopback_parser.add_argument(
+        "--transcript-output",
+        type=Path,
+        help="optional td1.parity-wire-transcript artifact path",
+    )
+    wire_loopback_parser.add_argument(
+        "--bench-output",
+        type=Path,
+        help="optional td1.parity-bench-run artifact path",
+    )
 
     run_verify_parser = subparsers.add_parser(
         "run-verify",
         help="verify a saved td1.parity-campaign-run artifact",
     )
     run_verify_parser.add_argument("path", type=Path)
+
+    transcript_verify_parser = subparsers.add_parser(
+        "wire-transcript-verify",
+        help="verify exact canonical frame evidence in a saved wire transcript",
+    )
+    transcript_verify_parser.add_argument("path", type=Path)
+
+    bench_replay_parser = subparsers.add_parser(
+        "bench-run-replay",
+        help="verify and replay a saved td1.parity-bench-run through transcript bytes",
+    )
+    bench_replay_parser.add_argument("path", type=Path)
 
     return parser
 
@@ -205,9 +293,15 @@ def main() -> int:
             args.target_max_width,
             args.target_id,
             args.output,
+            args.transcript_output,
+            args.bench_output,
         )
     if args.command == "run-verify":
         return _verify_run(args.path)
+    if args.command == "wire-transcript-verify":
+        return _verify_transcript(args.path)
+    if args.command == "bench-run-replay":
+        return _replay_bench(args.path)
     raise RuntimeError(f"unknown command {args.command!r}")
 
 
