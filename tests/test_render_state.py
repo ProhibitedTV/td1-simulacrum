@@ -8,13 +8,13 @@ from td1_simulacrum import (
     Machine,
     Modifier,
     ObserverState,
+    project_render_state,
     RenderMode,
     RenderPlane,
     RenderState,
     SemanticRoot,
     StateWeave,
     TernaryWord,
-    project_render_state,
 )
 
 
