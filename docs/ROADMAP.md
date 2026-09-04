@@ -30,12 +30,12 @@ Implemented:
 - logical-program semantic fingerprints;
 - per-instruction machine digest chain;
 - register and memory deltas;
-- deterministic trace replay verification.
+- deterministic trace replay verification;
+- deterministic register and ALU golden parity vectors.
 
 Next:
 - versioned program image format;
 - versioned standalone machine-state serialization;
-- hardware-oriented golden vectors;
 - trace export suitable for physical parity sessions.
 
 ## M2 — Native representation
@@ -112,14 +112,27 @@ Next:
 
 ## M5 — Physical parity interface
 
-Status: **not started**
+Status: **transport-neutral conformance foundation implemented**
 
-- hardware transport abstraction;
-- register/ALU differential test harness;
-- deterministic parity packets;
-- fault injection;
-- physical subsystem conformance reports;
-- execution-trace comparison against physical observations.
+Implemented:
+- transport-neutral capability advertisement;
+- versioned parity request/response schemas;
+- deterministic ternary slice-state digests;
+- register/trit and ALU golden vectors;
+- explicit `ok`, `unsupported`, `fault`, `timeout`, and `error` statuses;
+- capability-gated conformance sessions;
+- replayable `td1.parity-report` logs with deterministic pass/fail evaluation;
+- reference loopback target with fault, width, and observed-value injection;
+- CLI vector export, loopback conformance, and report verification;
+- first campaign scoped to `trit_hold` followed by register-slice loads.
+
+Next:
+- first real one-trit hardware adapter;
+- voltage/settling/comparator telemetry schema convention;
+- multi-trit register-slice adapter;
+- connect execution traces to physical conformance sessions;
+- ALU-board conformance after register-slice success;
+- physical subsystem replacement gate in the emulator runtime.
 
 Exit criterion: at least one physical ternary subsystem replaces its emulated counterpart and passes the same golden vectors.
 
@@ -156,4 +169,5 @@ The first semantic/compiler prerequisite for Issue #2 is now implemented. Physic
 - freezing exotic hardware before the reference model is stable;
 - claiming navigation-grade accuracy before the timing/reference stack earns it;
 - inventing animation activity that is not grounded in traced state changes;
-- assigning fake executable meanings to unsupported State Weaves for the sake of completeness.
+- assigning fake executable meanings to unsupported State Weaves for the sake of completeness;
+- treating a physical board as authoritative before deterministic parity passes.
