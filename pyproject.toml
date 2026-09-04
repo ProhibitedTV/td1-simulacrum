@@ -51,3 +51,6 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["td1_simulacrum"]
