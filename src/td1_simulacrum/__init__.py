@@ -15,6 +15,22 @@ from .corpus import (
     compare_snapshots,
     export_requirement_traces,
 )
+from .geometry import (
+    GEOMETRY_GRID,
+    GEOMETRY_SCHEMA,
+    GEOMETRY_SCHEMA_VERSION,
+    AppliedGeometryRule,
+    GeometryError,
+    GeometryKind,
+    GeometryPrimitive,
+    GeometryProfile,
+    GeometryScene,
+    LatticePoint,
+    MotifSupport,
+    build_geometry_scene,
+    glyph_id_from_geometry,
+    microglyph_geometry,
+)
 from .glyphs import (
     glyph_id_to_triad,
     glyph_ids_to_word,
@@ -54,6 +70,7 @@ from .ternary import (
 
 __all__ = [
     "AnnotationMethod",
+    "AppliedGeometryRule",
     "AssemblyError",
     "CORPUS_SCHEMA",
     "CORPUS_SCHEMA_VERSION",
@@ -61,7 +78,16 @@ __all__ = [
     "CorpusError",
     "CorpusSnapshot",
     "EvidenceStatus",
+    "GEOMETRY_GRID",
+    "GEOMETRY_SCHEMA",
+    "GEOMETRY_SCHEMA_VERSION",
+    "GeometryError",
+    "GeometryKind",
+    "GeometryPrimitive",
+    "GeometryProfile",
+    "GeometryScene",
     "Instruction",
+    "LatticePoint",
     "Machine",
     "MachineError",
     "MachineSnapshot",
@@ -69,6 +95,7 @@ __all__ = [
     "Modifier",
     "Motif",
     "MotifAnnotation",
+    "MotifSupport",
     "ObserverRenderState",
     "ObserverState",
     "Op",
@@ -89,14 +116,17 @@ __all__ = [
     "VeilbreakExportAdapter",
     "VeilbreakFieldMap",
     "assemble",
+    "build_geometry_scene",
     "compare_snapshots",
     "disassemble",
     "export_requirement_traces",
     "geodetic_to_ecef",
+    "glyph_id_from_geometry",
     "glyph_id_to_triad",
     "glyph_ids_to_word",
     "int_to_trits",
     "julian_date_utc",
+    "microglyph_geometry",
     "project_render_state",
     "representable_range",
     "triad_to_glyph_id",
@@ -105,4 +135,4 @@ __all__ = [
     "wrap_int",
 ]
 
-__version__ = "0.4.0a0"
+__version__ = "0.5.0a0"

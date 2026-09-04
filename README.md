@@ -16,13 +16,14 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - the reversible 27-state microglyph encoding layer;
 - the Observer Continuity reference implementation;
 - the frozen Veilbreak-derived requirement-provenance pipeline;
-- the deterministic Engineering/Relic render-state runtime.
+- the deterministic Engineering/Relic render-state runtime;
+- the renderer-independent native geometry contract used by future visual and physical interfaces.
 
 The long-term target is **hardware parity**: physical TD-1 subsystems should progressively replace emulated subsystems while preserving identical externally observable state.
 
 ## Current capabilities
 
-The v0.4 pre-alpha foundation includes:
+The v0.5 pre-alpha foundation includes:
 
 - balanced ternary conversion and fixed-width arithmetic;
 - a deterministic 12-trit, 9-register, 729-word logical machine;
@@ -39,7 +40,11 @@ The v0.4 pre-alpha foundation includes:
 - frozen `VB-TD1-*` corpus snapshots with canonical serialization and digests;
 - explicit Veilbreak export field mapping that preserves observation vs interpretation;
 - versioned motif annotations, snapshot deltas, and strict source-to-requirement traces;
-- a CLI, examples, unit tests, linting, coverage reporting, and Python-version CI.
+- versioned `td1.geometry-scene` serialization on an integer triangular lattice;
+- unique reversible geometry for all 27 microglyph states;
+- deterministic 12-trit word, register, memory, machine-control, and State Weave geometry;
+- corpus-admitted lattice/depth/multiscale/braiding rules with exact source provenance;
+- a CLI, examples, golden fixtures, unit tests, linting, coverage reporting, and Python-version CI.
 
 ## Quick start
 
@@ -74,6 +79,26 @@ td1-sim render examples/sum.td1 --mode relic
 ```
 
 The two render modes must derive from the same immutable render-state digest.
+
+Emit project-native fallback geometry:
+
+```bash
+td1-sim geometry examples/sum.td1
+```
+
+Admit geometry rules from a frozen corpus snapshot:
+
+```bash
+td1-sim geometry examples/sum.td1 \
+  --corpus tests/fixtures/corpus_snapshot_v1.json
+```
+
+Include a State Weave in the geometry scene:
+
+```bash
+td1-sim geometry examples/sum.td1 \
+  --weave 'TIME>REFERENCE:+'
+```
 
 Validate a frozen corpus snapshot:
 
@@ -129,6 +154,12 @@ normative render state
       +------> Relic projection
       |
       v
+native geometry scene <------ frozen corpus geometry profile
+      |
+      v
+frontend / physical control surface
+      |
+      v
 physical-hardware parity boundary
 ```
 
@@ -143,6 +174,7 @@ physical-hardware parity boundary
 7. **Hardware earns authority through parity.** A physical subsystem replaces an emulated one only after conformance against the reference model.
 8. **The renderer is not a source of truth.** It may decide how state is shown, never what state exists.
 9. **Corpus inputs are frozen before use.** A TD-1 revision must be able to identify and reproduce the exact external research input that informed it.
+10. **Geometry is a contract, not decoration.** Corpus-derived topology changes require explicit frozen motif evidence and source provenance.
 
 ## Assembly example
 
@@ -165,12 +197,13 @@ HALT
 
 **Pre-alpha / architecture stabilization.**
 
-The renderer-independent state boundary and frozen corpus pipeline are now implemented. The next major milestones are corpus-backed deterministic geometry/topology, semantic lowering into the logical ISA, a versioned program image, and the emulator-to-hardware parity transport.
+The renderer-independent state boundary, frozen corpus pipeline, and native geometry contract are now implemented. The next major milestones are deterministic transition/morph descriptors, semantic lowering into the logical ISA, a versioned program image, and the emulator-to-hardware parity transport.
 
 See:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/RENDER_STATE.md`](docs/RENDER_STATE.md)
+- [`docs/GEOMETRY.md`](docs/GEOMETRY.md)
 - [`docs/CORPUS_PIPELINE.md`](docs/CORPUS_PIPELINE.md)
 - [`docs/VEILBREAK_PROVENANCE.md`](docs/VEILBREAK_PROVENANCE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
@@ -179,5 +212,7 @@ See:
 ## Epistemic boundary
 
 TD-1 does **not** assume that DMT/Veilbreak reports establish extraterrestrial, interdimensional, or otherwise external intelligences. The project treats those reports as a structured phenomenological corpus capable of generating unconventional interface constraints and testable design hypotheses.
+
+The included corpus fixtures are synthetic test data unless explicitly documented otherwise.
 
 **Human-built hardware. Exotic design provenance. Bench validation required.**
