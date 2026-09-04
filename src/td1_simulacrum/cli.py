@@ -8,12 +8,13 @@ from pathlib import Path
 
 from .assembler import assemble
 from .corpus import CorpusSnapshot, compare_snapshots
-from .geometry import GeometryProfile, build_geometry_scene
+from .geometry import GeometryProfile, GeometryScene, build_geometry_scene
 from .glyphs import word_to_glyph_ids
 from .machine import Machine
 from .render_state import RenderMode, RenderState, project_render_state
 from .semantic import StateWeave
 from .ternary import TernaryWord
+from .trace import ExecutionTrace, diff_geometry, trace_program, verify_execution_trace
 
 
 def _run_program(path: Path, max_steps: int) -> int:
@@ -21,6 +22,21 @@ def _run_program(path: Path, max_steps: int) -> int:
     machine = Machine().run(program, max_steps=max_steps)
     print(json.dumps(machine.snapshot().as_dict(), indent=2))
     print(f"state_digest={machine.state_digest()}")
+    return 0
+
+
+def _trace_program(path: Path, max_steps: int) -> int:
+    program = assemble(path.read_text(encoding="utf-8"))
+    trace = trace_program(program, max_steps=max_steps)
+    print(json.dumps(trace.as_dict(), indent=2, sort_keys=True))
+    return 0
+
+
+def _verify_trace(path: Path, trace_path: Path) -> int:
+    program = assemble(path.read_text(encoding="utf-8"))
+    trace = ExecutionTrace.from_json(trace_path.read_text(encoding="utf-8"))
+    verify_execution_trace(program, trace)
+    print(json.dumps({"verified": True, "trace_digest": trace.digest()}, sort_keys=True))
     return 0
 
 
@@ -55,6 +71,13 @@ def _geometry_program(
 
     scene = build_geometry_scene(state, profile=profile)
     print(json.dumps(scene.as_dict(), indent=2, sort_keys=True))
+    return 0
+
+
+def _geometry_delta(before_path: Path, after_path: Path) -> int:
+    before = GeometryScene.from_json(before_path.read_text(encoding="utf-8"))
+    after = GeometryScene.from_json(after_path.read_text(encoding="utf-8"))
+    print(json.dumps(diff_geometry(before, after).as_dict(), indent=2, sort_keys=True))
     return 0
 
 
@@ -95,6 +118,20 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("path", type=Path)
     run_parser.add_argument("--max-steps", type=int, default=100_000)
 
+    trace_parser = subparsers.add_parser(
+        "trace",
+        help="execute a TD-1 source file and emit a deterministic logical transition trace",
+    )
+    trace_parser.add_argument("path", type=Path)
+    trace_parser.add_argument("--max-steps", type=int, default=100_000)
+
+    verify_parser = subparsers.add_parser(
+        "trace-verify",
+        help="replay and verify a saved execution trace against a TD-1 source file",
+    )
+    verify_parser.add_argument("path", type=Path)
+    verify_parser.add_argument("trace", type=Path)
+
     render_parser = subparsers.add_parser(
         "render",
         help="execute a TD-1 source file and emit a deterministic render projection",
@@ -129,6 +166,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     geometry_parser.add_argument("--max-steps", type=int, default=100_000)
 
+    geometry_delta_parser = subparsers.add_parser(
+        "geometry-delta",
+        help="classify deterministic changes between two saved TD-1 geometry scenes",
+    )
+    geometry_delta_parser.add_argument("before", type=Path)
+    geometry_delta_parser.add_argument("after", type=Path)
+
     glyph_parser = subparsers.add_parser("glyph", help="map a ternary word to microglyph IDs")
     glyph_parser.add_argument("word")
 
@@ -152,6 +196,10 @@ def main() -> int:
     args = build_parser().parse_args()
     if args.command == "run":
         return _run_program(args.path, args.max_steps)
+    if args.command == "trace":
+        return _trace_program(args.path, args.max_steps)
+    if args.command == "trace-verify":
+        return _verify_trace(args.path, args.trace)
     if args.command == "render":
         return _render_program(args.path, args.max_steps, args.mode)
     if args.command == "geometry":
@@ -162,6 +210,8 @@ def main() -> int:
             args.corpus_threshold,
             args.weave,
         )
+    if args.command == "geometry-delta":
+        return _geometry_delta(args.before, args.after)
     if args.command == "glyph":
         return _show_glyphs(args.word)
     if args.command == "corpus-validate":

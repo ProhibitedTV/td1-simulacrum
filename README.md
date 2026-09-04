@@ -17,13 +17,14 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - the Observer Continuity reference implementation;
 - the frozen Veilbreak-derived requirement-provenance pipeline;
 - the deterministic Engineering/Relic render-state runtime;
-- the renderer-independent native geometry contract used by future visual and physical interfaces.
+- the renderer-independent native geometry contract used by future visual and physical interfaces;
+- the replayable transition source for future Relic Mode motion and hardware differential testing.
 
 The long-term target is **hardware parity**: physical TD-1 subsystems should progressively replace emulated subsystems while preserving identical externally observable state.
 
 ## Current capabilities
 
-The v0.5 pre-alpha foundation includes:
+The v0.6 pre-alpha foundation includes:
 
 - balanced ternary conversion and fixed-width arithmetic;
 - a deterministic 12-trit, 9-register, 729-word logical machine;
@@ -44,6 +45,9 @@ The v0.5 pre-alpha foundation includes:
 - unique reversible geometry for all 27 microglyph states;
 - deterministic 12-trit word, register, memory, machine-control, and State Weave geometry;
 - corpus-admitted lattice/depth/multiscale/braiding rules with exact source provenance;
+- versioned `td1.execution-trace` with logical program fingerprints and digest-chained events;
+- deterministic trace replay with exact register and memory deltas;
+- versioned `td1.geometry-delta` with stable-ID transition classifications;
 - a CLI, examples, golden fixtures, unit tests, linting, coverage reporting, and Python-version CI.
 
 ## Quick start
@@ -58,6 +62,18 @@ Run the reference program:
 
 ```bash
 td1-sim run examples/sum.td1
+```
+
+Trace every logical instruction transition:
+
+```bash
+td1-sim trace examples/sum.td1 > trace.json
+```
+
+Replay and verify the saved trace:
+
+```bash
+td1-sim trace-verify examples/sum.td1 trace.json
 ```
 
 Inspect the deterministic microglyph IDs for a 12-trit word:
@@ -98,6 +114,12 @@ Include a State Weave in the geometry scene:
 ```bash
 td1-sim geometry examples/sum.td1 \
   --weave 'TIME>REFERENCE:+'
+```
+
+Compare two saved geometry scenes:
+
+```bash
+td1-sim geometry-delta before.geometry.json after.geometry.json
 ```
 
 Validate a frozen corpus snapshot:
@@ -142,7 +164,7 @@ glyph + State Weave system
 semantic IR
       |
       v
-12-trit reference machine
+12-trit reference machine ------> execution trace
       |
       +------> Observer Continuity
       |
@@ -155,6 +177,8 @@ normative render state
       |
       v
 native geometry scene <------ frozen corpus geometry profile
+      |
+      +------> geometry delta
       |
       v
 frontend / physical control surface
@@ -175,6 +199,7 @@ physical-hardware parity boundary
 8. **The renderer is not a source of truth.** It may decide how state is shown, never what state exists.
 9. **Corpus inputs are frozen before use.** A TD-1 revision must be able to identify and reproduce the exact external research input that informed it.
 10. **Geometry is a contract, not decoration.** Corpus-derived topology changes require explicit frozen motif evidence and source provenance.
+11. **Transitions are traced before they are animated.** A future visual effect must consume real execution or geometry change rather than fabricate activity.
 
 ## Assembly example
 
@@ -197,13 +222,14 @@ HALT
 
 **Pre-alpha / architecture stabilization.**
 
-The renderer-independent state boundary, frozen corpus pipeline, and native geometry contract are now implemented. The next major milestones are deterministic transition/morph descriptors, semantic lowering into the logical ISA, a versioned program image, and the emulator-to-hardware parity transport.
+Machine truth, frozen corpus provenance, native geometry, and deterministic transition traces now have explicit contracts. The next major milestones are semantic lowering into the logical ISA, a versioned physical program image, corpus-backed morph descriptors, a reference Relic Mode frontend, and the emulator-to-hardware parity transport.
 
 See:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/RENDER_STATE.md`](docs/RENDER_STATE.md)
 - [`docs/GEOMETRY.md`](docs/GEOMETRY.md)
+- [`docs/TRACE.md`](docs/TRACE.md)
 - [`docs/CORPUS_PIPELINE.md`](docs/CORPUS_PIPELINE.md)
 - [`docs/VEILBREAK_PROVENANCE.md`](docs/VEILBREAK_PROVENANCE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
