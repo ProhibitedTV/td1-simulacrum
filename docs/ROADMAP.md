@@ -120,7 +120,7 @@ Next:
 
 ## M5 — Physical parity interface
 
-Status: **conformance + workload campaigns + wire framing + replayable transport evidence implemented**
+Status: **conformance + campaigns + wire + evidence + stream host adapter implemented**
 
 Implemented:
 - capability advertisement;
@@ -149,11 +149,19 @@ Implemented:
 - versioned `td1.parity-bench-run` binding one campaign run to its exact wire transcript;
 - offline replay requiring the regenerated campaign report to match the saved report exactly;
 - `td1-parity wire-loopback` optional transcript/bench sidecar emission;
-- transcript verification and bench-run replay CLI workflows.
+- transcript verification and bench-run replay CLI workflows;
+- minimal `BinaryByteStream` / reader / writer protocols with no serial-library dependency;
+- `StreamParityLineIO` over duplex or split binary streams;
+- deterministic partial-write completion and optional writer flushing;
+- fragmented/coalesced read buffering with preservation of later frame bytes;
+- bounded incoming-line buffering using the existing parity-wire frame ceiling;
+- explicit empty-EOF, partial-EOF, frame-too-large, read-failure, and write-failure adapter errors;
+- deterministic stream byte/frame/buffer counters with no wall-clock state;
+- full campaign -> stream adapter -> transcript -> bench bundle -> offline replay proof in CI.
 
 Next:
 - first real one-trit hardware adapter using the v1 wire contract;
-- concrete UART/USB serial `ParityLineIO` implementation after bench interface choice;
+- select the actual UART/USB-CDC bench interface and add a thin optional serial-library wrapper around `StreamParityLineIO`;
 - measured telemetry capture from TRIT_CELL_REV0;
 - multi-trit register-slice adapter;
 - execute and preserve trace-derived campaigns against real adapters;
@@ -194,9 +202,10 @@ The semantic/compiler prerequisite for Issue #2 is implemented. Physical instruc
 - hiding conventional compute behind decorative weirdness;
 - freezing physical instruction encoding before hardware measurements exist;
 - claiming trace-derived subsystem parity proves physical instruction decoding;
-- treating wire framing, transcript hashes, or telemetry as arithmetic semantics;
+- treating wire framing, stream counters, transcript hashes, or telemetry as arithmetic semantics;
 - treating transcript SHA-256 values as authenticated device signatures;
 - adding nondeterministic wall-clock timestamps to normative transcript artifacts;
+- choosing baud rate, USB identity, connector, pinout, or serial package before the actual bench interface exists;
 - claiming navigation-grade accuracy before the timing/reference stack earns it;
 - inventing animation activity not grounded in traced state changes;
 - fabricating executable meanings for unsupported State Weaves;
