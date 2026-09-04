@@ -40,7 +40,7 @@ Next:
 
 ## M2 — Native representation
 
-Status: **native geometry + transition + reference rendering + replay timeline implemented**
+Status: **native geometry + transition + morph planning + reference rendering + replay timeline implemented**
 
 Implemented:
 - 27-state microglyph IDs;
@@ -77,15 +77,23 @@ Implemented:
 - deterministic geometry delta on every noninitial frame;
 - replay-time machine-digest verification against `td1.execution-trace`;
 - timeline deserialization that rebuilds geometry and revalidates every adjacent delta;
-- deterministic `td1.timeline-svg-manifest` plus exact SVG frame sequence export.
+- deterministic `td1.timeline-svg-manifest` plus exact SVG frame sequence export;
+- versioned `td1.morph-plan` transition intent for all geometry-delta change kinds;
+- exact `(dq, dr, dz)` vectors for true native-geometry translations;
+- conservative endpoint-only strategies when no temporal motif is admitted;
+- source-traceable corpus hints for morphing, context persistence, focus-through, and axial motion;
+- explicit project-convention labeling for q/r horizontal/vertical motif mappings;
+- strict morph-plan reconstruction that rejects rule/descriptor/digest drift;
+- versioned `td1.timeline-morph-manifest` with one morph plan per noninitial timeline frame;
+- CLI scene-pair and timeline-wide morph-plan export.
 
 Next:
-- renderer-independent morph/transition descriptors driven by timeline geometry deltas;
-- corpus-derived morphing/focus/context constraints;
-- animated browser frontend consuming `td1.relic-timeline` rather than pixel diffs;
+- first animated browser frontend consuming `td1.relic-timeline` plus `td1.timeline-morph-manifest`;
+- presentation-only timing/easing policy with exact endpoint preservation;
 - first interactive Relic Mode control surface;
 - optional WebGL renderer tested against the SVG reference topology;
-- storage-efficient timeline/event packaging after the audit-first schema stabilizes.
+- corpus-derived temporal experiments that remain explicit presentation constraints;
+- storage-efficient timeline/event/morph packaging after the audit-first schemas stabilize.
 
 ## M3 — Corpus pipeline
 
@@ -188,4 +196,5 @@ The first semantic/compiler prerequisite for Issue #2 is now implemented. Physic
 - assigning fake executable meanings to unsupported State Weaves for the sake of completeness;
 - treating a physical board as authoritative before deterministic parity passes;
 - allowing a renderer to infer state that is absent from the native geometry scene;
-- allowing playback timing or interpolation to fabricate intermediate machine states.
+- allowing playback timing or interpolation to fabricate intermediate machine states;
+- allowing corpus-inspired morph hints to lose source provenance or become machine semantics.
