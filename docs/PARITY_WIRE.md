@@ -25,8 +25,15 @@ parity campaign / golden vectors
           |                     |
           |                     v
           |          td1.parity-wire-transcript
+          |
           v
- UART / USB serial / other byte link later
+   StreamParityLineIO
+          |
+          v
+ binary byte stream
+          |
+          v
+ UART / USB CDC / other link later
           |
           v
       device dispatcher
@@ -138,21 +145,40 @@ write_line(frame: bytes)
 read_line() -> bytes
 ```
 
-No serial library is part of the core package in v0.16. A later adapter may use `pyserial`, USB APIs, or another transport without changing the wire schema or the parity semantics above it.
-
 `InMemoryParityLineIO` exists so CI exercises the exact encode -> device-dispatch -> decode path without physical hardware.
+
+v0.17 adds `StreamParityLineIO`, a concrete implementation over minimal readable/writable binary stream protocols. This is the bridge intended for future UART/USB-CDC libraries.
+
+The stream adapter:
+
+- completes partial writes until all supplied frame bytes are accepted;
+- optionally flushes writers that expose `flush()`;
+- reassembles fragmented reads;
+- returns exactly one LF-terminated frame at a time;
+- preserves coalesced bytes belonging to later frames;
+- bounds incoming buffering using the existing wire frame ceiling;
+- distinguishes empty EOF, partial EOF, oversized input, invalid read/write results, and underlying I/O failure;
+- reports deterministic byte/frame/buffer counters without wall-clock state.
+
+It does not parse or repair JSON. Canonical wire validation remains here in the wire layer rather than moving down into stream mechanics.
+
+No serial library is required. A later pyserial or USB integration may wrap/configure a compatible binary stream without changing the wire schema.
+
+See [`STREAM_LINE_IO.md`](STREAM_LINE_IO.md) and ADR 0017.
 
 ## Recording and replay
 
-v0.16 adds deterministic transport evidence without changing wire v1 itself.
+v0.16 added deterministic transport evidence without changing wire v1 itself.
 
-`RecordingParityLineIO` may wrap any line channel. It records each successful canonical host write and device read as an exact `td1.parity-wire-transcript` record containing direction, ordinal, full frame text, frame SHA-256, decoded kind/correlation, and envelope digest.
+`RecordingParityLineIO` may wrap any line channel, including `StreamParityLineIO`. It records each successful canonical host write and device read as an exact `td1.parity-wire-transcript` record containing direction, ordinal, full frame text, frame SHA-256, decoded kind/correlation, and envelope digest.
 
 `ReplayParityLineIO` then requires host request bytes to match the saved transcript exactly and returns the saved response bytes in sequence.
 
 A completed transcript enforces alternating request/response order, matching correlation IDs, and matching request/response message classes.
 
 `td1.parity-bench-run` binds a saved campaign run to the exact transcript implied by its conformance report. The bundle rejects a transcript from a different target, session, vector order, response set, or telemetry set.
+
+Because recording sits above `ParityLineIO`, moving from in-memory line I/O to stream-backed line I/O requires no transcript schema change.
 
 See [`WIRE_TRANSCRIPTS.md`](WIRE_TRANSCRIPTS.md) and ADR 0016.
 
@@ -229,28 +255,31 @@ The ordinary campaign-run artifact remains the conformance result. Transcript an
 The intended next hardware path is:
 
 1. validate one real trit cell on the bench;
-2. implement the wire envelope on a tiny host/device adapter;
-3. wrap the real line adapter with `RecordingParityLineIO`;
-4. advertise only `trit_hold`, width 1;
-5. run the existing three one-trit parity vectors;
-6. report `voltage_uv`, `settle_us`, `comparator_code`, `sample_count`, and `board_revision` where available;
-7. save the parity report, exact wire transcript, and linked bench-run bundle;
-8. replay the bundle offline as a regression receipt;
-9. expand capabilities only after measured evidence supports the next subsystem.
+2. select the actual UART/USB-CDC byte interface and expose it as a compatible binary stream;
+3. wrap that stream with `StreamParityLineIO`;
+4. wrap the line adapter with `RecordingParityLineIO`;
+5. use `JsonLineParityTransport` unchanged above it;
+6. advertise only `trit_hold`, width 1;
+7. run the existing three one-trit parity vectors;
+8. report `voltage_uv`, `settle_us`, `comparator_code`, `sample_count`, and `board_revision` where available;
+9. save the parity report, exact wire transcript, and linked bench-run bundle;
+10. replay the bundle offline as a regression receipt;
+11. expand capabilities only after measured evidence supports the next subsystem.
 
 ## Explicit non-goals
 
-Wire/transcript v1 does not define:
+Wire/transcript/stream v1 does not define:
 
+- pyserial or another required serial package;
 - USB VID/PID;
 - UART baud rate;
 - connector type;
 - PCB pinout;
+- read/write timeout or reconnect policy;
 - analog thresholds;
 - ADC resolution;
 - comparator hysteresis;
 - sample cadence;
-- retry/time-out policy for a real serial driver;
 - electrical acceptance limits;
 - authenticated hardware identity;
 - instruction fetch/decode;
