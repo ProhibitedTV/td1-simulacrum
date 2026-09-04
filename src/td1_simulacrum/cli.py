@@ -13,6 +13,7 @@ from .geometry import GeometryProfile, GeometryScene, build_geometry_scene
 from .glyphs import word_to_glyph_ids
 from .lowering import OperandBindings, lower_state_weave, supported_lowerings
 from .machine import Instruction, Machine, Op
+from .morph import build_morph_plan, build_timeline_morph_manifest
 from .parity import (
     ConformanceReport,
     ReferenceLoopbackTransport,
@@ -89,6 +90,54 @@ def _geometry_delta(before_path: Path, after_path: Path) -> int:
     before = GeometryScene.from_json(before_path.read_text(encoding="utf-8"))
     after = GeometryScene.from_json(after_path.read_text(encoding="utf-8"))
     print(json.dumps(diff_geometry(before, after).as_dict(), indent=2, sort_keys=True))
+    return 0
+
+
+def _morph_scenes(before_path: Path, after_path: Path, output: Path | None) -> int:
+    before = GeometryScene.from_json(before_path.read_text(encoding="utf-8"))
+    after = GeometryScene.from_json(after_path.read_text(encoding="utf-8"))
+    plan = build_morph_plan(before, after)
+    text = json.dumps(plan.as_dict(), indent=2, sort_keys=True) + "\n"
+    if output is None:
+        sys.stdout.write(text)
+    else:
+        output.write_text(text, encoding="utf-8", newline="\n")
+        print(
+            json.dumps(
+                {
+                    "output": str(output),
+                    "morph_plan_digest": plan.digest(),
+                    "delta_digest": plan.delta.digest(),
+                    "descriptors": len(plan.descriptors),
+                    "corpus_rules": len(plan.applied_rules),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+    return 0
+
+
+def _timeline_morphs(path: Path, output: Path | None) -> int:
+    timeline = RelicTimeline.from_json(path.read_text(encoding="utf-8"))
+    manifest = build_timeline_morph_manifest(timeline)
+    text = json.dumps(manifest.as_dict(), indent=2, sort_keys=True) + "\n"
+    if output is None:
+        sys.stdout.write(text)
+    else:
+        output.write_text(text, encoding="utf-8", newline="\n")
+        print(
+            json.dumps(
+                {
+                    "output": str(output),
+                    "manifest_digest": manifest.digest(),
+                    "timeline_digest": timeline.digest(),
+                    "morph_plans": len(manifest.entries),
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
     return 0
 
 
@@ -414,6 +463,14 @@ def build_parser() -> argparse.ArgumentParser:
     geometry_delta_parser.add_argument("before", type=Path)
     geometry_delta_parser.add_argument("after", type=Path)
 
+    morph_parser = subparsers.add_parser(
+        "morph",
+        help="derive deterministic presentation intent between two geometry scenes",
+    )
+    morph_parser.add_argument("before", type=Path)
+    morph_parser.add_argument("after", type=Path)
+    morph_parser.add_argument("--output", type=Path)
+
     svg_parser = subparsers.add_parser(
         "svg",
         help="render a saved td1.geometry-scene as deterministic standalone SVG",
@@ -444,6 +501,13 @@ def build_parser() -> argparse.ArgumentParser:
     timeline_svg_parser.add_argument("path", type=Path, help="saved Relic timeline JSON")
     timeline_svg_parser.add_argument("--out-dir", type=Path, required=True)
     _add_svg_options(timeline_svg_parser)
+
+    timeline_morph_parser = subparsers.add_parser(
+        "timeline-morphs",
+        help="derive one deterministic morph plan for every timeline transition",
+    )
+    timeline_morph_parser.add_argument("path", type=Path, help="saved Relic timeline JSON")
+    timeline_morph_parser.add_argument("--output", type=Path)
 
     lower_parser = subparsers.add_parser(
         "lower",
@@ -532,6 +596,8 @@ def main() -> int:
         )
     if args.command == "geometry-delta":
         return _geometry_delta(args.before, args.after)
+    if args.command == "morph":
+        return _morph_scenes(args.before, args.after, args.output)
     if args.command == "svg":
         return _render_svg_scene(
             args.path,
@@ -565,6 +631,8 @@ def main() -> int:
             args.depth_y,
             args.margin,
         )
+    if args.command == "timeline-morphs":
+        return _timeline_morphs(args.path, args.output)
     if args.command == "lower":
         return _lower_weave(args)
     if args.command == "lowerings":
