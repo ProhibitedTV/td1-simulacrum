@@ -18,7 +18,7 @@ Exit criterion: deterministic execution with no known semantic ambiguity in the 
 
 ## M1 — Engineering toolchain
 
-Status: **trace + checkpoint foundation implemented**
+Status: **trace + checkpoint + workload-parity packaging implemented**
 
 Implemented:
 - text assembler/disassembler, labels, relative branches, CLI, and examples;
@@ -26,26 +26,29 @@ Implemented:
 - per-instruction machine digest chain plus register/memory deltas;
 - deterministic trace replay verification;
 - versioned renderer-independent `td1.machine-state` checkpoints;
-- explicit architecture metadata: word width, register count, and memory size;
 - exact register state plus sparse nonzero memory persistence;
 - canonical checkpoint JSON and SHA-256 digests;
-- strict restore-time validation against the existing complete emulator machine digest;
-- intermediate checkpoint/resume with final-state equivalence to uninterrupted execution;
-- explicit `RenderState -> MachineState` bridge that copies machine truth only;
-- CLI checkpoint emit / verify / resume commands;
+- intermediate checkpoint/resume with final-state parity to uninterrupted execution;
+- explicit `RenderState -> MachineState` machine-truth bridge;
+- versioned `td1.parity-campaign` artifacts derived from real execution traces;
+- exact initial/final machine checkpoints embedded in each campaign;
+- event-indexed subsystem vectors for encountered register-load, negate, add, and subtract work;
+- explicit subsystem-level `ADDI -> add` mapping with no instruction-decode claim;
+- strict campaign re-derivation from the embedded source trace;
+- versioned `td1.parity-campaign-run` artifacts binding campaign oracle to conformance report;
+- dedicated `td1-parity` build/verify/loopback/run-verify CLI;
 - deterministic register and ALU golden parity vectors.
 
 Next:
-- trace-to-parity campaign packaging;
-- checkpoint-aware physical differential testing;
-- versioned program image format after first-hardware constraints are available;
-- optional compact/binary persistence only after the audit-first JSON schemas stabilize.
+- checkpoint/campaign-aware real hardware differential testing;
+- versioned program image only after first-hardware constraints are available;
+- optional compact/binary persistence after audit-first JSON schemas stabilize.
 
-`td1.machine-state` is not a program-image format and does not freeze Issue #2.
+`td1.machine-state` and `td1.parity-campaign` are not physical program-image formats and do not freeze Issue #2.
 
 ## M2 — Native representation
 
-Status: **native geometry + transition + morph planning + reference rendering + standalone browser playback implemented**
+Status: **native geometry + transitions + reference rendering + standalone browser playback implemented**
 
 Implemented:
 - reversible 27-state microglyph mapping;
@@ -68,7 +71,7 @@ Implemented:
 - Python-side artifact verification that regenerates deterministic morph plans;
 - projection parity with the SVG reference renderer;
 - hard reconciliation to exact authoritative endpoint geometry after every animation;
-- zero-text Relic canvas with explicit Engineering/provenance diagnostics;
+- zero-text Relic canvas with Engineering/provenance diagnostics;
 - Node syntax gating for the packaged browser runtime.
 
 Next:
@@ -84,7 +87,7 @@ Status: **frozen snapshot foundation implemented**
 Implemented:
 - source observation / interpretation separation;
 - requirement-trace model;
-- versioned `VB-TD1-*` snapshot schema;
+- versioned `VB-TD1-*` snapshots;
 - canonical serialization and snapshot digests;
 - explicit Veilbreak field mapping;
 - motif annotations with annotation-method provenance;
@@ -117,7 +120,7 @@ Next:
 
 ## M5 — Physical parity interface
 
-Status: **transport-neutral conformance foundation implemented**
+Status: **transport-neutral conformance + trace-derived campaign foundation implemented**
 
 Implemented:
 - capability advertisement;
@@ -128,17 +131,19 @@ Implemented:
 - capability-gated conformance sessions;
 - replayable conformance reports;
 - reference loopback target;
-- first campaign scoped to `trit_hold` then register-slice loads.
+- deterministic trace-derived parity campaigns and campaign-run artifacts;
+- exact workload event provenance preserved through each derived physical test vector;
+- strict separation between subsystem-operation parity and future physical instruction-decode parity.
 
 Next:
 - first real one-trit hardware adapter;
 - voltage/settling/comparator telemetry convention;
 - multi-trit register-slice adapter;
-- connect execution traces and machine checkpoints to physical conformance sessions;
+- execute trace-derived campaigns against real adapters;
 - ALU-board conformance after register-slice success;
 - physical subsystem replacement gate in the emulator runtime.
 
-Exit criterion: at least one physical ternary subsystem replaces its emulated counterpart and passes the same golden vectors.
+Exit criterion: at least one physical ternary subsystem replaces its emulated counterpart and passes the same reference/campaign vectors.
 
 ## M6 — Native TD-1 operation
 
@@ -169,6 +174,7 @@ The semantic/compiler prerequisite for Issue #2 is implemented. Physical instruc
 - treating phenomenology as proof of ontology;
 - hiding conventional compute behind decorative weirdness;
 - freezing physical instruction encoding before hardware measurements exist;
+- claiming trace-derived subsystem parity proves physical instruction decoding;
 - claiming navigation-grade accuracy before the timing/reference stack earns it;
 - inventing animation activity not grounded in traced state changes;
 - fabricating executable meanings for unsupported State Weaves;
@@ -176,4 +182,4 @@ The semantic/compiler prerequisite for Issue #2 is implemented. Physical instruc
 - allowing renderer/browser state to become machine truth;
 - allowing presentation timing/interpolation to fabricate machine state;
 - allowing corpus-derived hints to lose provenance or become arithmetic semantics;
-- using `td1.render-state` as the long-term persistence format for logical machine execution.
+- using `td1.render-state` as the long-term persistence format for logical execution.

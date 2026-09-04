@@ -4,53 +4,59 @@
 
 TD-1 hardware is not allowed to become authoritative because it is physical. A physical ternary subsystem replaces an emulated subsystem only after it reproduces the reference model for the same deterministic stimuli.
 
-The v1 parity layer defines that conformance boundary without choosing a physical transport.
+The parity layer defines that conformance boundary without choosing a physical transport.
 
 ```text
 reference model
     |
-    v
-golden parity vector
+    +------> fixed golden vectors
     |
-    v
-td1.parity-request
-    |
-    v
-transport adapter
-    |
-    v
-physical target
-    |
-    v
-td1.parity-response
-    |
-    v
-replayable conformance report
+    +------> execution trace -> td1.parity-campaign
+                               |
+                               v
+                        td1.parity-request
+                               |
+                               v
+                        transport adapter
+                               |
+                               v
+                        physical target
+                               |
+                               v
+                        td1.parity-response
+                               |
+                               v
+                        td1.parity-report
 ```
 
 > Hardware earns authority through parity.
 
 ## Transport neutrality
 
-The parity contract does not specify USB, UART, CAN, Ethernet, GPIO, SWD, SPI, or any other wire protocol.
+The parity contract does not specify USB, UART, CAN, Ethernet, GPIO, SWD, SPI, or another wire protocol.
 
-A future adapter implements only two host-side operations:
+A future adapter implements two host-side operations:
 
 - advertise `ParityCapabilities`;
 - exchange a `ParityRequest` for a `ParityResponse`.
 
-That keeps logical conformance independent from the physical link. Serial framing and voltage sampling belong to adapters and telemetry, not to TD-1 arithmetic semantics.
+Serial framing, analog sampling, and board-specific details belong to adapters/telemetry, not TD-1 arithmetic semantics.
 
 ## Versioned schemas
 
-The v1 layer defines:
+The base layer defines:
 
 - `td1.parity-capabilities`;
 - `td1.parity-request`;
 - `td1.parity-response`;
 - `td1.parity-report`.
 
-Every artifact uses deterministic canonical JSON where applicable and can be fingerprinted with SHA-256.
+The workload-derived layer adds:
+
+- `td1.parity-campaign`;
+- `td1.parity-campaign-run`.
+
+Artifacts use deterministic canonical serialization and SHA-256 fingerprints where applicable.
 
 ## Capability negotiation
 
@@ -62,7 +68,7 @@ A target advertises:
 - maximum ternary slice width;
 - optional telemetry keys.
 
-The harness rejects unsupported vectors before exchange and records them as `unsupported` rather than pretending the target failed a test it never claimed to implement.
+Unsupported vectors are rejected before exchange and recorded as `unsupported` rather than being misclassified as a target malfunction.
 
 Current operation classes are:
 
@@ -72,7 +78,7 @@ Current operation classes are:
 - `add`;
 - `sub`.
 
-## Golden vectors
+## Fixed golden vectors
 
 ### First physical campaign: trit/register slice
 
@@ -86,47 +92,55 @@ Current operation classes are:
 
 Each one-trit state must be driven, held, observed, and returned through the adapter without spontaneous semantic change.
 
-The same vector set then tests register-slice loads at the requested width using:
-
-- zero;
-- +1;
-- -1;
-- maximum positive value;
-- maximum negative value;
-- an alternating ternary pattern.
+The same vector set then tests register-slice loads at the requested width using zero, +/-1, maximum/minimum representable values, and an alternating ternary pattern.
 
 This is the intended bridge from `TRIT_CELL_REV0` bench work into software conformance.
 
 ### Later ALU campaign
 
-`golden_alu_vectors()` includes:
+`golden_alu_vectors()` includes negation, basic addition/subtraction, and fixed-width wrap cases.
 
-- negation;
-- basic addition/subtraction;
-- positive-to-negative fixed-width wrap;
-- negative-to-positive fixed-width wrap.
+Those vectors exist so the reference oracle is stable before physical ALU design begins. They do not imply that an ALU board exists.
 
-The ALU vectors exist now so the test oracle is stable before physical ALU design begins. They do not imply that an ALU board already exists.
+## Trace-derived workload campaigns
+
+Fixed golden vectors answer “does this subsystem handle the reference edge cases?”
+
+`td1.parity-campaign` adds a second question:
+
+> Does this subsystem handle the exact ternary values encountered during a real TD-1 logical workload?
+
+A campaign embeds its complete source `td1.execution-trace`, exact initial/final `td1.machine-state` checkpoints, event provenance, and deterministic subsystem vectors.
+
+Current mappings are deliberately narrow:
+
+- `LDI`, `MOV`, `LD` -> `register_load`;
+- `NEG` -> `negate`;
+- `ADD` -> `add`;
+- `SUB` -> `sub`;
+- `ADDI` -> subsystem `add` with the immediate represented as a fixed-width 12-trit operand.
+
+The `ADDI` mapping does **not** test physical `ADDI` instruction decoding. Likewise, mapping `LD` to a register-load vector tests the destination register value path represented by the current parity surface; it does not claim physical memory-read parity.
+
+Control-flow, compare, store, no-op, and halt semantics remain unclaimed until the parity operation surface gains faithful tests for them.
+
+Every saved campaign is re-derived from its embedded trace at load time. `td1.parity-campaign-run` then binds the exact campaign vector set to one exact `td1.parity-report`.
+
+See [`PARITY_CAMPAIGNS.md`](PARITY_CAMPAIGNS.md) and ADR 0014.
 
 ## Observable state digests
 
-A physical slice result is fingerprinted as:
+A physical slice result is fingerprinted from width and normalized ternary value.
 
-```text
-SHA256({width, ternary_value})
-```
-
-This is a deterministic **slice-state digest**, not a security claim.
-
-The response carries both the observed ternary value and its observed-state digest. The harness recomputes the digest and rejects a response whose value and digest disagree.
-
-That gives three distinct failure classes:
+The response carries the observed value and observed-state digest. The harness recomputes the digest and distinguishes:
 
 1. transport/device status failure;
 2. observed ternary value mismatch;
 3. observed-state digest mismatch.
 
-## Fault reporting
+These are deterministic integrity fingerprints, not cryptographic authorship claims.
+
+## Fault reporting and telemetry
 
 Responses may report:
 
@@ -136,7 +150,7 @@ Responses may report:
 - `timeout`;
 - `error`.
 
-A fault status is preserved in the final report along with the vector identity and optional detail. Later hardware adapters can attach integer/string telemetry such as:
+Later adapters may attach integer/string telemetry such as:
 
 ```text
 voltage_uv
@@ -149,79 +163,61 @@ Scaled integer telemetry is preferable to ambiguous floating-point strings for b
 
 ## Replayable conformance reports
 
-A `td1.parity-report` stores:
+A `td1.parity-report` stores capability advertisement/digest, vector-set digest, every request/response, deterministic pass/fail evaluation, exact discrepancy text, and summary counts.
 
-- capability advertisement and digest;
-- deterministic vector-set digest;
-- every request;
-- every response;
-- deterministic pass/fail evaluation;
-- exact discrepancy text;
-- summary counts.
+Loading a report revalidates identities, vector semantics, digests, pass flags, discrepancies, capability digest, vector-set digest, and summary.
 
-Loading a saved report revalidates the request/response identities, vector semantics, digests, pass flags, discrepancy text, capability digest, vector-set digest, and summary.
-
-A report therefore serves as a bench receipt rather than a screenshot saying “it worked.”
+A report is a bench receipt rather than a screenshot saying “it worked.”
 
 ## Reference loopback target
 
-`ReferenceLoopbackTransport` implements the same contract entirely in software. It exists to prove the harness before a physical adapter is written.
+`ReferenceLoopbackTransport` implements the contract entirely in software. It can return deterministic success, forced fault/timeout/error states, deliberate observed-value corruption, and restricted maximum width.
 
-It supports:
-
-- deterministic success;
-- forced `fault` / `timeout` / `error` states;
-- deliberate observed-value corruption;
-- restricted maximum width for capability-negotiation tests.
-
-Passing loopback proves the parity infrastructure, not physical ternary hardware.
+Passing loopback proves the host parity infrastructure, not physical ternary hardware.
 
 ## CLI
 
-Emit the complete current golden set:
+Base fixed-vector workflows:
 
 ```bash
 td1-sim parity-vectors --width 12
-```
 
-Emit only the first trit/register campaign:
-
-```bash
 td1-sim parity-vectors --width 3 --register-only
-```
 
-Run the vectors through the reference loopback target:
-
-```bash
 td1-sim parity-loopback --width 12
-```
 
-Exercise capability rejection deliberately:
-
-```bash
-td1-sim parity-loopback --width 12 --target-max-width 3
-```
-
-Validate a saved report:
-
-```bash
 td1-sim parity-verify report.json
 ```
 
+Trace-derived workload workflows:
+
+```bash
+td1-parity build examples/sum.td1 --output sum.campaign.json
+
+td1-parity verify sum.campaign.json
+
+td1-parity loopback sum.campaign.json --output sum.run.json
+
+td1-parity run-verify sum.run.json
+```
+
+Capability rejection can be exercised deliberately with `--target-max-width`.
+
 ## Physical adapter sequence
 
-The first real hardware integration should remain small:
+The first real integration remains intentionally small:
 
 1. build and measure one physical trit cell;
-2. write a tiny adapter that can command/read `-`, `0`, `+`;
+2. write a tiny adapter that commands/reads `-`, `0`, `+`;
 3. advertise only `trit_hold`, `max_width=1`;
-4. run the three `TRIT-*` golden vectors;
-5. preserve raw voltage/settling telemetry in the report;
+4. run the three `TRIT-*` fixed golden vectors;
+5. preserve voltage/settling/comparator telemetry;
 6. expand capability only after the one-trit report passes;
 7. repeat for a multi-trit register slice;
-8. only then begin ALU conformance.
+8. run workload-derived register campaigns where capabilities allow;
+9. only then begin physical ALU conformance and ALU workload campaigns.
 
-A board should not advertise capabilities merely because its schematic intends to support them.
+A board must not advertise capabilities merely because its schematic intends to support them.
 
 ## Deferred work
 
@@ -231,10 +227,10 @@ This revision does not define:
 - serial packet framing;
 - analog threshold values;
 - sample timing;
-- hysteresis policy;
-- calibration procedure;
+- hysteresis/calibration policy;
 - full-machine state replacement;
 - cycle-accurate execution;
+- physical instruction fetch/decode;
 - physical 12-trit instruction encoding.
 
-Those decisions belong to later hardware/adaptor revisions and can consume this transport-neutral contract.
+Those decisions belong to later hardware/adaptor revisions and can consume the transport-neutral parity and campaign contracts without redefining them.

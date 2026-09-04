@@ -2,96 +2,91 @@
 
 **Executable reference model and native software environment for TD-1 / The Anomaly.**
 
-TD-1 is a human-built experimental computer centered on physical balanced-ternary computation, a non-text semantic interface, and continuous observer-state modeling. Its interface research is anchored in recurring motifs reported in the Veilbreak phenomenology corpus, while arithmetic, correctness, hardware behavior, and validation remain independent engineering concerns.
+TD-1 is a human-built experimental computer centered on physical balanced-ternary computation, a non-text semantic interface, and continuous observer-state modeling. Interface research is informed by recurring motifs reported in the Veilbreak phenomenology corpus, while arithmetic, correctness, physical behavior, and validation remain independent engineering concerns.
 
 > The unusual source may generate the hypothesis. The engineering process determines whether it gets merged.
 
-## What this repository is
+## Project role
 
-`td1-simulacrum` defines the machine before the physical hardware exists. It is intended to become:
+`td1-simulacrum` defines the machine before physical ternary hardware earns authority. It currently provides:
 
-- the known-good reference model for the 12-trit TD-1 architecture;
-- the versioned renderer-independent persistence boundary for exact logical machine checkpoints;
-- the assembler/disassembler and deterministic test oracle for physical hardware;
-- the semantic State Weave intermediate representation;
-- the typed compiler boundary from native semantic intent into logical TD-1 instructions;
-- the reversible 27-state microglyph encoding layer;
-- the Observer Continuity reference implementation;
-- the frozen Veilbreak-derived requirement-provenance pipeline;
-- the deterministic Engineering/Relic render-state runtime;
-- the renderer-independent native geometry contract used by visual and physical interfaces;
-- the replayable transition source for Relic Mode motion and hardware differential testing;
-- the deterministic SVG reference renderer for visible native geometry;
-- the replayable execution-to-geometry Relic timeline;
-- the corpus-traceable morph-planning contract constraining how exact geometry changes may be presented;
-- the self-contained browser Relic player that animates exact timeline endpoints without becoming a second machine-state authority;
-- the transport-neutral conformance harness that physical ternary hardware must pass before replacing emulation.
+- the known-good logical model for the 12-trit TD-1 architecture;
+- renderer-independent `td1.machine-state` checkpoints;
+- assembler/disassembler and deterministic execution tooling;
+- exact execution traces and replay verification;
+- native State Weave semantic IR and typed lowering;
+- reversible 27-state microglyph encoding;
+- Observer Continuity groundwork;
+- frozen Veilbreak-derived provenance tooling;
+- deterministic Engineering/Relic render state;
+- renderer-independent native geometry;
+- deterministic SVG reference rendering;
+- exact execution-to-geometry Relic timelines;
+- source-traceable morph planning;
+- a self-contained browser Relic player;
+- transport-neutral physical parity contracts and golden vectors;
+- **trace-derived parity campaigns that turn real logical workloads into reproducible subsystem conformance vectors.**
 
-The long-term target is **hardware parity**: physical TD-1 subsystems should progressively replace emulated subsystems while preserving identical externally observable state.
+The long-term target is **hardware parity**: physical TD-1 subsystems progressively replace emulated subsystems while preserving identical externally observable behavior.
 
-## Current capabilities
+## Current baseline — v0.14 pre-alpha
 
-The v0.13 pre-alpha foundation includes:
+### Logical machine
 
-- balanced ternary conversion and fixed-width arithmetic;
-- a deterministic 12-trit, 9-register, 729-word logical machine;
-- the initial 15-operation ISA;
-- labels, relative branches, assembly and disassembly;
-- deterministic machine-state digests for replay and hardware parity;
-- versioned `td1.machine-state` checkpoints independent from rendering/corpus/geometry;
-- explicit checkpoint architecture invariants plus exact registers, IP, condition, halt state, step count, and sparse nonzero memory;
-- checkpoint restoration that must reproduce the existing complete machine-state digest;
-- deterministic canonical checkpoint JSON + checkpoint SHA-256;
-- intermediate checkpoint capture and deterministic execution resume;
-- an explicit `RenderState -> MachineState` bridge that copies only restored machine truth;
-- reversible `3 trits -> 27 microglyph states` encoding;
-- versioned State Weave semantic IR;
+- balanced ternary trits: `-1`, `0`, `+1`;
+- engineering text symbols: `-`, `0`, `+`;
+- 12-trit fixed-width word;
+- signed range: `-265720 .. +265720`;
+- 9 general-purpose registers;
+- 729-word memory model;
+- ternary condition state: negative / zero / positive;
+- logical ISA: `NOP`, `LDI`, `MOV`, `ADD`, `SUB`, `NEG`, `ADDI`, `CMP`, `LD`, `ST`, `BRN`, `BRZ`, `BRP`, `JMP`, `HALT`;
+- deterministic snapshots and complete machine-state SHA-256 digests.
+
+### Engineering toolchain
+
+- labels and relative branches;
+- canonical assembly/disassembly;
+- versioned `td1.execution-trace` with one event per executed logical instruction;
+- per-event before/after machine digests plus register/memory deltas;
+- deterministic trace replay verification;
+- versioned `td1.machine-state` checkpoints with exact sparse nonzero memory;
+- checkpoint verification, restore, and deterministic resume;
+- canonical JSON + artifact digests across major contracts.
+
+### Native semantic and visual stack
+
+- State Weave semantic roots and ternary modifiers;
 - typed `OperandBindings` separated from semantic identity;
-- versioned `td1.semantic-lowering` artifacts with deterministic recompilation checks;
-- conservative v1 lowering forms for halt, negate, compare, memory read, and memory write;
+- conservative deterministic lowering for supported semantic forms;
+- reversible `3 trits -> 27 microglyph states` mapping;
 - WGS-84 geodetic -> ECEF Observer Continuity groundwork;
 - UTC Julian Date and explicitly approximate Earth Rotation Angle;
-- versioned, round-trippable `td1.render-state` serialization;
-- deterministic Engineering and Relic projections with one shared source digest;
-- sparse memory reconstruction and golden render-state fixtures;
-- frozen `VB-TD1-*` corpus snapshots with canonical serialization and digests;
-- explicit Veilbreak export field mapping that preserves observation vs interpretation;
-- versioned motif annotations, snapshot deltas, and strict source-to-requirement traces;
-- versioned `td1.geometry-scene` serialization on an integer triangular lattice;
-- unique reversible geometry for all 27 microglyph states;
-- deterministic 12-trit word, register, memory, machine-control, and State Weave geometry;
-- corpus-admitted lattice/depth/multiscale/braiding rules with exact source provenance;
-- versioned `td1.execution-trace` with logical program fingerprints and digest-chained events;
-- deterministic trace replay with exact register and memory deltas;
-- versioned `td1.geometry-delta` with stable-ID transition classifications;
-- deterministic `td1.svg-render` output consuming only validated native geometry;
-- integer axial/depth SVG projection with embedded scene/render/machine provenance;
-- zero-display-text Relic SVG by default and geometry-equivalent Engineering labels;
-- XML-safe stable IDs and byte-deterministic SVG artifact digests;
-- versioned `td1.relic-timeline` with frame zero plus one exact frame per execution event;
-- per-frame machine/render/scene digests and event identity;
-- strict replay against execution-trace machine digests;
-- timeline deserialization that rebuilds geometry and recomputes every adjacent delta;
-- deterministic multi-frame SVG export with `td1.timeline-svg-manifest`;
-- versioned `td1.morph-plan` transition intent for appear/disappear/move/topology/metadata changes;
-- exact native `(dq, dr, dz)` translation vectors for true move transitions;
-- conservative morph fallbacks when no temporal corpus motif is admitted;
-- optional source-traceable morphing, context-persistence, focus-through, horizontal-motion, and vertical-motion presentation hints;
-- versioned `td1.timeline-morph-manifest` with one plan per noninitial Relic timeline frame;
-- versioned `td1.relic-player-config` for explicitly non-normative playback choices;
-- versioned `td1.relic-player-artifact` provenance embedded in standalone player HTML;
-- dependency-free browser playback of native geometry using the same axial/depth projection as the SVG reference renderer;
-- browser-side SHA-256 verification of embedded canonical timeline/morph payloads before playback;
-- Python-side standalone artifact verification that regenerates deterministic morph plans from the embedded timeline;
-- descriptor-driven enter/exit/translate/reform/retag presentation with no inferred movement for unchanged primitives;
-- hard reconciliation to the exact authoritative target `GeometryScene` after every adjacent animated transition;
-- zero-text Relic canvas by default with explicit Engineering and provenance diagnostics;
-- transport-neutral hardware capability/request/response/report schemas;
-- deterministic trit/register and ALU golden vectors;
-- explicit hardware `ok`, `unsupported`, `fault`, `timeout`, and `error` outcomes;
-- replayable conformance reports with slice-state digests and discrepancy records;
-- a reference loopback hardware target for proving the harness before real boards arrive;
-- a CLI, examples, golden fixtures, unit tests, Python-version CI, Ruff linting, and explicit Relic-player JavaScript syntax gating.
+- versioned `td1.render-state`;
+- integer axial-triangular `td1.geometry-scene` with discrete depth;
+- deterministic geometry for registers, memory, machine controls, and State Weaves;
+- source-traceable corpus-admitted lattice/depth/multiscale/braiding rules;
+- versioned `td1.geometry-delta`;
+- deterministic `td1.svg-render` reference renderer;
+- zero-text Relic SVG by default and geometry-equivalent Engineering labels;
+- versioned `td1.relic-timeline` with one exact frame per execution event;
+- deterministic `td1.morph-plan` and timeline-wide morph manifests;
+- dependency-free standalone Relic browser player;
+- browser-side embedded-payload SHA-256 verification;
+- hard reconciliation to exact authoritative endpoint geometry after every animation;
+- Node syntax gating for the packaged browser runtime.
+
+### Physical parity stack
+
+- versioned capability/request/response/report contracts;
+- transport-neutral `ParityTransport` interface;
+- deterministic `trit_hold`, `register_load`, `negate`, `add`, and `sub` vectors;
+- explicit `ok`, `unsupported`, `fault`, `timeout`, and `error` results;
+- replayable conformance reports;
+- reference loopback target;
+- versioned `td1.parity-campaign` workload-derived vector packages;
+- versioned `td1.parity-campaign-run` linking one campaign to one conformance report;
+- dedicated `td1-parity` CLI.
 
 ## Quick start
 
@@ -107,13 +102,15 @@ Run the reference program:
 td1-sim run examples/sum.td1
 ```
 
-Capture the exact final logical machine state without any rendering fields:
+## Exact machine checkpoints
+
+Capture final logical state:
 
 ```bash
 td1-sim machine-state examples/sum.td1 --output final.machine.json
 ```
 
-Capture a non-halted checkpoint after four executed instructions:
+Capture an intermediate checkpoint:
 
 ```bash
 td1-sim machine-state examples/sum.td1 \
@@ -121,121 +118,132 @@ td1-sim machine-state examples/sum.td1 \
   --output step4.machine.json
 ```
 
-Validate and fingerprint that checkpoint:
+Verify it:
 
 ```bash
 td1-sim machine-state-verify step4.machine.json
 ```
 
-Resume the same logical program from the saved checkpoint:
+Resume the same logical program:
 
 ```bash
 td1-sim machine-state-resume examples/sum.td1 step4.machine.json \
   --output resumed.machine.json
 ```
 
-The checkpoint contains logical machine state only. It does not contain or freeze a physical program image or instruction encoding.
+`td1.machine-state` contains execution truth only. It does not contain glyphs, Observer data, State Weaves, geometry, corpus provenance, browser state, or physical instruction words.
 
-Trace every logical instruction transition:
+## Execution traces
+
+Create an exact logical transition trace:
 
 ```bash
 td1-sim trace examples/sum.td1 > trace.json
 ```
 
-Replay and verify the saved trace:
+Replay and verify it:
 
 ```bash
 td1-sim trace-verify examples/sum.td1 trace.json
 ```
 
-Create a complete execution-to-geometry Relic timeline:
+Trace events preserve logical instruction identity, before/after complete machine digests, instruction-pointer/condition changes, and exact register/memory deltas.
+
+## Trace-derived physical parity campaigns
+
+The v0.14 campaign layer converts **subsystem operations encountered during a real logical execution** into deterministic parity vectors.
+
+Build a campaign directly from a source workload:
 
 ```bash
-td1-sim timeline examples/sum.td1 --output timeline.json
+td1-parity build examples/sum.td1 --output sum.campaign.json
 ```
 
-Add corpus-backed geometry and a native State Weave to every frame:
+Verify/reconstruct it:
 
 ```bash
-td1-sim timeline examples/sum.td1 \
-  --corpus tests/fixtures/corpus_snapshot_v1.json \
-  --weave 'TIME>REFERENCE:+' \
-  --output timeline.json
+td1-parity verify sum.campaign.json
 ```
 
-Validate the saved timeline and all embedded render/geometry/delta relationships:
+Run the campaign through the reference loopback target:
 
 ```bash
-td1-sim timeline-verify timeline.json
+td1-parity loopback sum.campaign.json --output sum.run.json
 ```
 
-Derive renderer-independent transition intent for every timeline transition:
+Verify the complete campaign/report artifact:
 
 ```bash
-td1-sim timeline-morphs timeline.json --output morphs.json
+td1-parity run-verify sum.run.json
 ```
 
-Compile the exact timeline into a self-contained Relic Mode browser artifact:
+Deliberately exercise capability rejection:
 
 ```bash
-td1-sim relic-player timeline.json --output relic.html
+td1-parity loopback sum.campaign.json --target-max-width 3
 ```
 
-Open `relic.html` directly in a modern browser. The artifact contains its canonical timeline and deterministic morph manifest and verifies those embedded payloads before playback begins.
+### What a campaign means
 
-Verify the standalone artifact offline from the engineering toolchain:
+Campaign v1 maps logical events only where the current parity surface has a faithful subsystem-level equivalent:
+
+| Logical event | Derived parity operation |
+| --- | --- |
+| `LDI` | `register_load` of traced destination value |
+| `MOV` | `register_load` of traced source value |
+| `LD` | `register_load` of traced destination value |
+| `NEG` | `negate` of traced pre-event operand |
+| `ADD` | `add` of traced pre-event operands |
+| `SUB` | `sub` of traced pre-event operands |
+| `ADDI` | `add` with the immediate represented as a fixed-width 12-trit word |
+
+The `ADDI` mapping is deliberately labeled as a subsystem-level ALU test. It does **not** claim that physical hardware decoded or executed an `ADDI` instruction.
+
+`NOP`, `CMP`, `ST`, branches, `JMP`, and `HALT` produce no v1 campaign vector because the existing parity operation surface cannot faithfully represent their complete semantics.
+
+Each campaign preserves the complete source trace, exact initial/final machine checkpoints, event identity, before/after machine digests, mapping rationale, exact vectors, and vector-set digest. Loading a saved campaign re-derives all entries from the embedded trace and rejects drift.
+
+A passing campaign therefore means:
+
+> The target passed the advertised low-level ternary subsystem operations represented by these exact workload-derived vectors.
+
+It does **not** mean:
+
+> The target physically fetched, decoded, and executed the original TD-1 program.
+
+That distinction remains central until the physical instruction layer exists.
+
+## Base hardware parity vectors
+
+Emit deterministic register/ALU reference vectors:
 
 ```bash
-td1-sim relic-player-verify relic.html
+td1-sim parity-vectors --width 12
 ```
 
-Customize presentation timing without changing machine state:
+Run the complete base suite through the reference loopback:
 
 ```bash
-td1-sim relic-player timeline.json \
-  --output relic.html \
-  --frame-ms 1100 \
-  --transition-ms 620 \
-  --persistence-ms 260 \
-  --easing ease-in-out
+td1-sim parity-loopback --width 12
 ```
 
-Disable automatic playback or looping:
+Validate a saved conformance report:
 
 ```bash
-td1-sim relic-player timeline.json \
-  --output relic.html \
-  --no-autoplay \
-  --no-loop
+td1-sim parity-verify report.json
 ```
 
-Timing, easing, glow, playback speed, looping, and eligible visual persistence are presentation choices only. Every completed adjacent transition is discarded and rebuilt from the exact target geometry scene.
+The loopback proves the host harness only. It is not evidence that physical ternary hardware exists or has passed.
 
-Render every exact timeline frame to deterministic Relic SVG:
+## Native semantic lowering
 
-```bash
-td1-sim timeline-svgs timeline.json \
-  --out-dir relic-frames \
-  --theme relic
-```
-
-The output directory contains `frame-0000.svg`, one SVG for every later execution frame, and a deterministic `manifest.json` with timeline/scene/SVG digests.
-
-Or derive one exact morph plan between two saved native geometry scenes:
-
-```bash
-td1-sim morph before.geometry.json after.geometry.json --output morph.json
-```
-
-Morph plans constrain permitted presentation intent and corpus-backed hints. They do not define timing, easing, interpolation samples, or intermediate machine state.
-
-List the complete executable State Weave lowering surface:
+List supported State Weave lowering forms:
 
 ```bash
 td1-sim lowerings
 ```
 
-Lower native semantic intent into logical TD-1 instructions:
+Lower supported semantic intent:
 
 ```bash
 td1-sim lower 'TRANSFORM:-' --target R2
@@ -245,54 +253,25 @@ td1-sim lower 'MEMORY:0' --target R2 --base R0 --offset 8
 
 Unsupported State Weaves fail explicitly rather than receiving guessed executable meanings.
 
-Emit the first physical trit/register conformance campaign:
+## Native geometry and Relic presentation
 
-```bash
-td1-sim parity-vectors --width 3 --register-only
-```
-
-Run the complete parity suite through the reference loopback target:
-
-```bash
-td1-sim parity-loopback --width 12
-```
-
-Force capability negotiation to reject widths above a simulated 3-trit target:
-
-```bash
-td1-sim parity-loopback --width 12 --target-max-width 3
-```
-
-Validate and fingerprint a saved conformance report:
-
-```bash
-td1-sim parity-verify report.json
-```
-
-Inspect the deterministic microglyph IDs for a 12-trit word:
+Inspect microglyph IDs for a 12-trit word:
 
 ```bash
 td1-sim glyph '+0--+000-++0'
 ```
 
-Emit Engineering Mode state:
-
-```bash
-td1-sim render examples/sum.td1 --mode engineering
-```
-
-Emit Relic Mode state:
-
-```bash
-td1-sim render examples/sum.td1 --mode relic
-```
-
-The two render modes must derive from the same immutable render-state digest.
-
-Emit project-native fallback geometry:
+Emit native geometry:
 
 ```bash
 td1-sim geometry examples/sum.td1 > scene.json
+```
+
+Include a State Weave:
+
+```bash
+td1-sim geometry examples/sum.td1 \
+  --weave 'TIME>REFERENCE:+' > scene.json
 ```
 
 Admit geometry rules from a frozen corpus snapshot:
@@ -302,38 +281,45 @@ td1-sim geometry examples/sum.td1 \
   --corpus tests/fixtures/corpus_snapshot_v1.json > scene.json
 ```
 
-Include a State Weave in the geometry scene:
-
-```bash
-td1-sim geometry examples/sum.td1 \
-  --weave 'TIME>REFERENCE:+' > scene.json
-```
-
-Render the native scene into zero-text Relic SVG:
+Render Relic or Engineering SVG from the exact same geometry:
 
 ```bash
 td1-sim svg scene.json > relic.svg
-```
 
-Render the exact same geometry in Engineering presentation:
-
-```bash
 td1-sim svg scene.json --theme engineering > engineering.svg
 ```
 
-Write SVG directly to a file and print artifact/provenance digests:
+## Relic timeline and standalone player
+
+Build an exact execution-to-geometry timeline:
 
 ```bash
-td1-sim svg scene.json --output relic.svg
+td1-sim timeline examples/sum.td1 --output timeline.json
 ```
 
-Compare two saved geometry scenes:
+Derive deterministic transition intent:
 
 ```bash
-td1-sim geometry-delta before.geometry.json after.geometry.json
+td1-sim timeline-morphs timeline.json --output morphs.json
 ```
 
-Validate a frozen corpus snapshot:
+Compile one dependency-free browser artifact:
+
+```bash
+td1-sim relic-player timeline.json --output relic.html
+```
+
+Verify the embedded canonical payloads from the engineering toolchain:
+
+```bash
+td1-sim relic-player-verify relic.html
+```
+
+Playback timing, easing, speed, glow, looping, and eligible persistence are presentation choices only. Every completed transition is hard-reconciled to the exact authoritative target `GeometryScene`.
+
+## Corpus provenance
+
+Validate a frozen TD-1 corpus snapshot:
 
 ```bash
 td1-sim corpus-validate tests/fixtures/corpus_snapshot_v1.json
@@ -345,17 +331,21 @@ Compare two corpus revisions:
 td1-sim corpus-delta VB-TD1-001.json VB-TD1-002.json
 ```
 
-## Baseline architecture
+The checked-in corpus fixtures are synthetic unless explicitly documented otherwise.
 
-- Balanced ternary trits: `-1`, `0`, `+1`
-- 12-trit machine word
-- Signed range: `-265720 .. +265720`
-- 9 general-purpose registers
-- 729-word initial memory model
-- Ternary condition state: negative / zero / positive
-- Initial ISA: `NOP`, `LDI`, `MOV`, `ADD`, `SUB`, `NEG`, `ADDI`, `CMP`, `LD`, `ST`, `BRN`, `BRZ`, `BRP`, `JMP`, `HALT`
+## Physical instruction encoding is still deferred
 
-The physical instruction encoding is **not frozen yet**. Logical execution semantics, standalone machine-state persistence, the first native semantic-lowering boundary, and a transport-neutral hardware conformance boundary now exist; the eventual 12-trit opcode/register/immediate layout will be versioned only after compiler constraints and measurements from first hardware are reviewed together.
+The target 12-trit layout remains a design candidate:
+
+```text
+[ opcode:3 ][ reg A:2 ][ reg B:2 ][ immediate/relative:5 ]
+```
+
+It is **not frozen**.
+
+The project now has logical execution, semantic lowering, exact checkpoints, execution traces, workload-derived parity campaigns, and a transport-neutral hardware conformance boundary. None of those replace the missing input that matters for Issue #2: measurements and constraints from first physical ternary hardware.
+
+Software does not get to vote copper out of the room.
 
 ## Layering
 
@@ -363,130 +353,92 @@ The physical instruction encoding is **not frozen yet**. Logical execution seman
 Veilbreak corpus
       |
       v
-frozen corpus snapshot / provenance
+frozen provenance / motif-backed interface constraints
       |
       v
-motif-backed interface requirements
+State Weave semantic IR -> typed lowering
       |
       v
-glyph + State Weave system
-      |
-      v
-semantic IR
-      |
-      v
-typed operand binding + lowering
-      |
-      v
-12-trit reference machine ------> execution trace
+12-trit reference machine
       |
       +------> td1.machine-state ------> save / verify / restore / resume
       |
-      +------> Observer Continuity
+      +------> td1.execution-trace
+      |                  |
+      |                  +------> td1.parity-campaign
+      |                                |
+      |                                v
+      |                         parity harness/transport
+      |                                |
+      |                                v
+      |                     td1.parity-campaign-run
+      |                                |
+      |                                v
+      |                       physical ternary subsystem
       |
       v
-normative render state
-      |
-      v
-native geometry scene <------ frozen corpus geometry profile
-      |
-      +------> geometry delta
-      |             |
-      |             v
-      |        td1.morph-plan <------ corpus temporal motifs
-      |             |
-      v             v
-Relic execution timeline ------> timeline morph manifest
-      |                              |
-      +------------------------------+
-      |                              |
-      +------> deterministic SVG frame manifest
-      |                              |
-      v                              v
-reference SVG renderer       standalone Relic browser player
-      |                              |
-      v                              v
-exact visible frames          animated endpoint presentation
-                                     |
-                                     v
-                          future interactive control surface
-
-transport-neutral parity harness <------ golden vectors / machine checkpoints
-      |
-      v
-physical ternary subsystem
+render state -> native geometry -> delta/morph -> Relic timeline
+                                               |
+                        +----------------------+----------------+
+                        |                                       |
+                        v                                       v
+                reference SVG                         standalone browser player
 ```
 
-Machine persistence, presentation, and hardware conformance are separate contracts. `td1.machine-state` contains logical state only. The browser player consumes exact timeline/morph contracts and does not define machine behavior. Physical hardware earns authority only through parity.
+Machine persistence, physical conformance, and presentation remain separate contracts.
 
 ## Design doctrine
 
-1. **No decorative weirdness.** Every visible transition must correspond to real state or a real event.
-2. **Veilbreak is an anchor, not an oracle.** Reported phenomenology can generate requirements; it does not define arithmetic or ontology.
-3. **Relic and Engineering modes represent the same state.** One is native geometry; one exposes diagnostics.
-4. **AI is subordinate.** A cognition layer may propose operations; TD-1 validates and executes them.
-5. **Determinism wins.** Same state + same inputs + same corpus revision must produce the same output and geometry.
-6. **Accuracy contracts must be explicit.** Approximate calculations are labeled approximate rather than silently promoted to navigation-grade truth.
-7. **Hardware earns authority through parity.** A physical subsystem replaces an emulated one only after conformance against the reference model.
-8. **The renderer is not a source of truth.** It may decide how state is shown, never what state exists.
-9. **Corpus inputs are frozen before use.** A TD-1 revision must be able to identify and reproduce the exact external research input that informed it.
-10. **Geometry is a contract, not decoration.** Corpus-derived topology changes require explicit frozen motif evidence and source provenance.
-11. **Transitions are traced before they are animated.** A visual effect must consume real execution or geometry change rather than fabricate activity.
-12. **Semantic identity does not hide operands.** Native operations bind concrete machine resources explicitly, and unsupported meanings remain unsupported until engineered.
-13. **Physicality is not correctness.** A board advertises only capabilities it has actually demonstrated through the parity harness.
-14. **Pixels are downstream of truth.** Visible artifacts consume native geometry and preserve its provenance rather than reconstructing state from UI code.
-15. **Playback consumes state transitions.** Timeline frames and deltas are exact; timing and interpolation may never fabricate machine state.
-16. **Morph planning constrains presentation.** Corpus-inspired transition hints are explicit and source-traceable; they never create intermediate machine state.
-17. **Browser animation is presentation.** Every adjacent animation terminates by hard-reconciling to the exact authoritative target scene.
-18. **Machine persistence contains machine truth only.** Checkpoints do not inherit presentation fields or freeze future physical encoding by implication.
-
-## Assembly example
-
-```asm
-LDI R0, 5
-LDI R1, 0
-
-loop:
-ADD R1, R0
-ADDI R0, -1
-LDI R2, 0
-CMP R0, R2
-BRP loop
-
-ST R1, R2, 10
-HALT
-```
+1. **No decorative weirdness.** Visible behavior maps to real state, event, or documented presentation rule.
+2. **Veilbreak is an anchor, not an oracle.** Phenomenology may generate interface hypotheses; it does not define arithmetic or ontology.
+3. **Logical machine semantics are normative.**
+4. **Machine persistence contains machine truth only.**
+5. **Semantic identity does not hide operands.** Concrete machine resources are bound explicitly.
+6. **Transitions are traced before they are animated.**
+7. **Pixels are downstream of truth.** Renderers consume native geometry.
+8. **Browser animation is presentation.** It cannot create machine endpoints.
+9. **Trace-derived campaigns test subsystems, not imaginary instruction decoders.**
+10. **Physicality is not correctness.** A board advertises only capabilities it has demonstrated.
+11. **Hardware earns authority through parity.**
+12. **Determinism wins.** Equivalent inputs and versioned contracts must reproduce equivalent artifacts.
+13. **Accuracy contracts are explicit.** Approximation is labeled rather than promoted silently.
+14. **Corpus inputs are frozen before they influence a revision.**
+15. **Physical instruction encoding waits for physical evidence.**
 
 ## Repository status
 
 **Pre-alpha / architecture stabilization.**
 
-Machine truth, standalone checkpoint persistence, semantic lowering, frozen corpus provenance, native geometry, deterministic transitions, replayable Relic timelines, renderer-independent morph intent, deterministic SVG rendering, a self-contained animated browser player, and transport-neutral physical conformance now have explicit contracts.
+The software stack now has explicit contracts from semantic intent through logical execution, checkpoint persistence, workload-derived subsystem conformance, native geometry, deterministic playback, and physical parity reporting.
 
-The next software priorities are trace-to-parity campaign packaging, richer but still endpoint-authoritative interactive Relic controls, and optional renderer-parity experiments such as WebGL. The next physical milestone remains the first real one-trit adapter. Issue #2's physical instruction encoding remains intentionally deferred until first-hardware constraints are measured.
+The next physical milestone remains the first real one-trit adapter. The next software work should support that bench campaign: telemetry conventions, a real transport adapter, and execution of trace-derived campaigns against hardware. Issue #2 remains intentionally deferred until first-hardware constraints are measured.
 
-See:
+## Documentation
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/MACHINE_STATE.md`](docs/MACHINE_STATE.md)
-- [`docs/SEMANTIC_LOWERING.md`](docs/SEMANTIC_LOWERING.md)
+- [`docs/TRACE.md`](docs/TRACE.md)
+- [`docs/PARITY_CAMPAIGNS.md`](docs/PARITY_CAMPAIGNS.md)
 - [`docs/HARDWARE_PARITY.md`](docs/HARDWARE_PARITY.md)
+- [`docs/SEMANTIC_LOWERING.md`](docs/SEMANTIC_LOWERING.md)
 - [`docs/RENDER_STATE.md`](docs/RENDER_STATE.md)
 - [`docs/GEOMETRY.md`](docs/GEOMETRY.md)
 - [`docs/SVG_RENDERER.md`](docs/SVG_RENDERER.md)
 - [`docs/RELIC_TIMELINE.md`](docs/RELIC_TIMELINE.md)
 - [`docs/MORPH_PLANS.md`](docs/MORPH_PLANS.md)
 - [`docs/RELIC_PLAYER.md`](docs/RELIC_PLAYER.md)
-- [`docs/TRACE.md`](docs/TRACE.md)
 - [`docs/CORPUS_PIPELINE.md`](docs/CORPUS_PIPELINE.md)
 - [`docs/VEILBREAK_PROVENANCE.md`](docs/VEILBREAK_PROVENANCE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- [`docs/adr/`](docs/adr/)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ## Epistemic boundary
 
 TD-1 does **not** assume that DMT/Veilbreak reports establish extraterrestrial, interdimensional, or otherwise external intelligences. The project treats those reports as a structured phenomenological corpus capable of generating unconventional interface constraints and testable design hypotheses.
 
-The included corpus fixtures are synthetic test data unless explicitly documented otherwise. State Weave lowering mappings are TD-1 engineering conventions unless explicitly documented otherwise. Loopback conformance proves the host harness only; it is not evidence that physical ternary hardware has passed. A valid `td1.machine-state` proves only that a logical checkpoint reconstructs the reference emulator state it claims. SVG styling, projection, browser timing/easing/glow/persistence, morph strategies, and other playback effects are presentation conventions and are not additional evidence or machine semantics. Corpus-backed morph rules preserve source provenance but do not claim that participant reports specify TD-1 animation algorithms. Embedded player hashes provide integrity checks, not authorship signatures.
+A valid machine checkpoint proves only that it reconstructs the logical reference state it claims. A valid campaign proves only that its subsystem vectors were deterministically derived from the embedded logical trace. A passing conformance report proves only the tested operations against the target and capabilities represented by that report. Loopback conformance proves only the host harness.
+
+State Weave lowering mappings, glyph geometry, axial projection, and corpus-to-interface mappings are TD-1 engineering conventions unless explicitly documented otherwise.
 
 **Human-built hardware. Exotic design provenance. Bench validation required.**
