@@ -12,7 +12,10 @@ The emulator is not a visual mockup. It is the **normative machine model** again
 Veilbreak corpus
       |
       v
-Phenomenology / provenance model
+Frozen corpus / provenance model
+      |
+      v
+Motif-backed interface requirements
       |
       v
 Glyph + State Weave system
@@ -28,11 +31,21 @@ Semantic intermediate representation
       v
 Deterministic render state
       |
+      +------> Engineering projection
+      |
+      +------> Relic projection
+      |
+      v
+Deterministic native geometry <------ frozen corpus geometry profile
+      |
+      v
+Frontend / physical control surface
+      |
       v
 Physical hardware parity boundary
 ```
 
-The arithmetic core must remain independent from phenomenology and rendering. Corpus-derived ideas are allowed to shape interface semantics and representation, but not redefine arithmetic correctness.
+The arithmetic core must remain independent from phenomenology, geometry, and rendering. Corpus-derived ideas are allowed to shape interface semantics and representation, but not redefine arithmetic correctness.
 
 ## 3. Reference machine
 
@@ -80,7 +93,10 @@ The toolchain currently provides:
 - relative branches;
 - register and immediate validation;
 - canonical disassembly;
-- CLI execution.
+- CLI execution;
+- deterministic render-state export;
+- deterministic native-geometry export;
+- frozen corpus validation and delta inspection.
 
 Text assembly is an engineering interface, not the intended final native operator interface.
 
@@ -96,7 +112,7 @@ Balanced-ternary modifiers carry directional semantics:
 - `0`: inspect / hold / neutral / current;
 - `+`: forward / acquire / expand / allow.
 
-Compound operations are represented as **State Weaves**. v1 deliberately freezes only ordering, identity, modifier state, canonical serialization, and semantic IR. Final geometry and lowering rules remain open.
+Compound operations are represented as **State Weaves**. v1 freezes ordering, identity, modifier state, canonical serialization, and semantic IR. Geometry v1 now gives these structures a deterministic topology, while semantic lowering into the ISA remains open.
 
 ## 6. Microglyph state encoding
 
@@ -110,9 +126,34 @@ glyph_id = balanced_ternary_value(triad) + 13
 
 yielding `G00 .. G26`.
 
-This mapping is reversible and renderer-independent. Future glyph geometry may change across visual revisions, but it must not break the underlying state identity without an explicit schema migration.
+This mapping is reversible and renderer-independent.
 
-## 7. Observer Continuity
+Geometry schema v1 assigns each trit position a non-collinear axial direction. Positive and negative trits emit opposite spokes; zero emits no spoke. The resulting 27 topologies are unique and reversible. Final artistic glyph styling may evolve, but the normative state topology must remain recoverable or undergo an explicit schema migration.
+
+## 7. Native geometry
+
+`td1.geometry-scene` is the normative boundary between render state and presentation.
+
+Schema v1 uses integer axial triangular coordinates `(q, r, z)`. Geometry scenes preserve:
+
+- source render-state digest;
+- source machine-state digest;
+- deterministic primitive IDs and topology;
+- optional frozen corpus geometry profile and profile digest;
+- exact source IDs for every applied corpus-backed geometry rule.
+
+Project-native choices such as the microglyph substrate are kept distinct from corpus-derived transforms.
+
+Current corpus-admitted transforms are:
+
+- `lattice` -> triangular register placement;
+- `depth` -> discrete machine/semantic/observer depth planes;
+- `multiscale` -> larger semantic-root topology;
+- `braiding` -> alternating depth offsets in State Weave links.
+
+No frozen motif support means no corpus-derived rule is claimed.
+
+## 8. Observer Continuity
 
 Observer Continuity is TD-1's permanent background state model.
 
@@ -128,7 +169,7 @@ The approximation is intentional and labeled. Precision navigation will require 
 
 Rendered deep-field motion must ultimately be driven by observer-state changes rather than arbitrary animation.
 
-## 8. Provenance model
+## 9. Provenance model
 
 Corpus-derived requirements must preserve the chain:
 
@@ -141,26 +182,36 @@ source record
           -> validation result
 ```
 
+Geometry extends that chain when a motif changes presentation:
+
+```text
+frozen motif annotation
+  -> admitted GeometryProfile support
+    -> AppliedGeometryRule
+      -> deterministic geometry scene
+```
+
 The system must never silently collapse a participant's interpretation into an established external cause.
 
-## 9. Determinism and parity
+## 10. Determinism and parity
 
-The reference machine exposes deterministic snapshots and a SHA-256 state digest.
+The reference machine exposes deterministic snapshots and a SHA-256 state digest. Render state, corpus snapshots, geometry profiles, and geometry scenes also expose deterministic canonical serialization and content digests.
 
-The digest is intended for:
+These digests are intended for:
 
 - regression fixtures;
 - deterministic replay;
+- frontend equivalence testing;
 - emulator-versus-hardware parity;
 - differential testing across implementations.
 
 A physical subsystem is conformant only if it reproduces the reference model's externally observable state for the same inputs and test vectors.
 
-## 10. Operating modes
+## 11. Operating modes
 
 ### Engineering Mode
 
-Human-readable diagnostics: registers, instruction pointer, semantic IR, corpus provenance, observer state, hardware parity status.
+Human-readable diagnostics: registers, instruction pointer, semantic IR, corpus provenance, observer state, geometry provenance, hardware parity status.
 
 ### Relic Mode
 
@@ -168,9 +219,9 @@ The exact same underlying state expressed using native TD-1 geometry and interac
 
 ### Corpus Mode
 
-Traceability view explaining which versioned source observations contributed to a requirement.
+Traceability view explaining which versioned source observations contributed to a requirement or corpus-backed geometry rule.
 
-## 11. Primary engineering rule
+## 12. Primary engineering rule
 
 **No decorative weirdness.**
 
