@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>TD-1 Relic Mode</title>
+<style>
+__TD1_STYLE__
+</style>
+</head>
+<body>
+<main id="td1-shell" aria-label="TD-1 Relic Mode player">
+  <section id="td1-stage-wrap">
+    <svg id="td1-stage" xmlns="http://www.w3.org/2000/svg" aria-label="TD-1 native geometry"></svg>
+    <div id="td1-verification" class="td1-status" title="Payload verification pending" aria-label="Payload verification pending"></div>
+    <div id="td1-frame-mark" aria-hidden="true"></div>
+  </section>
+
+  <nav id="td1-controls" aria-label="Playback controls">
+    <button id="td1-restart" type="button" title="Restart" aria-label="Restart">↺</button>
+    <button id="td1-prev" type="button" title="Previous exact frame" aria-label="Previous exact frame">◀</button>
+    <button id="td1-play" type="button" title="Play or pause" aria-label="Play or pause">▶</button>
+    <button id="td1-next" type="button" title="Next exact frame" aria-label="Next exact frame">▶|</button>
+    <button id="td1-speed" type="button" title="Playback speed" aria-label="Playback speed">1×</button>
+    <button id="td1-engineering" type="button" title="Engineering overlay" aria-label="Engineering overlay">Σ</button>
+    <button id="td1-provenance" type="button" title="Provenance" aria-label="Provenance">⌁</button>
+  </nav>
+
+  <aside id="td1-engineering-panel" hidden></aside>
+  <aside id="td1-provenance-panel" hidden></aside>
+</main>
+
+<script id="td1-manifest" type="application/octet-stream" data-sha256="__TD1_MANIFEST_DIGEST__">__TD1_MANIFEST_B64__</script>
+<script id="td1-timeline" type="application/octet-stream">__TD1_TIMELINE_B64__</script>
+<script id="td1-morphs" type="application/octet-stream">__TD1_MORPHS_B64__</script>
+<script>
+__TD1_SCRIPT__
+</script>
+</body>
+</html>
