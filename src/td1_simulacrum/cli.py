@@ -10,7 +10,8 @@ from .assembler import assemble
 from .corpus import CorpusSnapshot, compare_snapshots
 from .geometry import GeometryProfile, GeometryScene, build_geometry_scene
 from .glyphs import word_to_glyph_ids
-from .machine import Machine
+from .lowering import OperandBindings, lower_state_weave, supported_lowerings
+from .machine import Instruction, Machine, Op
 from .render_state import RenderMode, RenderState, project_render_state
 from .semantic import StateWeave
 from .ternary import TernaryWord
@@ -107,6 +108,52 @@ def _corpus_delta(before_path: Path, after_path: Path) -> int:
     return 0
 
 
+def _parse_register(text: str) -> int:
+    normalized = text.strip().upper()
+    if normalized.startswith("R"):
+        normalized = normalized[1:]
+    try:
+        return int(normalized)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("register must look like R0..R8 or 0..8") from exc
+
+
+def _lower_weave(args: argparse.Namespace) -> int:
+    bindings = OperandBindings(
+        target_register=args.target,
+        source_register=args.source,
+        left_register=args.left,
+        right_register=args.right,
+        base_register=args.base,
+        offset=args.offset,
+    )
+    lowered = lower_state_weave(StateWeave.parse(args.weave), bindings)
+    payload: dict[str, object] = {"lowering": lowered.as_dict(), "digest": lowered.digest()}
+    if args.execute:
+        program = list(lowered.instructions)
+        if program[-1].op is not Op.HALT:
+            program.append(Instruction(Op.HALT))
+        machine = Machine().run(program)
+        payload["execution"] = {
+            "snapshot": machine.snapshot().as_dict(),
+            "machine_digest": machine.state_digest(),
+        }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _list_lowerings() -> int:
+    print(
+        json.dumps(
+            {"schema": "td1.semantic-lowering-support", "version": 1,
+             "forms": [form.as_dict() for form in supported_lowerings()]},
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="td1-sim",
@@ -173,6 +220,28 @@ def build_parser() -> argparse.ArgumentParser:
     geometry_delta_parser.add_argument("before", type=Path)
     geometry_delta_parser.add_argument("after", type=Path)
 
+    lower_parser = subparsers.add_parser(
+        "lower",
+        help="lower one supported State Weave into logical TD-1 instructions",
+    )
+    lower_parser.add_argument("weave", help="canonical State Weave such as MEMORY:0")
+    lower_parser.add_argument("--target", type=_parse_register)
+    lower_parser.add_argument("--source", type=_parse_register)
+    lower_parser.add_argument("--left", type=_parse_register)
+    lower_parser.add_argument("--right", type=_parse_register)
+    lower_parser.add_argument("--base", type=_parse_register)
+    lower_parser.add_argument("--offset", type=int)
+    lower_parser.add_argument(
+        "--execute",
+        action="store_true",
+        help="execute the lowered fragment on a zeroed reference machine",
+    )
+
+    subparsers.add_parser(
+        "lowerings",
+        help="list the complete supported v1 State Weave lowering surface",
+    )
+
     glyph_parser = subparsers.add_parser("glyph", help="map a ternary word to microglyph IDs")
     glyph_parser.add_argument("word")
 
@@ -212,6 +281,10 @@ def main() -> int:
         )
     if args.command == "geometry-delta":
         return _geometry_delta(args.before, args.after)
+    if args.command == "lower":
+        return _lower_weave(args)
+    if args.command == "lowerings":
+        return _list_lowerings()
     if args.command == "glyph":
         return _show_glyphs(args.word)
     if args.command == "corpus-validate":
