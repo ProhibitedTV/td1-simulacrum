@@ -437,9 +437,13 @@ class ParityExchangeRecord:
                     expected_pass = True
 
         if self.passed != expected_pass:
-            raise ParityProtocolError("record pass/fail flag disagrees with deterministic evaluation")
+            raise ParityProtocolError(
+                "record pass/fail flag disagrees with deterministic evaluation"
+            )
         if self.discrepancy != expected_discrepancy:
-            raise ParityProtocolError("record discrepancy text disagrees with deterministic evaluation")
+            raise ParityProtocolError(
+                "record discrepancy text disagrees with deterministic evaluation"
+            )
 
     @classmethod
     def evaluate(
