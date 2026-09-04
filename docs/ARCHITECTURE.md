@@ -34,6 +34,15 @@ Glyph / State Weave -> semantic IR -> typed lowering
                                  |                 parity harness
                                  |                       |
                                  |                       v
+                                 |              ParityTransport
+                                 |                       |
+                                 |                       v
+                                 |                td1.parity-wire
+                                 |                       |
+                                 |                       v
+                                 |              physical adapter
+                                 |                       |
+                                 |                       v
                                  |            td1.parity-campaign-run
                                  |
                                  v
@@ -53,8 +62,6 @@ Glyph / State Weave -> semantic IR -> typed lowering
                                        |
                                        v
                           standalone Relic player
-
-parity harness -> capability-gated transport -> physical ternary subsystem
 ```
 
 The arithmetic core remains independent from phenomenology, rendering, playback, and transport. Corpus-derived ideas may shape interface semantics or representation, but they do not redefine arithmetic correctness.
@@ -65,10 +72,11 @@ The authority rules are:
 2. `td1.machine-state` persists execution truth only;
 3. execution traces record logical transitions without freezing physical encoding;
 4. parity campaigns derive only subsystem operations faithfully representable by the parity surface;
-5. render state may describe machine truth plus presentation inputs, but is not persistence authority;
-6. geometry is derived from validated render state;
-7. animation consumes exact geometry transitions and may not invent machine endpoints;
-8. physical hardware becomes authoritative only after deterministic parity testing.
+5. `td1.parity-wire` transports existing parity contracts but does not redefine them;
+6. render state may describe machine truth plus presentation inputs, but is not persistence authority;
+7. geometry is derived from validated render state;
+8. animation consumes exact geometry transitions and may not invent machine endpoints;
+9. physical hardware becomes authoritative only after deterministic parity testing.
 
 ## 3. Reference machine
 
@@ -106,7 +114,7 @@ The current target layout remains:
 
 This is a design target, not a normative physical encoding table. Issue #2 remains intentionally deferred until semantic-lowering constraints and first-hardware measurements can be reviewed together.
 
-Neither browser maturity, checkpoint persistence, nor trace-derived parity campaigns relax that gate. A campaign contains ternary subsystem operands and expected results, not physical instruction words.
+Neither browser maturity, checkpoint persistence, trace-derived parity campaigns, nor the parity wire relaxes that gate. Campaigns and wire frames contain subsystem operands/results, not physical instruction words.
 
 ## 4. Standalone machine-state persistence
 
@@ -114,7 +122,7 @@ Neither browser maturity, checkpoint persistence, nor trace-derived parity campa
 
 Schema v1 records architecture invariants, instruction pointer, ternary condition, halted state, step count, all registers, exact sparse nonzero memory, and the complete existing emulator machine-state digest.
 
-It deliberately excludes glyphs, Observer Continuity, State Weaves, geometry, corpus provenance, browser state, and physical instruction encoding.
+It deliberately excludes glyphs, Observer Continuity, State Weaves, geometry, corpus provenance, browser state, transport framing, and physical instruction encoding.
 
 A checkpoint is accepted only if reconstructing a real `Machine` reproduces the claimed complete machine digest. Canonical checkpoint JSON has its own SHA-256 distinct from the reconstructed machine digest.
 
@@ -127,11 +135,12 @@ The conventional text toolchain exists for engineering, fixtures, and parity whi
 Current surfaces include:
 
 - `td1-sim` for execution, traces, checkpoints, semantic lowering, geometry, timelines, rendering, browser artifacts, and base parity tooling;
-- `td1-parity` for trace-derived parity campaign build/verify/run workflows;
+- `td1-parity` for trace-derived campaign build/verify, direct loopback, wire-loopback, and run verification;
 - deterministic execution and trace replay;
 - machine checkpoint emit/verify/resume;
 - frozen corpus validation/comparison;
 - transport-neutral conformance reports;
+- canonical parity wire framing and in-memory wire integration tests;
 - standalone Relic artifact verification.
 
 Text assembly is an engineering interface, not the intended final native operator interface.
@@ -248,7 +257,30 @@ A campaign embeds the complete trace plus exact initial/final `td1.machine-state
 
 Validation requires the report vector-set digest and ordered request vectors to equal the campaign. Passing a run proves only those advertised subsystem operations represented by the campaign vectors.
 
-## 10. Relic timelines, morphs, and browser playback
+## 10. Parity wire adapter boundary
+
+`td1.parity-wire` is a byte-oriented adapter protocol layered underneath the existing `ParityTransport` interface.
+
+Wire v1 uses canonical UTF-8 JSON Lines with four message kinds:
+
+- `capabilities_request`;
+- `capabilities_response`;
+- `parity_request`;
+- `parity_response`.
+
+The wire envelope wraps existing `ParityCapabilities`, `ParityRequest`, and `ParityResponse` payloads rather than duplicating their semantics.
+
+The default frame ceiling is 65,536 bytes including the trailing LF. Frames must be canonical, single-line UTF-8 JSON ending in exactly one LF. Empty, malformed, noncanonical, oversized, CRLF, multi-line, or invalid-UTF-8 frames are rejected.
+
+`JsonLineParityTransport` adapts a minimal `ParityLineIO` byte channel to `ParityTransport`. `ParityWireDevice` supplies a reference device-side dispatcher around an existing target, and `InMemoryParityLineIO` allows the complete byte codec to run in CI.
+
+Capability exchange uses a fixed v1 correlation token; parity exchanges derive deterministic correlation from canonical request bytes. Host validation also requires session, sequence, and vector identity to match the original request.
+
+The v1 bench telemetry conventions are `voltage_uv`, `settle_us`, `comparator_code`, `sample_count`, `board_revision`, and optional `temperature_millic`. These are metadata only and do not alter arithmetic pass/fail evaluation.
+
+The wire protocol does not define connector pinout, baud rate, voltage thresholds, sample cadence, hysteresis, calibration, or instruction encoding.
+
+## 11. Relic timelines, morphs, and browser playback
 
 `td1.relic-timeline` joins execution events to exact render/geometry frames. Frame zero is pre-execution state; each later frame corresponds to one logical event.
 
@@ -266,13 +298,13 @@ state_interpolation_policy = forbidden/v1
 
 Transient browser animation state is discarded at every completed transition and the exact target geometry scene is rebuilt.
 
-## 11. Observer Continuity
+## 12. Observer Continuity
 
 Current groundwork includes timezone-aware UTC timestamp, WGS-84 geodetic -> ECEF conversion, UTC Julian Date, and explicitly approximate Earth Rotation Angle.
 
 Precision navigation will require explicit time scales, Earth-orientation data, ephemerides, sensor covariance, and uncertainty contracts.
 
-## 12. Provenance and determinism
+## 13. Provenance and determinism
 
 Major provenance chains remain separate:
 
@@ -283,14 +315,17 @@ State Weave -> OperandBindings -> logical instructions -> execution trace
 
 Machine -> td1.machine-state -> restore Machine -> identical machine digest
 
-execution trace -> td1.parity-campaign -> parity report -> campaign run
+execution trace -> td1.parity-campaign -> ParityTransport -> td1.parity-wire -> target
+                                           |
+                                           v
+                                    parity report -> campaign run
 
 execution trace -> render -> geometry -> timeline/morphs -> browser -> exact endpoint
 ```
 
 Reference artifacts expose canonical serialization and digests where applicable. Those digests support regression, replay, integrity, differential testing, and emulator/hardware comparison. They are not authorship signatures unless explicitly stated otherwise.
 
-## 13. Physical parity boundary
+## 14. Physical parity boundary
 
 Current parity operations are:
 
@@ -302,15 +337,15 @@ Current parity operations are:
 
 Targets advertise supported operations and maximum width before testing. The harness distinguishes unsupported capability, fault, timeout, protocol error, value mismatch, and observed-state digest mismatch.
 
-UART, USB, GPIO, Ethernet, or another physical link may be implemented later without changing parity semantics.
+The v1 wire now gives those transport-neutral semantics a deterministic line-framed byte representation without selecting the final physical link. UART, USB CDC, or another `ParityLineIO` implementation may be added later.
 
 A physical subsystem may replace an emulated counterpart only after conformance demonstrates parity against the reference model.
 
-## 14. Operating modes
+## 15. Operating modes
 
 ### Engineering Mode
 
-Human-readable diagnostics include machine/checkpoint digests, execution/campaign provenance, semantic lowering, corpus provenance, geometry/timeline/morph identity, player verification, and hardware parity status.
+Human-readable diagnostics include machine/checkpoint digests, execution/campaign provenance, semantic lowering, corpus provenance, geometry/timeline/morph identity, player verification, wire/telemetry diagnostics, and hardware parity status.
 
 ### Relic Mode
 
@@ -320,8 +355,8 @@ The same underlying machine-derived state expressed with native TD-1 geometry an
 
 Traceability view explaining which versioned observations contributed to interface requirements, geometry rules, or eligible temporal presentation hints.
 
-## 15. Primary engineering rule
+## 16. Primary engineering rule
 
-**No decorative weirdness, no semantic hand-waving, no persistence exceptionalism, no renderer exceptionalism, no playback exceptionalism, no campaign exceptionalism, and no hardware exceptionalism.**
+**No decorative weirdness, no semantic hand-waving, no persistence exceptionalism, no renderer exceptionalism, no playback exceptionalism, no campaign exceptionalism, no wire exceptionalism, and no hardware exceptionalism.**
 
-Every glyph, semantic mapping, checkpoint, execution transition, campaign vector, visible primitive, browser animation, or claimed hardware capability must map to explicit state, a measured event, a documented engineering convention, a versioned rule, or a passing conformance record.
+Every glyph, semantic mapping, checkpoint, execution transition, campaign vector, wire frame, visible primitive, browser animation, or claimed hardware capability must map to explicit state, a measured event, a documented engineering convention, a versioned rule, or a passing conformance record.

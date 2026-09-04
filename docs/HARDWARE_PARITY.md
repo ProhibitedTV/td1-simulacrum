@@ -4,7 +4,7 @@
 
 TD-1 hardware is not allowed to become authoritative because it is physical. A physical ternary subsystem replaces an emulated subsystem only after it reproduces the reference model for the same deterministic stimuli.
 
-The parity layer defines that conformance boundary without choosing a physical transport.
+The parity layer defines that conformance boundary independently from the concrete electrical link used by a bench adapter.
 
 ```text
 reference model
@@ -17,7 +17,13 @@ reference model
                         td1.parity-request
                                |
                                v
-                        transport adapter
+                         ParityTransport
+                               |
+                               v
+                        td1.parity-wire
+                               |
+                               v
+                          line adapter
                                |
                                v
                         physical target
@@ -33,14 +39,14 @@ reference model
 
 ## Transport neutrality
 
-The parity contract does not specify USB, UART, CAN, Ethernet, GPIO, SWD, SPI, or another wire protocol.
+The parity semantics do not specify USB, UART, CAN, Ethernet, GPIO, SWD, SPI, or another physical link.
 
-A future adapter implements two host-side operations:
+A host adapter implements two parity operations:
 
 - advertise `ParityCapabilities`;
 - exchange a `ParityRequest` for a `ParityResponse`.
 
-Serial framing, analog sampling, and board-specific details belong to adapters/telemetry, not TD-1 arithmetic semantics.
+`td1.parity-wire` now gives those existing contracts a deterministic byte-line representation for first-bench integration. Serial libraries, connector choices, analog sampling, and board-specific behavior remain downstream adapter concerns rather than TD-1 arithmetic semantics.
 
 ## Versioned schemas
 
@@ -55,6 +61,10 @@ The workload-derived layer adds:
 
 - `td1.parity-campaign`;
 - `td1.parity-campaign-run`.
+
+The first byte-oriented adapter layer adds:
+
+- `td1.parity-wire`.
 
 Artifacts use deterministic canonical serialization and SHA-256 fingerprints where applicable.
 
@@ -140,6 +150,25 @@ The response carries the observed value and observed-state digest. The harness r
 
 These are deterministic integrity fingerprints, not cryptographic authorship claims.
 
+## Parity wire framing
+
+Wire v1 uses canonical UTF-8 JSON Lines. Each frame is one canonical JSON object followed by exactly one LF.
+
+Allowed message kinds are:
+
+- `capabilities_request`;
+- `capabilities_response`;
+- `parity_request`;
+- `parity_response`.
+
+The envelope wraps the existing parity payload schemas. It does not duplicate or reinterpret their fields.
+
+The default maximum frame size is 65,536 bytes including the LF. Decoding rejects empty, malformed, oversized, CRLF, multi-line, invalid-UTF-8, or noncanonical frames.
+
+`JsonLineParityTransport` adapts a minimal `ParityLineIO` byte channel to the existing `ParityTransport` interface. `ParityWireDevice` is the reference device-side dispatcher. `InMemoryParityLineIO` lets CI exercise the exact byte codec without a serial device.
+
+See [`PARITY_WIRE.md`](PARITY_WIRE.md) and ADR 0015.
+
 ## Fault reporting and telemetry
 
 Responses may report:
@@ -150,16 +179,20 @@ Responses may report:
 - `timeout`;
 - `error`.
 
-Later adapters may attach integer/string telemetry such as:
+The v1 bench telemetry vocabulary is:
 
 ```text
 voltage_uv
 settle_us
 comparator_code
+sample_count
 board_revision
+temperature_millic
 ```
 
-Scaled integer telemetry is preferable to ambiguous floating-point strings for bench measurements.
+`voltage_uv`, `settle_us`, `sample_count`, and `temperature_millic` use scaled integers. `comparator_code` and `board_revision` are strings.
+
+These values are metadata only in wire v1. They do not alter arithmetic pass/fail evaluation. Measured electrical acceptance limits require a separate future versioned contract after actual bench distributions exist.
 
 ## Replayable conformance reports
 
@@ -169,11 +202,13 @@ Loading a report revalidates identities, vector semantics, digests, pass flags, 
 
 A report is a bench receipt rather than a screenshot saying “it worked.”
 
-## Reference loopback target
+## Reference loopback targets
 
-`ReferenceLoopbackTransport` implements the contract entirely in software. It can return deterministic success, forced fault/timeout/error states, deliberate observed-value corruption, and restricted maximum width.
+`ReferenceLoopbackTransport` implements the parity contract entirely in software. It can return deterministic success, forced fault/timeout/error states, deliberate observed-value corruption, and restricted maximum width.
 
-Passing loopback proves the host parity infrastructure, not physical ternary hardware.
+Passing direct loopback proves the host parity infrastructure, not physical ternary hardware.
+
+The v0.15 in-memory wire path wraps the same target with `ParityWireDevice`, `InMemoryParityLineIO`, and `JsonLineParityTransport`. Passing that path additionally proves the canonical wire codec and request/response correlation logic, still not physical hardware.
 
 ## CLI
 
@@ -198,24 +233,27 @@ td1-parity verify sum.campaign.json
 
 td1-parity loopback sum.campaign.json --output sum.run.json
 
-td1-parity run-verify sum.run.json
+td1-parity wire-loopback sum.campaign.json --output sum.wire.run.json
+
+td1-parity run-verify sum.wire.run.json
 ```
 
-Capability rejection can be exercised deliberately with `--target-max-width`.
+Capability rejection can be exercised deliberately with `--target-max-width` in both direct and wire-loopback modes.
 
 ## Physical adapter sequence
 
 The first real integration remains intentionally small:
 
 1. build and measure one physical trit cell;
-2. write a tiny adapter that commands/reads `-`, `0`, `+`;
-3. advertise only `trit_hold`, `max_width=1`;
-4. run the three `TRIT-*` fixed golden vectors;
-5. preserve voltage/settling/comparator telemetry;
-6. expand capability only after the one-trit report passes;
-7. repeat for a multi-trit register slice;
-8. run workload-derived register campaigns where capabilities allow;
-9. only then begin physical ALU conformance and ALU workload campaigns.
+2. implement a concrete `ParityLineIO` using the chosen UART/USB serial path;
+3. implement the same `td1.parity-wire` envelope on the device side;
+4. advertise only `trit_hold`, `max_width=1`;
+5. run the three `TRIT-*` fixed golden vectors;
+6. preserve voltage/settling/comparator/sample/board telemetry;
+7. expand capability only after the one-trit report passes;
+8. repeat for a multi-trit register slice;
+9. run workload-derived register campaigns where capabilities allow;
+10. only then begin physical ALU conformance and ALU workload campaigns.
 
 A board must not advertise capabilities merely because its schematic intends to support them.
 
@@ -224,13 +262,15 @@ A board must not advertise capabilities merely because its schematic intends to 
 This revision does not define:
 
 - physical connector pinout;
-- serial packet framing;
+- UART baud rate or USB device identity;
+- concrete host serial library;
 - analog threshold values;
 - sample timing;
 - hysteresis/calibration policy;
+- electrical acceptance thresholds;
 - full-machine state replacement;
 - cycle-accurate execution;
 - physical instruction fetch/decode;
 - physical 12-trit instruction encoding.
 
-Those decisions belong to later hardware/adaptor revisions and can consume the transport-neutral parity and campaign contracts without redefining them.
+Those decisions belong to later hardware/adapter revisions and can consume the transport-neutral parity, campaign, and wire contracts without redefining them.
