@@ -17,7 +17,6 @@ from td1_simulacrum import (
     render_timeline_svgs,
 )
 
-
 PROGRAM = """
 LDI R0, 3
 LDI R1, 0
