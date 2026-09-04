@@ -32,7 +32,23 @@ def _is_sha256(value: str) -> bool:
     return len(value) == 64 and all(character in "0123456789abcdef" for character in value)
 
 
+def _require_int(payload: Mapping[str, object], key: str) -> int:
+    value = payload.get(key)
+    if type(value) is not int:
+        raise MachineStateError(f"machine-state {key} must be an integer")
+    return value
+
+
+def _require_bool(payload: Mapping[str, object], key: str) -> bool:
+    value = payload.get(key)
+    if type(value) is not bool:
+        raise MachineStateError(f"machine-state {key} must be a boolean")
+    return value
+
+
 def _parse_word(text: str, *, field: str) -> TernaryWord:
+    if not isinstance(text, str):
+        raise MachineStateError(f"{field} must be a ternary string")
     try:
         word = TernaryWord.parse(text)
     except ValueError as exc:
@@ -52,7 +68,7 @@ class MachineMemoryCell:
     ternary: str
 
     def __post_init__(self) -> None:
-        if not 0 <= self.address < MEMORY_WORDS:
+        if type(self.address) is not int or not 0 <= self.address < MEMORY_WORDS:
             raise MachineStateError(f"memory address outside 0..{MEMORY_WORDS - 1}")
         word = _parse_word(self.ternary, field=f"memory[{self.address}]")
         if word.value == 0:
@@ -68,7 +84,13 @@ class MachineMemoryCell:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, object]) -> "MachineMemoryCell":
-        return cls(address=int(payload["address"]), ternary=str(payload["ternary"]))
+        address = payload.get("address")
+        ternary = payload.get("ternary")
+        if type(address) is not int:
+            raise MachineStateError("memory address must be an integer")
+        if not isinstance(ternary, str):
+            raise MachineStateError("memory ternary value must be a string")
+        return cls(address=address, ternary=ternary)
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,19 +115,23 @@ class MachineState:
             raise MachineStateError(f"unsupported machine-state schema {self.schema!r}")
         if self.version != MACHINE_STATE_SCHEMA_VERSION:
             raise MachineStateError(f"unsupported machine-state version {self.version}")
-        if self.word_width != WORD_WIDTH:
+        if type(self.word_width) is not int or self.word_width != WORD_WIDTH:
             raise MachineStateError(f"machine-state word_width must be {WORD_WIDTH}")
-        if self.register_count != REGISTER_COUNT:
+        if type(self.register_count) is not int or self.register_count != REGISTER_COUNT:
             raise MachineStateError(f"machine-state register_count must be {REGISTER_COUNT}")
-        if self.memory_words != MEMORY_WORDS:
+        if type(self.memory_words) is not int or self.memory_words != MEMORY_WORDS:
             raise MachineStateError(f"machine-state memory_words must be {MEMORY_WORDS}")
-        if self.cond not in (-1, 0, 1):
+        if type(self.ip) is not int:
+            raise MachineStateError("machine instruction pointer must be an integer")
+        if type(self.cond) is not int or self.cond not in (-1, 0, 1):
             raise MachineStateError("machine condition state must be -1, 0, or +1")
-        if self.steps < 0:
-            raise MachineStateError("machine step count must be nonnegative")
+        if type(self.halted) is not bool:
+            raise MachineStateError("machine halted state must be a boolean")
+        if type(self.steps) is not int or self.steps < 0:
+            raise MachineStateError("machine step count must be a nonnegative integer")
         if len(self.registers) != REGISTER_COUNT:
             raise MachineStateError(f"machine-state requires exactly {REGISTER_COUNT} registers")
-        if not _is_sha256(self.machine_digest):
+        if not isinstance(self.machine_digest, str) or not _is_sha256(self.machine_digest):
             raise MachineStateError("machine_digest must be a lowercase SHA-256 hex string")
 
         registers = tuple(
@@ -114,6 +140,8 @@ class MachineState:
         )
         object.__setattr__(self, "registers", registers)
 
+        if any(not isinstance(cell, MachineMemoryCell) for cell in self.nonzero_memory):
+            raise MachineStateError("nonzero_memory must contain MachineMemoryCell values")
         memory = tuple(sorted(self.nonzero_memory, key=lambda cell: cell.address))
         addresses = tuple(cell.address for cell in memory)
         if len(set(addresses)) != len(addresses):
@@ -202,20 +230,32 @@ class MachineState:
         memory = payload.get("nonzero_memory")
         if not isinstance(registers, list):
             raise MachineStateError("machine-state registers must be a list")
+        if not all(isinstance(item, str) for item in registers):
+            raise MachineStateError("machine-state registers must contain ternary strings")
         if not isinstance(memory, list):
             raise MachineStateError("machine-state nonzero_memory must be a list")
+        if not all(isinstance(item, Mapping) for item in memory):
+            raise MachineStateError("machine-state nonzero_memory entries must be objects")
+
+        schema = payload.get("schema")
+        machine_digest = payload.get("machine_digest")
+        if not isinstance(schema, str):
+            raise MachineStateError("machine-state schema must be a string")
+        if not isinstance(machine_digest, str):
+            raise MachineStateError("machine-state machine_digest must be a string")
+
         return cls(
-            schema=str(payload["schema"]),
-            version=int(payload["version"]),
-            word_width=int(payload["word_width"]),
-            register_count=int(payload["register_count"]),
-            memory_words=int(payload["memory_words"]),
-            machine_digest=str(payload["machine_digest"]),
-            ip=int(payload["ip"]),
-            cond=int(payload["cond"]),
-            halted=bool(payload["halted"]),
-            steps=int(payload["steps"]),
-            registers=tuple(str(item) for item in registers),
+            schema=schema,
+            version=_require_int(payload, "version"),
+            word_width=_require_int(payload, "word_width"),
+            register_count=_require_int(payload, "register_count"),
+            memory_words=_require_int(payload, "memory_words"),
+            machine_digest=machine_digest,
+            ip=_require_int(payload, "ip"),
+            cond=_require_int(payload, "cond"),
+            halted=_require_bool(payload, "halted"),
+            steps=_require_int(payload, "steps"),
+            registers=tuple(registers),
             nonzero_memory=tuple(MachineMemoryCell.from_dict(item) for item in memory),
         )
 
