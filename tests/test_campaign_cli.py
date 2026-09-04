@@ -22,10 +22,11 @@ HALT
     return path
 
 
-def test_campaign_cli_build_verify_loopback_and_run_verify(tmp_path, monkeypatch, capsys) -> None:
+def test_campaign_cli_build_verify_loopbacks_and_run_verify(tmp_path, monkeypatch, capsys) -> None:
     program = _write_program(tmp_path)
     campaign_path = tmp_path / "campaign.json"
     run_path = tmp_path / "campaign-run.json"
+    wire_run_path = tmp_path / "campaign-wire-run.json"
 
     monkeypatch.setattr(
         sys,
@@ -58,17 +59,37 @@ def test_campaign_cli_build_verify_loopback_and_run_verify(tmp_path, monkeypatch
     assert main() == 0
     run_summary = json.loads(capsys.readouterr().out)
     assert run_summary["passed"] is True
+    assert run_summary["transport"] == "reference-loopback"
     run = ParityCampaignRun.from_json(run_path.read_text(encoding="utf-8"))
     assert run_summary["run_digest"] == run.digest()
 
-    monkeypatch.setattr(sys, "argv", ["td1-parity", "run-verify", str(run_path)])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "td1-parity",
+            "wire-loopback",
+            str(campaign_path),
+            "--output",
+            str(wire_run_path),
+        ],
+    )
+    assert main() == 0
+    wire_summary = json.loads(capsys.readouterr().out)
+    assert wire_summary["passed"] is True
+    assert wire_summary["transport"] == "td1.parity-wire/v1"
+    wire_run = ParityCampaignRun.from_json(wire_run_path.read_text(encoding="utf-8"))
+    assert wire_summary["run_digest"] == wire_run.digest()
+    assert wire_run.report.capabilities.target_id == "simulacrum.wire-loopback"
+
+    monkeypatch.setattr(sys, "argv", ["td1-parity", "run-verify", str(wire_run_path)])
     assert main() == 0
     verified_run = json.loads(capsys.readouterr().out)
     assert verified_run["verified"] is True
-    assert verified_run["run_digest"] == run.digest()
+    assert verified_run["run_digest"] == wire_run.digest()
 
 
-def test_campaign_cli_loopback_exposes_capability_rejection(tmp_path, monkeypatch, capsys) -> None:
+def test_campaign_cli_loopbacks_expose_capability_rejection(tmp_path, monkeypatch, capsys) -> None:
     program = _write_program(tmp_path)
     campaign_path = tmp_path / "campaign.json"
 
@@ -80,21 +101,22 @@ def test_campaign_cli_loopback_exposes_capability_rejection(tmp_path, monkeypatc
     assert main() == 0
     capsys.readouterr()
 
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "td1-parity",
-            "loopback",
-            str(campaign_path),
-            "--target-max-width",
-            "3",
-        ],
-    )
-    assert main() == 2
-    payload = json.loads(capsys.readouterr().out)
-    report = payload["report"]
-    assert report["summary"]["passed"] is False
-    assert all(
-        record["response"]["status"] == "unsupported" for record in report["records"]
-    )
+    for command in ("loopback", "wire-loopback"):
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "td1-parity",
+                command,
+                str(campaign_path),
+                "--target-max-width",
+                "3",
+            ],
+        )
+        assert main() == 2
+        payload = json.loads(capsys.readouterr().out)
+        report = payload["report"]
+        assert report["summary"]["passed"] is False
+        assert all(
+            record["response"]["status"] == "unsupported" for record in report["records"]
+        )
