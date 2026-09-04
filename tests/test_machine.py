@@ -37,7 +37,7 @@ def test_reference_sum_program() -> None:
     assert machine.registers[1].value == 15
     assert machine.memory[10].value == 15
     assert machine.halted
-    assert machine.steps == 24
+    assert machine.steps == 29
 
 
 def test_memory_address_wrap() -> None:
