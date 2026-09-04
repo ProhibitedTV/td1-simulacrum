@@ -2,76 +2,63 @@
 
 ## 1. Normative role
 
-The Simulacrum is the executable reference definition of TD-1. It makes the machine's behavior precise before physical ternary subsystems are fabricated.
+The Simulacrum is the executable reference definition of TD-1. It makes logical machine behavior precise before physical ternary subsystems are fabricated.
 
 The emulator is not a visual mockup. It is the **normative machine model** against which later hardware is compared.
 
-## 2. Architectural boundary
+## 2. Authority boundaries
 
 ```text
-Veilbreak corpus
-      |
-      v
-Frozen corpus / provenance model
-      |
-      v
-Motif-backed interface requirements
-      |
-      v
-Glyph + State Weave system
-      |
-      v
-Semantic intermediate representation
-      |
-      v
-Typed operand binding + semantic lowering
-      |
-      v
-12-trit reference machine ------> execution trace
-      |
-      +------> Observer Continuity
-      |
-      v
-Deterministic render state
-      |
-      +------> Engineering projection
-      |
-      +------> Relic projection
-      |
-      v
-Deterministic native geometry <------ frozen corpus geometry profile
-      |
-      +------> geometry delta
-      |             |
-      |             v
-      |        deterministic morph plan <------ admitted temporal motifs
-      |             |
-      v             v
-Relic execution timeline ------> timeline morph manifest
-      |                              |
-      +--------------+---------------+
-                     |
-         +-----------+-----------+
-         |                       |
-         v                       v
-SVG frame manifest       standalone Relic browser player
-         |                       |
-         v                       v
-Reference SVG renderer    animated endpoint presentation
-         |                       |
-         +-----------+-----------+
-                     |
-                     v
-          Future interactive control surface
-                     |
-                     v
-Transport-neutral parity harness <------ golden vectors
-      |
-      v
-Physical ternary subsystem
+                         Veilbreak corpus
+                               |
+                               v
+                     frozen corpus/provenance
+                               |
+                               v
+                    interface design constraints
+                               |
+                               v
+Glyph / State Weave -> semantic IR -> typed lowering
+                               |
+                               v
+                     12-trit reference machine
+                        /        |         \
+                       /         |          \
+                      v          v           v
+             td1.machine-state   |    td1.execution-trace
+             save/restore/resume |     exact transitions
+                                 |
+                                 v
+                         td1.render-state
+                                 |
+                                 v
+                       td1.geometry-scene
+                        /              \
+                       v                v
+              reference SVG      td1.geometry-delta
+                                       |
+                                       v
+                                 td1.morph-plan
+                                       |
+                                       v
+                               td1.relic-timeline
+                                       |
+                                       v
+                          standalone Relic player
+
+reference machine -> golden vectors -> parity harness -> physical ternary hardware
 ```
 
-The arithmetic core must remain independent from phenomenology, geometry, rendering, playback, and transport. Corpus-derived ideas are allowed to shape interface semantics and representation, but not redefine arithmetic correctness. Renderers and players consume already-derived truth rather than reconstructing it from UI rules. Browser animation is explicitly presentation-only and must terminate at exact authoritative timeline endpoints. Hardware becomes authoritative only after conformance against the reference model.
+The arithmetic core must remain independent from phenomenology, rendering, playback, and transport. Corpus-derived ideas may shape interface semantics or representation, but they do not redefine arithmetic correctness.
+
+The authority rules are:
+
+1. logical machine semantics are normative;
+2. `td1.machine-state` persists execution truth only;
+3. render state may describe machine truth plus presentation inputs, but is not the persistence authority;
+4. geometry is derived from validated render state;
+5. animation consumes exact geometry transitions and may not invent machine endpoints;
+6. physical hardware becomes authoritative only after deterministic parity testing.
 
 ## 3. Reference machine
 
@@ -97,49 +84,82 @@ Current operations:
 
 Branches use offsets relative to the instruction following the branch. Memory addresses are formed from a base register plus immediate offset and wrap modulo 729.
 
-### 3.3 Instruction encoding policy
+### 3.3 Physical instruction encoding policy
 
-The logical ISA is implemented before physical encoding is frozen.
+The logical ISA exists before physical encoding is frozen.
 
-The target 12-trit format remains:
+The current target layout remains:
 
 ```text
 [ opcode:3 ][ reg A:2 ][ reg B:2 ][ immediate/relative:5 ]
 ```
 
-but this is still a target, not yet a normative encoding table. The semantic compiler gives Issue #2 a real lowering boundary to review, and the parity harness gives first hardware a conformance boundary. Physical instruction words should be frozen only after those constraints and real first-hardware measurements are reviewed together.
+This is a design target, not yet a normative physical encoding table. Issue #2 remains intentionally deferred until semantic-lowering constraints and first-hardware measurements can be reviewed together.
 
-The browser/player milestones do not relax this gate. Presentation maturity is not evidence that physical instruction encoding constraints are known.
+Neither browser maturity nor machine-state persistence relaxes that gate. Saving logical state is not the same thing as defining physical instruction words.
 
-## 4. Toolchain layer
+## 4. Standalone machine-state persistence
 
-The text assembler is intentionally conventional. It exists for engineering, test fixtures, and parity work while the native geometric programming language is still being designed.
+`td1.machine-state` is the renderer-independent persistence boundary for logical TD-1 execution state.
 
-The toolchain currently provides:
+Schema v1 records:
 
-- labels;
-- relative branches;
-- register and immediate validation;
-- canonical disassembly;
-- CLI execution;
-- deterministic execution traces and replay verification;
-- deterministic render-state export;
-- deterministic native-geometry export and geometry deltas;
-- deterministic standalone SVG rendering from saved geometry scenes;
-- replayable execution-to-geometry Relic timelines;
-- deterministic multi-frame SVG export plus timeline manifests;
-- deterministic scene-pair and timeline-wide morph plans;
-- self-contained standalone Relic browser artifact compilation;
-- standalone Relic artifact verification that regenerates deterministic morph plans;
-- frozen corpus validation and delta inspection;
-- State Weave lowering and supported-form introspection;
-- hardware parity vector export, loopback conformance, and report verification.
+- schema/version;
+- `word_width`, `register_count`, and `memory_words` architecture invariants;
+- instruction pointer;
+- ternary condition state;
+- halted flag;
+- executed step count;
+- all register words;
+- exact sparse nonzero memory;
+- the complete existing emulator machine-state digest.
+
+The schema deliberately excludes:
+
+- glyph IDs;
+- render planes;
+- Observer Continuity fields;
+- State Weaves;
+- geometry;
+- corpus provenance;
+- animation/player state;
+- physical instruction encoding.
+
+A checkpoint is accepted only if reconstructing a real `Machine` from the serialized fields reproduces the claimed complete machine digest. Architecture mismatches, malformed words, duplicate/out-of-range sparse memory, zero-valued sparse entries, bad condition state, invalid scalar types, and digest tampering are rejected.
+
+Canonical JSON produces a deterministic checkpoint SHA-256 separate from the machine-state digest. The checkpoint digest identifies the serialized artifact; the machine digest identifies reconstructed execution state.
+
+Intermediate checkpoints may be restored and resumed against the same logical program. Tests require checkpoint -> restore -> resume to reach the same final complete machine digest as uninterrupted execution.
+
+`MachineState.from_render_state()` is an explicit bridge for older layers. It restores the underlying machine and recaptures only machine truth. Presentation-only fields never enter the checkpoint schema.
+
+## 5. Engineering toolchain
+
+The text assembler is intentionally conventional. It exists for engineering, test fixtures, and parity work while the native geometric programming language is still evolving.
+
+The toolchain provides:
+
+- assembly/disassembly with labels and relative branches;
+- deterministic execution;
+- `td1.machine-state` emit, verify, restore, and resume workflows;
+- `td1.execution-trace` export and replay verification;
+- render-state export;
+- native-geometry export and deltas;
+- deterministic standalone SVG rendering;
+- replayable Relic timelines;
+- scene-pair and timeline-wide morph plans;
+- self-contained Relic browser artifact compilation and verification;
+- frozen corpus validation and comparison;
+- State Weave lowering/introspection;
+- parity vector export, loopback conformance, and report verification.
 
 Text assembly is an engineering interface, not the intended final native operator interface.
 
-## 5. Semantic layer
+## 6. Semantic layer
 
-TD-1's native operator model uses semantic roots rather than alphabetic text. v1 roots are:
+TD-1's native operator model uses semantic roots rather than alphabetic text.
+
+Current roots:
 
 `OBSERVER`, `ORIGIN`, `TIME`, `REFERENCE`, `MOTION`, `MEMORY`, `LINK`, `STATE`, `FRAME`, `AXIS`, `SIGNAL`, `COGNITION`, `EXECUTION`, `TRANSFORM`, `ISOLATION`, `DOMAIN`.
 
@@ -149,15 +169,15 @@ Balanced-ternary modifiers carry directional semantics:
 - `0`: inspect / hold / neutral / current;
 - `+`: forward / acquire / expand / allow.
 
-Compound operations are represented as **State Weaves**. v1 freezes ordering, identity, modifier state, canonical serialization, and semantic IR. Geometry v1 gives these structures deterministic topology.
+Compound operations are represented as **State Weaves**.
 
-### 5.1 Typed lowering boundary
+### 6.1 Typed lowering boundary
 
-State Weave identity does not implicitly select machine registers or addresses.
+State Weave identity does not implicitly select registers or addresses.
 
-`OperandBindings` supplies concrete machine resources. `lower_state_weave()` combines one supported weave with those bindings and emits a versioned `td1.semantic-lowering` artifact containing exact logical instructions, register read/write metadata, memory effect, canonical serialization, and a digest.
+`OperandBindings` supplies concrete machine resources. `lower_state_weave()` combines a supported weave with those bindings and emits a deterministic versioned lowering artifact containing exact logical instructions and resource effects.
 
-The initial executable forms are deliberately conservative:
+Initial executable forms remain deliberately conservative:
 
 - `EXECUTION:-` -> `HALT`;
 - `TRANSFORM:-` -> `NEG`;
@@ -165,13 +185,13 @@ The initial executable forms are deliberately conservative:
 - `MEMORY:0` -> `LD`;
 - `MEMORY:+` -> `ST`.
 
-These are **TD-1 engineering conventions**, not corpus translations. Unsupported State Weaves fail explicitly rather than receiving fabricated opcode aliases.
+These are TD-1 engineering conventions, not claimed translations of phenomenology. Unsupported State Weaves fail explicitly.
 
-A serialized lowering is validated by recompiling its source weave and bindings and requiring canonical equivalence. That prevents a saved native semantic artifact from quietly carrying a different logical instruction sequence.
+## 7. Native state representation
 
-## 6. Microglyph state encoding
+### 7.1 Microglyphs
 
-A 12-trit word partitions into four 3-trit cells. Each cell has `3^3 = 27` states.
+A 12-trit word partitions into four 3-trit cells. Each cell has `3^3 = 27` possible states.
 
 The stable data mapping is:
 
@@ -179,111 +199,90 @@ The stable data mapping is:
 glyph_id = balanced_ternary_value(triad) + 13
 ```
 
-yielding `G00 .. G26`.
+producing `G00 .. G26`.
 
-This mapping is reversible and renderer-independent.
+The mapping is reversible and renderer-independent.
 
-Geometry schema v1 assigns each trit position a non-collinear axial direction. Positive and negative trits emit opposite spokes; zero emits no spoke. The resulting 27 topologies are unique and reversible. Final artistic glyph styling may evolve, but the normative state topology must remain recoverable or undergo an explicit schema migration.
+### 7.2 Render state
 
-## 7. Native geometry
+`td1.render-state` is the deterministic bridge from machine state into presentation inputs. It may include machine truth together with Observer Continuity and State Weave data required for display.
 
-`td1.geometry-scene` is the normative boundary between render state and presentation.
+It is not the long-term machine persistence boundary. `td1.machine-state` owns that role.
 
-Schema v1 uses integer axial triangular coordinates `(q, r, z)`. Geometry scenes preserve:
+Engineering and Relic projections must derive from the same immutable render-state digest.
+
+### 7.3 Native geometry
+
+`td1.geometry-scene` is the normative boundary between render state and visual presentation.
+
+Schema v1 uses integer axial triangular coordinates `(q, r, z)` and preserves:
 
 - source render-state digest;
 - source machine-state digest;
 - deterministic primitive IDs and topology;
-- optional frozen corpus geometry profile and profile digest;
-- exact source IDs for every applied corpus-backed geometry rule.
+- optional frozen corpus geometry profile;
+- exact source IDs for applied corpus-backed rules.
 
-Project-native choices such as the microglyph substrate are kept distinct from corpus-derived transforms.
-
-Current corpus-admitted transforms are:
-
-- `lattice` -> triangular register placement;
-- `depth` -> discrete machine/semantic/observer depth planes;
-- `multiscale` -> larger semantic-root topology;
-- `braiding` -> alternating depth offsets in State Weave links.
-
-No frozen motif support means no corpus-derived rule is claimed.
+Current corpus-admitted transforms include lattice arrangement, depth, multiscale, and braiding. No frozen motif support means no corpus-derived rule is claimed.
 
 ## 8. Reference SVG renderer
 
-`td1.svg-render` is the first visible reference implementation of `td1.geometry-scene`.
+`td1.svg-render` consumes only a validated geometry scene.
 
-It accepts only a validated geometry scene and does not read machine state, execute semantic operations, or query corpus data. Its integer projection is:
+Its integer projection is:
 
 ```text
 x = (2q + r) * unit + z * depth_x
 y = 3r * unit - z * depth_y
 ```
 
-The renderer preserves primitive membership and topology. It embeds source scene/render/machine digests and optional corpus profile provenance into SVG metadata.
+The renderer preserves primitive membership/topology and embeds source scene/render/machine provenance. Relic and Engineering themes share identical projected geometry; Engineering may add labels, while Relic is zero-display-text by default.
 
-Relic and Engineering themes share the same projected native geometry. Relic is zero-display-text by default. Engineering labels are derived only from existing `primitive_id` and `role` metadata.
+Projection, palette, stroke weight, margin, and labels are presentation choices rather than machine semantics.
 
-Projection, palette, stroke weight, node radius, margin, and label visibility are presentation choices rather than machine semantics. Identical geometry plus identical renderer options must produce byte-identical SVG.
+## 9. Execution traces, timelines, and morphs
 
-## 9. Relic execution timeline
+### 9.1 Execution trace
 
-`td1.relic-timeline` is the normative bridge between discrete execution and playback.
+`td1.execution-trace` records one exact logical transition per executed instruction, including:
 
-A timeline contains frame zero for the exact pre-execution state and then exactly one frame for every logical `ExecutionEvent`.
+- logical program fingerprint;
+- before/after complete machine digests;
+- instruction identity;
+- instruction pointer and condition transitions;
+- halted transition;
+- register deltas;
+- memory deltas.
 
-Each frame preserves:
+Replay must regenerate the canonical trace exactly.
 
-- complete `td1.render-state`;
-- complete `td1.geometry-scene`;
-- machine/render/scene digests;
-- execution-event and instruction identity for noninitial frames;
-- an exact `td1.geometry-delta` from the previous frame.
+### 9.2 Relic timeline
 
-Timeline construction first creates the normative execution trace, restores the initial machine, and replays each event. The complete machine-state digest after every replayed instruction must equal the corresponding trace event digest or construction fails.
+`td1.relic-timeline` joins execution with exact render/geometry states. Frame zero is the pre-execution state; every subsequent frame corresponds to exactly one execution event.
 
-Timeline deserialization is deliberately strict. It rebuilds geometry from each saved render state and geometry profile, verifies the saved scene, verifies claimed digests, and recomputes every adjacent geometry delta.
+Each frame preserves exact machine/render/scene digests and the geometry delta from the previous frame.
 
-The same frozen geometry profile is required across all frames. State Weaves and Observer state remain part of each frame's render state and therefore participate in deterministic geometry generation rather than being inferred later by a player.
+Timeline v1 does not define frame duration, easing, camera motion, audio, or speculative intermediate machine states.
 
-The companion `td1.timeline-svg-manifest` fingerprints an exact SVG artifact for every frame and records the renderer options used.
+### 9.3 Morph planning
 
-Timeline v1 deliberately does **not** define:
-
-- frame duration;
-- easing;
-- interpolation;
-- ghosting/persistence;
-- camera motion;
-- audio;
-- speculative in-between machine states.
-
-Those belong to downstream presentation. Playback consumes state transitions; it does not create them.
-
-### 9.1 Morph planning
-
-`td1.morph-plan` is the renderer-independent transition-intent layer between two exact native-geometry endpoints.
-
-It recomputes the exact `td1.geometry-delta` and maps stable primitive changes to explicit presentation intent:
+`td1.morph-plan` maps exact stable-ID geometry changes to presentation intent:
 
 - `appear` -> `enter`;
 - `disappear` -> `exit`;
-- `move` -> `translate` with exact integer `(dq, dr, dz)`;
+- `move` -> `translate` with exact `(dq, dr, dz)`;
 - `topology` -> `reform`;
 - `metadata` -> `retag`.
 
-Without admitted temporal corpus support, strategies remain conservative and endpoint-only. Optional hints such as morphing, context persistence, focus-through, or axial-motion emphasis are admitted only from the frozen geometry profile and carry exact motif/source provenance.
+Without admitted temporal corpus support, strategies remain conservative and endpoint-only. Corpus hints may constrain presentation, but never define machine semantics or intermediate state.
 
-A hint constrains presentation; it does not define duration, easing, spline samples, or intermediate machine state. The q/r mapping used for horizontal/vertical emphasis is explicitly a TD-1 engineering convention, not a claimed corpus translation.
+## 10. Standalone Relic browser player
 
-`td1.timeline-morph-manifest` contains exactly one deterministic morph plan for every noninitial timeline frame.
+The browser player is compiled from a validated Relic timeline and deterministic morph manifest into one dependency-free HTML artifact.
 
-### 9.2 Standalone Relic browser player
+It embeds canonical timeline/morph payload bytes plus versioned provenance metadata. Browser WebCrypto verifies embedded payload digests before playback; the Python verifier performs a stronger offline check by rebuilding the timeline and deterministic morph manifest.
 
-The v0.12 browser player is the first animated Relic frontend. It is compiled from one validated timeline and the deterministic morph manifest into a dependency-free standalone HTML artifact.
-
-The artifact embeds canonical timeline and morph-manifest bytes plus a versioned `td1.relic-player-artifact` provenance manifest. Before playback, browser WebCrypto verifies the embedded payload digests and timeline/morph linkage. The Python verifier performs a stronger offline check by reconstructing the embedded timeline and regenerating the expected morph manifest.
-
-The browser uses the same axial/depth projection as the SVG reference renderer and draws `GeometryScene` primitives directly into SVG DOM. Animation is permitted only for primitives named by a morph descriptor.
+The browser draws exact `GeometryScene` primitives using the same projection as the SVG reference renderer.
 
 The player freezes three authority rules:
 
@@ -293,31 +292,25 @@ unchanged_primitive_policy = no-animation-without-morph-descriptor/v1
 state_interpolation_policy = forbidden/v1
 ```
 
-For every completed adjacent transition, transient browser animation state is discarded and the exact target `GeometryScene` is rebuilt. Accumulated CSS/Web Animations state can therefore never become the next TD-1 machine state.
+After every adjacent transition, transient browser animation state is discarded and the exact target scene is rebuilt. Timing, easing, speed, loop state, glow, persistence, and diagnostics are presentation configuration only.
 
-Player timing, easing, playback speed, looping, glow, eligible visual persistence duration, and diagnostic-panel state are presentation configuration only.
+## 11. Observer Continuity
 
-The full standalone HTML SHA-256 is reported externally because embedding the hash of the complete file inside that same file would create a self-referential digest problem. Embedded hashes are integrity checks, not authorship signatures.
+Observer Continuity is TD-1's permanent background reference model.
 
-## 10. Observer Continuity
-
-Observer Continuity is TD-1's permanent background state model.
-
-The initial implementation supports:
+Current groundwork includes:
 
 - timezone-aware timestamp;
-- WGS-84 latitude / longitude / altitude;
-- geodetic-to-ECEF conversion;
-- UTC-based Julian Date;
+- WGS-84 latitude/longitude/altitude;
+- geodetic -> ECEF conversion;
+- UTC Julian Date;
 - explicitly approximate Earth Rotation Angle using UTC as a proxy for UT1.
 
-The approximation is intentional and labeled. Precision navigation will require explicit treatment of UT1-UTC, TT/TDB, leap seconds, Earth orientation parameters, ephemerides, uncertainty, and sensor covariance.
+Precision navigation will require explicit time scales, Earth-orientation data, ephemerides, sensor covariance, and uncertainty contracts.
 
-Rendered deep-field motion must ultimately be driven by observer-state changes rather than arbitrary animation.
+## 12. Provenance and determinism
 
-## 11. Provenance model
-
-Corpus-derived requirements must preserve the chain:
+Corpus-derived requirements preserve:
 
 ```text
 source record
@@ -328,26 +321,27 @@ source record
           -> validation result
 ```
 
-Geometry extends that chain when a motif changes presentation:
-
-```text
-frozen motif annotation
-  -> admitted GeometryProfile support
-    -> AppliedGeometryRule
-      -> deterministic geometry scene
-```
-
-Executable semantics follow a separate engineering chain:
+Executable semantics preserve a separate engineering chain:
 
 ```text
 State Weave
-  -> explicit OperandBindings
-    -> deterministic semantic lowering
+  -> OperandBindings
+    -> deterministic lowering
       -> logical instructions
         -> execution trace
 ```
 
-Visible temporal presentation follows:
+Persistence preserves:
+
+```text
+Machine
+  -> td1.machine-state
+    -> canonical checkpoint bytes
+      -> restore Machine
+        -> identical complete machine digest
+```
+
+Visible temporal presentation preserves:
 
 ```text
 execution trace
@@ -356,53 +350,27 @@ execution trace
       -> geometry deltas
         -> Relic timeline
           -> deterministic morph plans
-            -> timeline morph manifest
-              -> verified standalone browser payloads
-                -> presentation animation
-                  -> hard reconcile exact target scene
+            -> verified browser payloads
+              -> presentation animation
+                -> hard reconcile exact target scene
 ```
 
-Reference still-image presentation follows independently:
+The reference machine, machine checkpoints, semantic lowerings, corpus snapshots, geometry profiles/scenes, traces, timelines, morph artifacts, SVG artifacts, Relic player artifacts, parity vectors, and parity reports all expose deterministic serialization/digests where applicable.
 
-```text
-geometry scene
-  -> deterministic SVG renderer options
-    -> SVG artifact + provenance metadata
-```
-
-The system must never silently collapse a participant's interpretation into an established external cause, silently collapse native semantic identity into hidden register choices, or treat a renderer/player as a source of truth.
-
-## 12. Determinism
-
-The reference machine exposes deterministic snapshots and a SHA-256 state digest. Semantic lowerings, render state, corpus snapshots, geometry profiles, geometry scenes, transition traces, Relic timelines, morph plans/manifests, SVG artifacts/manifests, Relic player payload manifests/artifacts, parity vectors, and parity reports also expose deterministic canonical serialization and content digests where applicable.
-
-These digests are intended for:
-
-- regression fixtures;
-- deterministic replay;
-- compiler drift detection;
-- frontend equivalence testing;
-- standalone player payload verification;
-- visual artifact reproducibility;
-- emulator-versus-hardware parity;
-- differential testing across implementations.
-
-The standalone player uses an externally reported full-file HTML digest rather than a self-referential embedded full-file hash.
+These digests support regression, replay, checkpoint integrity, frontend equivalence, physical parity, and differential testing. They are not digital signatures unless explicitly stated otherwise.
 
 ## 13. Physical parity boundary
 
-Physical TD-1 hardware is admitted through a transport-neutral conformance layer.
+Physical hardware enters through a transport-neutral conformance layer.
 
-The v1 parity contracts are:
+Current contracts:
 
 - `td1.parity-capabilities`;
 - `td1.parity-request`;
 - `td1.parity-response`;
 - `td1.parity-report`.
 
-A target advertises supported operations, protocol versions, maximum slice width, and optional telemetry keys before testing begins.
-
-The initial parity operation surface is:
+Initial operations:
 
 - `trit_hold`;
 - `register_load`;
@@ -410,37 +378,30 @@ The initial parity operation surface is:
 - `add`;
 - `sub`.
 
-The first hardware campaign uses only `trit_hold` and register-slice loads. ALU vectors exist as a future oracle but do not imply that physical ALU hardware is available.
+The first real campaign remains one-trit hold followed by register-slice loads. ALU vectors are future oracles, not claims that ALU hardware exists.
 
-Every successful response carries an observed ternary value and a deterministic slice-state digest. The harness distinguishes:
+The harness distinguishes capability rejection, transport/device fault, timeout, protocol error, value mismatch, and observed-state digest mismatch.
 
-- capability rejection;
-- transport/device fault;
-- timeout;
-- protocol error;
-- observed-value mismatch;
-- observed-state digest mismatch.
+UART, USB, GPIO, Ethernet, or another physical link may be implemented later without changing parity semantics.
 
-The physical link itself is outside the parity semantics. UART, USB, GPIO, Ethernet, or another transport can be implemented later as an adapter.
-
-A board earns wider or more complex capability only after its narrower conformance campaign passes. A physical subsystem may replace its emulated counterpart only after conformance reports demonstrate parity against the reference vectors.
+A physical subsystem may replace an emulated one only after conformance demonstrates parity against the reference model.
 
 ## 14. Operating modes
 
 ### Engineering Mode
 
-Human-readable diagnostics: registers, instruction pointer, semantic IR, lowering artifacts, corpus provenance, observer state, geometry provenance, timeline/event identity, morph descriptors, player verification state, renderer provenance, and hardware parity status.
+Human-readable diagnostics: machine/checkpoint digests, registers, instruction pointer, semantic IR, lowering artifacts, corpus provenance, observer state, geometry provenance, timeline/morph identity, player verification, renderer provenance, and hardware parity status.
 
 ### Relic Mode
 
-The exact same underlying state expressed using native TD-1 geometry and interaction semantics. The SVG reference renderer emits no visible English labels in Relic theme by default. The standalone browser player keeps human-readable diagnostics outside the zero-text native geometry canvas and animates only validated morph intent between exact timeline endpoints.
+The exact same underlying machine-derived state expressed using native TD-1 geometry and interaction semantics. The Relic surface must not become a second machine-state authority.
 
 ### Corpus Mode
 
-Traceability view explaining which versioned source observations contributed to a requirement, corpus-backed geometry rule, or eligible temporal presentation hint.
+Traceability view explaining which versioned source observations contributed to interface requirements, geometry rules, or eligible temporal presentation hints.
 
 ## 15. Primary engineering rule
 
-**No decorative weirdness, no semantic hand-waving, no renderer exceptionalism, no playback exceptionalism, and no hardware exceptionalism.**
+**No decorative weirdness, no semantic hand-waving, no persistence exceptionalism, no renderer exceptionalism, no playback exceptionalism, and no hardware exceptionalism.**
 
-Every glyph, transition, braid, pulse, depth change, topology change, apparent motion, executable semantic mapping, visible primitive, timeline frame, morph descriptor, browser animation, or claimed hardware capability must eventually map to explicit state, a measured event, a documented interface affordance, a versioned compiler/renderer/player rule, or a passing conformance record.
+Every glyph, transition, braid, depth change, executable semantic mapping, checkpoint, visible primitive, timeline frame, morph descriptor, browser animation, or claimed hardware capability must map to explicit state, a measured event, a documented engineering convention, a versioned rule, or a passing conformance record.

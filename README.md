@@ -11,6 +11,7 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 `td1-simulacrum` defines the machine before the physical hardware exists. It is intended to become:
 
 - the known-good reference model for the 12-trit TD-1 architecture;
+- the versioned renderer-independent persistence boundary for exact logical machine checkpoints;
 - the assembler/disassembler and deterministic test oracle for physical hardware;
 - the semantic State Weave intermediate representation;
 - the typed compiler boundary from native semantic intent into logical TD-1 instructions;
@@ -30,13 +31,19 @@ The long-term target is **hardware parity**: physical TD-1 subsystems should pro
 
 ## Current capabilities
 
-The v0.12 pre-alpha foundation includes:
+The v0.13 pre-alpha foundation includes:
 
 - balanced ternary conversion and fixed-width arithmetic;
 - a deterministic 12-trit, 9-register, 729-word logical machine;
 - the initial 15-operation ISA;
 - labels, relative branches, assembly and disassembly;
 - deterministic machine-state digests for replay and hardware parity;
+- versioned `td1.machine-state` checkpoints independent from rendering/corpus/geometry;
+- explicit checkpoint architecture invariants plus exact registers, IP, condition, halt state, step count, and sparse nonzero memory;
+- checkpoint restoration that must reproduce the existing complete machine-state digest;
+- deterministic canonical checkpoint JSON + checkpoint SHA-256;
+- intermediate checkpoint capture and deterministic execution resume;
+- an explicit `RenderState -> MachineState` bridge that copies only restored machine truth;
 - reversible `3 trits -> 27 microglyph states` encoding;
 - versioned State Weave semantic IR;
 - typed `OperandBindings` separated from semantic identity;
@@ -99,6 +106,35 @@ Run the reference program:
 ```bash
 td1-sim run examples/sum.td1
 ```
+
+Capture the exact final logical machine state without any rendering fields:
+
+```bash
+td1-sim machine-state examples/sum.td1 --output final.machine.json
+```
+
+Capture a non-halted checkpoint after four executed instructions:
+
+```bash
+td1-sim machine-state examples/sum.td1 \
+  --after-steps 4 \
+  --output step4.machine.json
+```
+
+Validate and fingerprint that checkpoint:
+
+```bash
+td1-sim machine-state-verify step4.machine.json
+```
+
+Resume the same logical program from the saved checkpoint:
+
+```bash
+td1-sim machine-state-resume examples/sum.td1 step4.machine.json \
+  --output resumed.machine.json
+```
+
+The checkpoint contains logical machine state only. It does not contain or freeze a physical program image or instruction encoding.
 
 Trace every logical instruction transition:
 
@@ -319,7 +355,7 @@ td1-sim corpus-delta VB-TD1-001.json VB-TD1-002.json
 - Ternary condition state: negative / zero / positive
 - Initial ISA: `NOP`, `LDI`, `MOV`, `ADD`, `SUB`, `NEG`, `ADDI`, `CMP`, `LD`, `ST`, `BRN`, `BRZ`, `BRP`, `JMP`, `HALT`
 
-The physical instruction encoding is **not frozen yet**. Logical execution semantics, the first native semantic-lowering boundary, and a transport-neutral hardware conformance boundary now exist; the eventual 12-trit opcode/register/immediate layout will be versioned only after compiler constraints and measurements from first hardware are reviewed together.
+The physical instruction encoding is **not frozen yet**. Logical execution semantics, standalone machine-state persistence, the first native semantic-lowering boundary, and a transport-neutral hardware conformance boundary now exist; the eventual 12-trit opcode/register/immediate layout will be versioned only after compiler constraints and measurements from first hardware are reviewed together.
 
 ## Layering
 
@@ -343,6 +379,8 @@ typed operand binding + lowering
       |
       v
 12-trit reference machine ------> execution trace
+      |
+      +------> td1.machine-state ------> save / verify / restore / resume
       |
       +------> Observer Continuity
       |
@@ -372,15 +410,14 @@ exact visible frames          animated endpoint presentation
                                      |
                                      v
                           future interactive control surface
-                                     |
-                                     v
-transport-neutral parity harness <------ golden vectors
+
+transport-neutral parity harness <------ golden vectors / machine checkpoints
       |
       v
 physical ternary subsystem
 ```
 
-The visual branch and physical-conformance branch share machine truth but do not grant each other authority. The browser player consumes exact timeline/morph contracts; it does not define machine behavior. Physical hardware earns authority only through parity.
+Machine persistence, presentation, and hardware conformance are separate contracts. `td1.machine-state` contains logical state only. The browser player consumes exact timeline/morph contracts and does not define machine behavior. Physical hardware earns authority only through parity.
 
 ## Design doctrine
 
@@ -401,6 +438,7 @@ The visual branch and physical-conformance branch share machine truth but do not
 15. **Playback consumes state transitions.** Timeline frames and deltas are exact; timing and interpolation may never fabricate machine state.
 16. **Morph planning constrains presentation.** Corpus-inspired transition hints are explicit and source-traceable; they never create intermediate machine state.
 17. **Browser animation is presentation.** Every adjacent animation terminates by hard-reconciling to the exact authoritative target scene.
+18. **Machine persistence contains machine truth only.** Checkpoints do not inherit presentation fields or freeze future physical encoding by implication.
 
 ## Assembly example
 
@@ -423,13 +461,14 @@ HALT
 
 **Pre-alpha / architecture stabilization.**
 
-Machine truth, semantic lowering, frozen corpus provenance, native geometry, deterministic transitions, replayable Relic timelines, renderer-independent morph intent, deterministic SVG rendering, a self-contained animated browser player, and transport-neutral physical conformance now have explicit contracts.
+Machine truth, standalone checkpoint persistence, semantic lowering, frozen corpus provenance, native geometry, deterministic transitions, replayable Relic timelines, renderer-independent morph intent, deterministic SVG rendering, a self-contained animated browser player, and transport-neutral physical conformance now have explicit contracts.
 
-The next software priorities are standalone machine-state serialization, trace-to-parity campaign packaging, richer but still endpoint-authoritative interactive Relic controls, and optional renderer-parity experiments such as WebGL. The next physical milestone remains the first real one-trit adapter. Issue #2's physical instruction encoding remains intentionally deferred until first-hardware constraints are measured.
+The next software priorities are trace-to-parity campaign packaging, richer but still endpoint-authoritative interactive Relic controls, and optional renderer-parity experiments such as WebGL. The next physical milestone remains the first real one-trit adapter. Issue #2's physical instruction encoding remains intentionally deferred until first-hardware constraints are measured.
 
 See:
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/MACHINE_STATE.md`](docs/MACHINE_STATE.md)
 - [`docs/SEMANTIC_LOWERING.md`](docs/SEMANTIC_LOWERING.md)
 - [`docs/HARDWARE_PARITY.md`](docs/HARDWARE_PARITY.md)
 - [`docs/RENDER_STATE.md`](docs/RENDER_STATE.md)
@@ -448,6 +487,6 @@ See:
 
 TD-1 does **not** assume that DMT/Veilbreak reports establish extraterrestrial, interdimensional, or otherwise external intelligences. The project treats those reports as a structured phenomenological corpus capable of generating unconventional interface constraints and testable design hypotheses.
 
-The included corpus fixtures are synthetic test data unless explicitly documented otherwise. State Weave lowering mappings are TD-1 engineering conventions unless explicitly documented otherwise. Loopback conformance proves the host harness only; it is not evidence that physical ternary hardware has passed. SVG styling, projection, browser timing/easing/glow/persistence, morph strategies, and other playback effects are presentation conventions and are not additional evidence or machine semantics. Corpus-backed morph rules preserve source provenance but do not claim that participant reports specify TD-1 animation algorithms. Embedded player hashes provide integrity checks, not authorship signatures.
+The included corpus fixtures are synthetic test data unless explicitly documented otherwise. State Weave lowering mappings are TD-1 engineering conventions unless explicitly documented otherwise. Loopback conformance proves the host harness only; it is not evidence that physical ternary hardware has passed. A valid `td1.machine-state` proves only that a logical checkpoint reconstructs the reference emulator state it claims. SVG styling, projection, browser timing/easing/glow/persistence, morph strategies, and other playback effects are presentation conventions and are not additional evidence or machine semantics. Corpus-backed morph rules preserve source provenance but do not claim that participant reports specify TD-1 animation algorithms. Embedded player hashes provide integrity checks, not authorship signatures.
 
 **Human-built hardware. Exotic design provenance. Bench validation required.**
