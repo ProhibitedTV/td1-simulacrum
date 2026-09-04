@@ -121,6 +121,19 @@ from .ternary import (
     trits_to_int,
     wrap_int,
 )
+from .timeline import (
+    TIMELINE_SCHEMA,
+    TIMELINE_SCHEMA_VERSION,
+    TIMELINE_SVG_MANIFEST_SCHEMA,
+    TIMELINE_SVG_MANIFEST_VERSION,
+    RelicTimeline,
+    TimelineError,
+    TimelineFrame,
+    TimelineSVGEntry,
+    TimelineSVGManifest,
+    build_relic_timeline,
+    render_timeline_svgs,
+)
 from .trace import (
     GEOMETRY_DELTA_SCHEMA,
     GEOMETRY_DELTA_SCHEMA_VERSION,
@@ -212,6 +225,7 @@ __all__ = [
     "ReferenceLoopbackTransport",
     "RegisterDelta",
     "RegisterRenderState",
+    "RelicTimeline",
     "RenderMode",
     "RenderPlane",
     "RenderState",
@@ -229,15 +243,24 @@ __all__ = [
     "SourceRecord",
     "StateWeave",
     "StepLimitExceeded",
+    "TIMELINE_SCHEMA",
+    "TIMELINE_SCHEMA_VERSION",
+    "TIMELINE_SVG_MANIFEST_SCHEMA",
+    "TIMELINE_SVG_MANIFEST_VERSION",
     "TRACE_SCHEMA",
     "TRACE_SCHEMA_VERSION",
     "TernaryWord",
+    "TimelineError",
+    "TimelineFrame",
+    "TimelineSVGEntry",
+    "TimelineSVGManifest",
     "TraceError",
     "UnsupportedWeaveError",
     "VeilbreakExportAdapter",
     "VeilbreakFieldMap",
     "assemble",
     "build_geometry_scene",
+    "build_relic_timeline",
     "compare_snapshots",
     "diff_geometry",
     "disassemble",
@@ -257,6 +280,7 @@ __all__ = [
     "project_point",
     "project_render_state",
     "render_svg",
+    "render_timeline_svgs",
     "representable_range",
     "run_conformance",
     "supported_lowerings",
@@ -271,4 +295,4 @@ __all__ = [
     "wrap_int",
 ]
 
-__version__ = "0.9.0a0"
+__version__ = "0.10.0a0"

@@ -25,7 +25,15 @@ from .render_state import RenderMode, RenderState, project_render_state
 from .semantic import StateWeave
 from .svg_renderer import SVGRenderOptions, SVGTheme, render_svg
 from .ternary import TernaryWord
+from .timeline import RelicTimeline, build_relic_timeline, render_timeline_svgs
 from .trace import ExecutionTrace, diff_geometry, trace_program, verify_execution_trace
+
+
+def _profile_from_corpus(path: Path | None, threshold: int) -> GeometryProfile | None:
+    if path is None:
+        return None
+    snapshot = CorpusSnapshot.from_json(path.read_text(encoding="utf-8"))
+    return GeometryProfile.from_snapshot(snapshot, threshold_milli=threshold)
 
 
 def _run_program(path: Path, max_steps: int) -> int:
@@ -71,15 +79,7 @@ def _geometry_program(
     machine = Machine().run(program, max_steps=max_steps)
     weave = StateWeave.parse(weave_text) if weave_text is not None else None
     state = RenderState.capture(machine, weave=weave)
-
-    profile = None
-    if corpus_path is not None:
-        snapshot = CorpusSnapshot.from_json(corpus_path.read_text(encoding="utf-8"))
-        profile = GeometryProfile.from_snapshot(
-            snapshot,
-            threshold_milli=corpus_threshold,
-        )
-
+    profile = _profile_from_corpus(corpus_path, corpus_threshold)
     scene = build_geometry_scene(state, profile=profile)
     print(json.dumps(scene.as_dict(), indent=2, sort_keys=True))
     return 0
@@ -124,6 +124,104 @@ def _render_svg_scene(
             "theme": artifact.theme.value,
         }
         print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _timeline_program(
+    path: Path,
+    max_steps: int,
+    corpus_path: Path | None,
+    corpus_threshold: int,
+    weave_text: str | None,
+    output: Path | None,
+) -> int:
+    program = assemble(path.read_text(encoding="utf-8"))
+    profile = _profile_from_corpus(corpus_path, corpus_threshold)
+    weave = StateWeave.parse(weave_text) if weave_text is not None else None
+    timeline = build_relic_timeline(
+        program,
+        profile=profile,
+        weave=weave,
+        max_steps=max_steps,
+    )
+    text = json.dumps(timeline.as_dict(), indent=2, sort_keys=True) + "\n"
+    if output is None:
+        sys.stdout.write(text)
+    else:
+        output.write_text(text, encoding="utf-8", newline="\n")
+        print(
+            json.dumps(
+                {
+                    "output": str(output),
+                    "timeline_digest": timeline.digest(),
+                    "trace_digest": timeline.execution_trace_digest,
+                    "frames": len(timeline.frames),
+                    "events": timeline.event_count,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+    return 0
+
+
+def _timeline_verify(path: Path) -> int:
+    timeline = RelicTimeline.from_json(path.read_text(encoding="utf-8"))
+    payload = {
+        "verified": True,
+        "timeline_digest": timeline.digest(),
+        "trace_digest": timeline.execution_trace_digest,
+        "program_digest": timeline.program_digest,
+        "frames": len(timeline.frames),
+        "events": timeline.event_count,
+        "final_machine_digest": timeline.final_machine_digest,
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0
+
+
+def _timeline_svgs(
+    path: Path,
+    out_dir: Path,
+    theme: str,
+    labels: bool | None,
+    unit: int,
+    depth_x: int,
+    depth_y: int,
+    margin: int,
+) -> int:
+    timeline = RelicTimeline.from_json(path.read_text(encoding="utf-8"))
+    options = SVGRenderOptions(
+        theme=SVGTheme(theme),
+        unit=unit,
+        depth_x=depth_x,
+        depth_y=depth_y,
+        margin=margin,
+        show_labels=labels,
+    )
+    manifest, artifacts = render_timeline_svgs(timeline, options)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for entry, artifact in zip(manifest.entries, artifacts, strict=True):
+        (out_dir / entry.filename).write_text(
+            artifact.svg,
+            encoding="utf-8",
+            newline="\n",
+        )
+    manifest_path = out_dir / "manifest.json"
+    manifest_path.write_text(
+        manifest.canonical_json() + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    payload = {
+        "output_directory": str(out_dir),
+        "manifest": str(manifest_path),
+        "manifest_digest": manifest.digest(),
+        "timeline_digest": timeline.digest(),
+        "frames": len(manifest.entries),
+        "theme": options.theme.value,
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
     return 0
 
 
@@ -198,11 +296,7 @@ def _list_lowerings() -> int:
 
 
 def _parity_vectors(width: int, register_only: bool) -> int:
-    vectors = (
-        golden_register_vectors(width)
-        if register_only
-        else golden_parity_vectors(width)
-    )
+    vectors = golden_register_vectors(width) if register_only else golden_parity_vectors(width)
     payload = {
         "schema": "td1.parity-vector-set",
         "version": 1,
@@ -216,11 +310,7 @@ def _parity_vectors(width: int, register_only: bool) -> int:
 
 
 def _parity_loopback(width: int, register_only: bool, target_max_width: int) -> int:
-    vectors = (
-        golden_register_vectors(width)
-        if register_only
-        else golden_parity_vectors(width)
-    )
+    vectors = golden_register_vectors(width) if register_only else golden_parity_vectors(width)
     transport = ReferenceLoopbackTransport(max_width=target_max_width)
     report = run_conformance(transport, vectors)
     print(json.dumps(report.as_dict(), indent=2, sort_keys=True))
@@ -236,6 +326,40 @@ def _parity_verify(path: Path) -> int:
     }
     print(json.dumps(payload, indent=2, sort_keys=True))
     return 0
+
+
+def _add_svg_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--theme",
+        choices=[theme.value for theme in SVGTheme],
+        default=SVGTheme.RELIC.value,
+    )
+    label_group = parser.add_mutually_exclusive_group()
+    label_group.add_argument("--labels", action="store_true", dest="labels")
+    label_group.add_argument("--no-labels", action="store_false", dest="labels")
+    parser.set_defaults(labels=None)
+    parser.add_argument("--unit", type=int, default=3)
+    parser.add_argument("--depth-x", type=int, default=2)
+    parser.add_argument("--depth-y", type=int, default=1)
+    parser.add_argument("--margin", type=int, default=36)
+
+
+def _add_corpus_geometry_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--corpus",
+        type=Path,
+        help="optional frozen VB-TD1 corpus snapshot used to admit geometry rules",
+    )
+    parser.add_argument(
+        "--corpus-threshold",
+        type=int,
+        default=750,
+        help="minimum motif confidence in milli-units (0..1000, default: 750)",
+    )
+    parser.add_argument(
+        "--weave",
+        help="optional canonical State Weave such as TIME>REFERENCE:+",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -280,21 +404,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="emit deterministic native geometry for an executed TD-1 program",
     )
     geometry_parser.add_argument("path", type=Path)
-    geometry_parser.add_argument(
-        "--corpus",
-        type=Path,
-        help="optional frozen VB-TD1 corpus snapshot used to admit geometry rules",
-    )
-    geometry_parser.add_argument(
-        "--corpus-threshold",
-        type=int,
-        default=750,
-        help="minimum motif confidence in milli-units (0..1000, default: 750)",
-    )
-    geometry_parser.add_argument(
-        "--weave",
-        help="optional canonical State Weave such as TIME>REFERENCE:+",
-    )
+    _add_corpus_geometry_options(geometry_parser)
     geometry_parser.add_argument("--max-steps", type=int, default=100_000)
 
     geometry_delta_parser = subparsers.add_parser(
@@ -309,20 +419,31 @@ def build_parser() -> argparse.ArgumentParser:
         help="render a saved td1.geometry-scene as deterministic standalone SVG",
     )
     svg_parser.add_argument("path", type=Path, help="saved geometry-scene JSON")
-    svg_parser.add_argument(
-        "--theme",
-        choices=[theme.value for theme in SVGTheme],
-        default=SVGTheme.RELIC.value,
-    )
     svg_parser.add_argument("--output", type=Path, help="write SVG to a file instead of stdout")
-    label_group = svg_parser.add_mutually_exclusive_group()
-    label_group.add_argument("--labels", action="store_true", dest="labels")
-    label_group.add_argument("--no-labels", action="store_false", dest="labels")
-    svg_parser.set_defaults(labels=None)
-    svg_parser.add_argument("--unit", type=int, default=3)
-    svg_parser.add_argument("--depth-x", type=int, default=2)
-    svg_parser.add_argument("--depth-y", type=int, default=1)
-    svg_parser.add_argument("--margin", type=int, default=36)
+    _add_svg_options(svg_parser)
+
+    timeline_parser = subparsers.add_parser(
+        "timeline",
+        help="execute a TD-1 program into a replayable execution-to-geometry timeline",
+    )
+    timeline_parser.add_argument("path", type=Path)
+    _add_corpus_geometry_options(timeline_parser)
+    timeline_parser.add_argument("--max-steps", type=int, default=100_000)
+    timeline_parser.add_argument("--output", type=Path)
+
+    timeline_verify_parser = subparsers.add_parser(
+        "timeline-verify",
+        help="validate and fingerprint a saved td1.relic-timeline",
+    )
+    timeline_verify_parser.add_argument("path", type=Path)
+
+    timeline_svg_parser = subparsers.add_parser(
+        "timeline-svgs",
+        help="render every exact timeline frame to SVG plus a deterministic manifest",
+    )
+    timeline_svg_parser.add_argument("path", type=Path, help="saved Relic timeline JSON")
+    timeline_svg_parser.add_argument("--out-dir", type=Path, required=True)
+    _add_svg_options(timeline_svg_parser)
 
     lower_parser = subparsers.add_parser(
         "lower",
@@ -416,6 +537,28 @@ def main() -> int:
             args.path,
             args.theme,
             args.output,
+            args.labels,
+            args.unit,
+            args.depth_x,
+            args.depth_y,
+            args.margin,
+        )
+    if args.command == "timeline":
+        return _timeline_program(
+            args.path,
+            args.max_steps,
+            args.corpus,
+            args.corpus_threshold,
+            args.weave,
+            args.output,
+        )
+    if args.command == "timeline-verify":
+        return _timeline_verify(args.path)
+    if args.command == "timeline-svgs":
+        return _timeline_svgs(
+            args.path,
+            args.out_dir,
+            args.theme,
             args.labels,
             args.unit,
             args.depth_x,
