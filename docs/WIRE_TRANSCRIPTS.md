@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The parity wire can now be preserved as deterministic transport evidence.
+The parity wire can be preserved as deterministic transport evidence.
 
 A transcript records the **exact canonical line bytes** successfully written and read at the `ParityLineIO` boundary. It exists so a future hardware session can be inspected, fingerprinted, replayed without the original device, and linked back to the exact campaign/report that produced it.
 
@@ -21,7 +21,7 @@ JsonLineParityTransport
 RecordingParityLineIO ------> td1.parity-wire-transcript
       |
       v
-real or reference line I/O
+StreamParityLineIO / other line I/O
       |
       v
 physical/reference target
@@ -104,7 +104,7 @@ It preserves successful traffic without changing the underlying wire semantics:
 
 The wrapper enforces write/read alternation. A transcript cannot be finalized while a device response is still unread.
 
-For the v0.16 reference path:
+The reference path remains:
 
 ```text
 JsonLineParityTransport
@@ -122,7 +122,35 @@ ParityWireDevice
 ReferenceLoopbackTransport
 ```
 
-The same recording wrapper can later sit above a serial line implementation without changing the artifact schema.
+## Stream-backed composition
+
+v0.17 adds `StreamParityLineIO`, a concrete `ParityLineIO` over ordinary binary reader/writer streams.
+
+The recording layer intentionally sits **above** it:
+
+```text
+JsonLineParityTransport
+        |
+        v
+RecordingParityLineIO
+        |
+        v
+StreamParityLineIO
+        |
+        v
+binary byte stream
+        |
+        v
+future UART / USB CDC / other serial-class link
+```
+
+That placement matters. Transcript v1 records the same canonical line frames regardless of whether the lower channel is in-memory, fragmented, coalesced, UART-backed, USB-backed, or another compatible stream. No transcript schema change is needed merely because the host begins talking to real serial-class hardware.
+
+`StreamParityLineIO` may split writes or reassemble fragmented reads internally, but the recorder sees only complete canonical line operations. Its deterministic byte/frame counters are adapter diagnostics, not transcript fields or machine state.
+
+CI exercises a complete campaign through `JsonLineParityTransport -> RecordingParityLineIO -> StreamParityLineIO -> scripted device stream`, creates a valid bench bundle, and verifies replay equivalence.
+
+See [`STREAM_LINE_IO.md`](STREAM_LINE_IO.md) and ADR 0017.
 
 ## Replay
 
