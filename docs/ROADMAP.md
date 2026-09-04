@@ -40,7 +40,7 @@ Next:
 
 ## M2 — Native representation
 
-Status: **native geometry + transition contract implemented**
+Status: **native geometry + transition + reference SVG renderer implemented**
 
 Implemented:
 - 27-state microglyph IDs;
@@ -63,13 +63,21 @@ Implemented:
 - CLI geometry export and golden microglyph geometry fixture;
 - versioned `td1.geometry-delta` schema;
 - stable-ID appear/disappear/move/topology/metadata classifications;
-- source scene/render digest preservation across geometry deltas.
+- source scene/render digest preservation across geometry deltas;
+- deterministic `td1.svg-render` reference renderer consuming only geometry scenes;
+- integer axial/depth projection with stable SVG primitive IDs;
+- Relic and Engineering themes with geometry-equivalence tests;
+- zero-display-text Relic output by default;
+- embedded scene/render/machine/profile provenance metadata;
+- XML-safe identifiers/labels and deterministic SVG byte digests;
+- CLI SVG output to stdout or files.
 
 Next:
 - renderer-independent morph/transition descriptors driven by geometry deltas;
 - corpus-derived morphing/focus/context constraints;
-- first SVG/WebGL reference renderer that consumes geometry without inventing state;
-- first interactive Relic Mode frontend.
+- animated browser frontend consuming geometry deltas rather than pixel diffs;
+- first interactive Relic Mode control surface;
+- optional WebGL renderer tested against the SVG reference topology.
 
 ## M3 — Corpus pipeline
 
@@ -170,4 +178,5 @@ The first semantic/compiler prerequisite for Issue #2 is now implemented. Physic
 - claiming navigation-grade accuracy before the timing/reference stack earns it;
 - inventing animation activity that is not grounded in traced state changes;
 - assigning fake executable meanings to unsupported State Weaves for the sake of completeness;
-- treating a physical board as authoritative before deterministic parity passes.
+- treating a physical board as authoritative before deterministic parity passes;
+- allowing a renderer to infer state that is absent from the native geometry scene.
