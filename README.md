@@ -25,13 +25,14 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - explicit fixed first-hardware golden suites;
 - trace-derived parity campaigns tied to real logical workloads;
 - canonical `td1.parity-wire` framing beneath the parity API;
+- strict nested parity-payload canonicality at the live wire boundary;
 - deterministic wire transcripts, generic report/transcript evidence, and replayable campaign bench bundles;
 - stream-backed `ParityLineIO` over ordinary binary streams;
 - **an optional pyserial live-bench adapter that can carry the exact existing parity/wire/evidence stack to a real serial-class device without making serial configuration machine semantics.**
 
 The long-term target is **hardware parity**: physical TD-1 subsystems progressively replace emulated subsystems while preserving identical externally observable behavior.
 
-## Current baseline — v0.21 pre-alpha
+## Current baseline — v0.22 pre-alpha
 
 ### Logical machine
 
@@ -87,6 +88,7 @@ The long-term target is **hardware parity**: physical TD-1 subsystems progressiv
 - explicit `ok`, `unsupported`, `fault`, `timeout`, and `error` outcomes;
 - workload-derived `td1.parity-campaign` and `td1.parity-campaign-run` artifacts;
 - canonical `td1.parity-wire` JSON Lines framing;
+- exact nested `ParityCapabilities`, `ParityRequest`, and `ParityResponse` payload checks that reject receiver coercion/default/list normalization;
 - `JsonLineParityTransport` and reference `ParityWireDevice`;
 - `InMemoryParityLineIO` for pure-software integration;
 - `RecordingParityLineIO` and strict `ReplayParityLineIO`;
@@ -98,7 +100,8 @@ The long-term target is **hardware parity**: physical TD-1 subsystems progressiv
 - optional `PySerialByteStream` live deployment adapter;
 - `td1-parity serial-golden` for fixed first-hardware suites;
 - `td1-parity serial-run` for trace-derived workload campaigns;
-- no default baud rate, automatic port discovery, connector choice, or pyserial requirement in core installs.
+- no default baud rate, automatic port discovery, connector choice, or pyserial requirement in core installs;
+- warning-clean pytest policy: Python warnings are test failures.
 
 ## Quick start
 
@@ -304,6 +307,10 @@ parity_response
 ```
 
 The default maximum frame size is 65,536 bytes including the trailing LF. Noncanonical, malformed, CRLF, multi-line, oversized, or invalid-UTF-8 frames are rejected.
+
+v0.22 also requires nested parity payloads to reproduce their typed canonical representation exactly after parsing. A byte-canonical envelope carrying `"sequence":"0"` instead of integer `0`, an omitted canonical default field, or a capability list that only becomes canonical after sorting/deduplication is rejected. Canonical framing cannot hide receiver coercion.
+
+See [`docs/PARITY_WIRE.md`](docs/PARITY_WIRE.md) and ADR 0022.
 
 Exercise the exact wire codec in software:
 
@@ -531,21 +538,22 @@ Trace inspection cannot alter the trace it consumes. Debugger stops cannot alter
 10. **Fixed golden suites test explicit focused subsystem claims without fake workload provenance.**
 11. **Trace-derived campaigns test subsystems, not imaginary instruction decoders.**
 12. **Wire framing transports parity semantics; it does not create them.**
-13. **Stream adapters move bytes; they do not interpret arithmetic.**
-14. **Serial configuration is deployment state, not machine state.**
-15. **Wire transcripts and evidence preserve exact receipts; they do not authenticate hardware.**
-16. **Physicality is not correctness.**
-17. **Hardware earns authority through parity.**
-18. **Determinism wins.**
-19. **Accuracy contracts are explicit.**
-20. **Corpus inputs are frozen before they influence a revision.**
-21. **Physical instruction encoding waits for physical evidence.**
+13. **Canonical envelope bytes do not excuse non-canonical nested parity values.**
+14. **Stream adapters move bytes; they do not interpret arithmetic.**
+15. **Serial configuration is deployment state, not machine state.**
+16. **Wire transcripts and evidence preserve exact receipts; they do not authenticate hardware.**
+17. **Physicality is not correctness.**
+18. **Hardware earns authority through parity.**
+19. **Determinism wins.**
+20. **Accuracy contracts are explicit.**
+21. **Corpus inputs are frozen before they influence a revision.**
+22. **Physical instruction encoding waits for physical evidence.**
 
 ## Repository status
 
-**Pre-alpha / deterministic trace debugging + first-hardware host path ready.**
+**Pre-alpha / audit-hardened live wire boundary + deterministic trace debugging + first-hardware host path ready.**
 
-The logical emulator can now be inspected backward and forward at exact trace boundaries and can stop live execution on deterministic breakpoints/watchpoints without creating a second execution authority. Separately, the host software can express the smallest honest first-copper test: a target advertising only `trit_hold`, width 1, receiving exactly three fixed golden vectors over the canonical serial/wire/evidence stack.
+The logical emulator can be inspected backward and forward at exact trace boundaries and can stop live execution on deterministic breakpoints/watchpoints without creating a second execution authority. Separately, the host software can express the smallest honest first-copper test: a target advertising only `trit_hold`, width 1, receiving exactly three fixed golden vectors over the canonical serial/wire/evidence stack. v0.22 additionally rejects nested wire payloads that would become valid only through receiver coercion and makes Python warnings fail the test run.
 
 Neither capability means physical TD-1 hardware exists or has passed. The next hardware milestone remains physical: build and measure `TRIT_CELL_REV0`, implement the device-side wire endpoint, run `serial-golden --suite trit`, preserve the evidence, and inspect the actual analog distributions before defining electrical acceptance limits.
 
@@ -570,6 +578,7 @@ Neither capability means physical TD-1 hardware exists or has passed. The next h
 - [`docs/RELIC_PLAYER.md`](docs/RELIC_PLAYER.md)
 - [`docs/CORPUS_PIPELINE.md`](docs/CORPUS_PIPELINE.md)
 - [`docs/VEILBREAK_PROVENANCE.md`](docs/VEILBREAK_PROVENANCE.md)
+- [`docs/AUDIT_2026-09.md`](docs/AUDIT_2026-09.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - [`docs/adr/`](docs/adr/)
 
