@@ -5,7 +5,6 @@ from importlib import import_module
 
 import pytest
 
-
 td1 = import_module("td1_simulacrum")
 
 SOURCE = """
