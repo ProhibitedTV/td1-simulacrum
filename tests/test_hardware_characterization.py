@@ -116,7 +116,7 @@ def test_voltage_summary_is_descriptive_only() -> None:
 
 def test_characterization_requires_all_three_logical_stimuli() -> None:
     source = _characterization()
-    with pytest.raises(HardwareCharacterizationError, match="-1, 0, and \+1"):
+    with pytest.raises(HardwareCharacterizationError, match=r"-1, 0, and \+1"):
         TritCellCharacterization(
             board_revision=source.board_revision,
             unit_id=source.unit_id,
