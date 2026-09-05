@@ -4,18 +4,20 @@ import sys
 
 import pytest
 
-from td1_simulacrum.assembler import assemble
-from td1_simulacrum.machine import Machine
-from td1_simulacrum.machine_state import MachineState
-from td1_simulacrum.trace import ExecutionTrace, RegisterDelta, trace_program
-from td1_simulacrum.trace_cli import main
-from td1_simulacrum.trace_inspect import (
+from td1_simulacrum import (
+    ExecutionTrace,
+    Machine,
+    MachineState,
+    RegisterDelta,
     TraceCursor,
     TraceInspectionError,
     TraceQuery,
+    assemble,
     find_trace_events,
+    trace_program,
     trace_state_at,
 )
+from td1_simulacrum.trace_cli import main
 
 
 SOURCE = """
