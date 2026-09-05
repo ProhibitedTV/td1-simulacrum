@@ -5,7 +5,6 @@ import sys
 import pytest
 
 import td1_simulacrum as td1
-import td1_simulacrum.trace_cli as trace_cli
 
 
 SOURCE = """
@@ -121,6 +120,8 @@ def test_trace_queries_filter_by_machine_effects_and_control_state() -> None:
 
 
 def test_trace_cli_state_and_find(tmp_path, monkeypatch, capsys) -> None:
+    import td1_simulacrum.trace_cli as trace_cli
+
     trace = td1.trace_program(_program())
     trace_path = tmp_path / "run.trace.json"
     trace_path.write_text(trace.canonical_json() + "\n", encoding="utf-8")
