@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
 
+from .strict_json import require_canonical_mapping
 from .ternary import TernaryWord, representable_range
 
 CAPABILITY_SCHEMA = "td1.parity-capabilities"
@@ -188,6 +189,7 @@ class ParityVector:
         claimed_digest = payload.get("expected_state_digest")
         if claimed_digest is not None and str(claimed_digest) != vector.expected_state_digest:
             raise ParityError(f"vector {vector.vector_id} expected-state digest mismatch")
+        require_canonical_mapping(payload, vector.as_dict(), label="parity vector")
         return vector
 
 
@@ -248,7 +250,7 @@ class ParityCapabilities:
             raise ParityError("capability operations/protocol_versions must be lists")
         if not isinstance(telemetry, list):
             raise ParityError("capability telemetry_keys must be a list")
-        return cls(
+        state = cls(
             schema=str(payload["schema"]),
             version=int(payload["version"]),
             target_id=str(payload["target_id"]),
@@ -257,6 +259,8 @@ class ParityCapabilities:
             protocol_versions=tuple(int(item) for item in versions),
             telemetry_keys=tuple(str(item) for item in telemetry),
         )
+        require_canonical_mapping(payload, state.as_dict(), label="parity capabilities")
+        return state
 
 
 @dataclass(frozen=True, slots=True)
@@ -293,13 +297,15 @@ class ParityRequest:
         vector = payload.get("vector")
         if not isinstance(vector, Mapping):
             raise ParityError("parity request vector must be an object")
-        return cls(
+        state = cls(
             schema=str(payload["schema"]),
             version=int(payload["version"]),
             session_id=str(payload["session_id"]),
             sequence=int(payload["sequence"]),
             vector=ParityVector.from_dict(vector),
         )
+        require_canonical_mapping(payload, state.as_dict(), label="parity request")
+        return state
 
 
 @dataclass(frozen=True, slots=True)
@@ -323,6 +329,10 @@ class ParityResponse:
         telemetry = tuple(sorted(self.telemetry, key=lambda item: item[0]))
         if len({key for key, _ in telemetry}) != len(telemetry):
             raise ParityError("parity telemetry keys must be unique")
+        if any(type(key) is not str for key, _ in telemetry):
+            raise ParityError("parity telemetry keys must be strings")
+        if any(type(value) not in (int, str) for _, value in telemetry):
+            raise ParityError("parity telemetry values must be integers or strings")
         object.__setattr__(self, "telemetry", telemetry)
         if self.status is ParityStatus.OK:
             if self.observed_value is None or self.observed_state_digest is None:
@@ -360,10 +370,10 @@ class ParityResponse:
             raise ParityError("parity response telemetry must be an object")
         telemetry: list[tuple[str, int | str]] = []
         for key, value in telemetry_payload.items():
-            if not isinstance(value, (int, str)):
+            if type(value) not in (int, str):
                 raise ParityError("parity telemetry values must be integers or strings")
             telemetry.append((str(key), value))
-        return cls(
+        state = cls(
             schema=str(payload["schema"]),
             version=int(payload["version"]),
             session_id=str(payload["session_id"]),
@@ -383,6 +393,8 @@ class ParityResponse:
             detail=str(payload.get("detail", "")),
             telemetry=tuple(telemetry),
         )
+        require_canonical_mapping(payload, state.as_dict(), label="parity response")
+        return state
 
 
 class ParityTransport(Protocol):
@@ -504,12 +516,14 @@ class ParityExchangeRecord:
         response = payload.get("response")
         if not isinstance(request, Mapping) or not isinstance(response, Mapping):
             raise ParityError("parity exchange record requires request/response objects")
-        return cls(
+        state = cls(
             request=ParityRequest.from_dict(request),
             response=ParityResponse.from_dict(response),
             passed=bool(payload["passed"]),
             discrepancy=str(payload.get("discrepancy", "")),
         )
+        require_canonical_mapping(payload, state.as_dict(), label="parity exchange record")
+        return state
 
 
 def vector_set_digest(vectors: Sequence[ParityVector]) -> str:
@@ -611,6 +625,7 @@ class ConformanceReport:
         claimed_summary = payload.get("summary")
         if claimed_summary is not None and claimed_summary != report.summary():
             raise ParityError("parity report summary mismatch")
+        require_canonical_mapping(payload, report.as_dict(), label="parity report")
         return report
 
     @classmethod

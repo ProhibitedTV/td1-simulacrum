@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from .machine import MEMORY_WORDS, REGISTER_COUNT, Instruction, Machine, Op
+from .strict_json import require_canonical_mapping
 from .trace import ExecutionEvent, ExecutionTrace, TraceError, TraceRecorder, verify_execution_trace
 
 DEBUG_RUN_SCHEMA = "td1.debug-run"
@@ -91,12 +92,14 @@ class DebugStopSpec:
         operations = payload.get("operations", [])
         if not isinstance(operations, list):
             raise DebugError("debug stop spec operations must be a list")
-        return cls(
+        state = cls(
             instruction_indices=_ints("instruction_indices"),
             operations=tuple(str(value) for value in operations),
             registers=_ints("registers"),
             memory_addresses=_ints("memory_addresses"),
         )
+        require_canonical_mapping(payload, state.as_dict(), label="debug stop spec")
+        return state
 
     def matches_before(self, recorder: TraceRecorder) -> tuple[str, ...]:
         """Return deterministic breakpoint matches before the next instruction executes."""
@@ -216,7 +219,7 @@ class DebugRun:
         if str(stop_payload["machine_digest"]) != trace.final_state.machine_digest:
             raise DebugError("debug stop machine digest must match the trace final state")
 
-        return cls(
+        state = cls(
             schema=str(payload["schema"]),
             version=int(payload["version"]),
             trace=trace,
@@ -226,6 +229,8 @@ class DebugRun:
             event_budget=int(payload["event_budget"]),
             skip_initial_breakpoint=bool(payload.get("skip_initial_breakpoint", False)),
         )
+        require_canonical_mapping(payload, state.as_dict(), label="debug run")
+        return state
 
     @classmethod
     def from_json(cls, text: str) -> "DebugRun":

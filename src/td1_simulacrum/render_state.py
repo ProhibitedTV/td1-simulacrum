@@ -20,6 +20,7 @@ from .glyphs import word_to_glyph_ids
 from .machine import MEMORY_WORDS, REGISTER_COUNT, Machine
 from .observer import ObserverState
 from .semantic import SemanticRoot, StateWeave
+from .strict_json import require_canonical_mapping
 from .ternary import TernaryWord
 
 RENDER_SCHEMA = "td1.render-state"
@@ -88,6 +89,7 @@ class RegisterRenderState:
         )
         if state.value != word.value or state.glyph_ids != word_to_glyph_ids(word):
             raise ValueError(f"inconsistent register render state R{state.index}")
+        require_canonical_mapping(payload, state.as_dict(), label="register render state")
         return state
 
     def as_dict(self) -> dict[str, object]:
@@ -119,6 +121,7 @@ class MemoryCellRenderState:
         )
         if state.glyph_ids != word_to_glyph_ids(word):
             raise ValueError(f"inconsistent memory render state at {state.address}")
+        require_canonical_mapping(payload, state.as_dict(), label="memory render state")
         return state
 
     @property
@@ -170,7 +173,7 @@ class ObserverRenderState:
 
     @classmethod
     def from_dict(cls, payload: dict[str, object]) -> "ObserverRenderState":
-        return cls(
+        state = cls(
             timestamp_utc=str(payload["timestamp_utc"]),
             latitude_nanodeg=int(payload["latitude_nanodeg"]),
             longitude_nanodeg=int(payload["longitude_nanodeg"]),
@@ -179,6 +182,8 @@ class ObserverRenderState:
             julian_date_microday=int(payload["julian_date_microday"]),
             earth_rotation_nanorad_approx=int(payload["earth_rotation_nanorad_approx"]),
         )
+        require_canonical_mapping(payload, state.as_dict(), label="observer render state")
+        return state
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -227,6 +232,8 @@ class RenderState:
             raise ValueError("nonzero memory cells must have unique ascending addresses")
         if any(not 0 <= address < self.memory_size for address in addresses):
             raise ValueError("memory address outside render-state memory range")
+        if any(cell.value == 0 for cell in self.nonzero_memory):
+            raise ValueError("nonzero memory section may not contain zero-valued words")
 
     @classmethod
     def capture(
@@ -290,7 +297,8 @@ class RenderState:
                 else None
             ),
         )
-        # Validate redundant ternary/glyph data and full machine parity at load time.
+        # Validate redundant ternary/glyph data, planes/weave metadata, and full machine parity.
+        require_canonical_mapping(payload, state.as_dict(), label="render state")
         state.restore_machine()
         return state
 

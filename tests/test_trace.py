@@ -73,6 +73,30 @@ def test_execution_trace_program_digest_prevents_wrong_program_replay() -> None:
         verify_execution_trace(program, tampered)
 
 
+def test_execution_trace_rejects_coercive_event_and_schema_values() -> None:
+    trace = trace_program(assemble("LDI R0, 1\nHALT"))
+
+    payload = json.loads(trace.canonical_json())
+    payload["version"] = "1"
+    with pytest.raises(ValueError, match="canonical JSON"):
+        ExecutionTrace.from_dict(payload)
+
+    payload = json.loads(trace.canonical_json())
+    payload["events"][0]["instruction"]["imm"] = "1"
+    with pytest.raises(ValueError, match="canonical JSON"):
+        ExecutionTrace.from_dict(payload)
+
+    payload = json.loads(trace.canonical_json())
+    payload["events"][0]["halted_before"] = 0
+    with pytest.raises(ValueError, match="canonical JSON"):
+        ExecutionTrace.from_dict(payload)
+
+    payload = json.loads(trace.canonical_json())
+    payload["events"][0]["register_deltas"][0]["index"] = "0"
+    with pytest.raises(ValueError, match="canonical JSON"):
+        ExecutionTrace.from_dict(payload)
+
+
 def test_execution_trace_does_not_mutate_supplied_initial_machine() -> None:
     machine = Machine()
     machine.registers[4] = TernaryWord.from_int(12)
@@ -102,6 +126,25 @@ def test_geometry_delta_detects_real_machine_driven_changes() -> None:
     assert delta.changes
     assert any(change.kind is PrimitiveChangeKind.METADATA for change in delta.changes)
     assert any(change.kind is PrimitiveChangeKind.APPEAR for change in delta.changes)
+
+
+def test_geometry_delta_rejects_coercive_and_normalized_json() -> None:
+    before_machine = Machine()
+    after_machine = Machine()
+    after_machine.registers[0] = TernaryWord.from_int(5)
+    before = build_geometry_scene(RenderState.capture(before_machine))
+    after = build_geometry_scene(RenderState.capture(after_machine))
+    delta = diff_geometry(before, after)
+
+    payload = json.loads(delta.canonical_json())
+    payload["version"] = "1"
+    with pytest.raises(ValueError, match="canonical JSON"):
+        GeometryDelta.from_dict(payload)
+
+    payload = json.loads(delta.canonical_json())
+    payload["changes"][0]["primitive_id"] = 123
+    with pytest.raises(ValueError, match="canonical JSON"):
+        GeometryDelta.from_dict(payload)
 
 
 def _single_primitive_scene(primitive: GeometryPrimitive, source: str) -> GeometryScene:

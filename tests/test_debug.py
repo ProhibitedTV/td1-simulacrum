@@ -141,6 +141,39 @@ def test_debug_run_round_trip_and_tamper_rejection() -> None:
         DebugRun.from_dict(payload)
 
 
+def test_debug_artifacts_reject_coercion_and_normalized_stop_specs() -> None:
+    run = run_debug(_program(), stop_spec=DebugStopSpec(registers=(1,)))
+
+    payload = json.loads(run.canonical_json())
+    payload["event_budget"] = str(payload["event_budget"])
+    with pytest.raises(ValueError, match="canonical JSON"):
+        DebugRun.from_dict(payload)
+
+    payload = json.loads(run.canonical_json())
+    payload["skip_initial_breakpoint"] = 0
+    with pytest.raises(ValueError, match="canonical JSON"):
+        DebugRun.from_dict(payload)
+
+    payload = json.loads(run.canonical_json())
+    payload["stop_spec"]["registers"] = ["1"]
+    with pytest.raises(ValueError, match="canonical JSON"):
+        DebugRun.from_dict(payload)
+
+    payload = json.loads(run.canonical_json())
+    payload["stop_spec"]["operations"] = ["ldi", "LDI"]
+    with pytest.raises(ValueError, match="canonical JSON"):
+        DebugRun.from_dict(payload)
+
+
+def test_debug_artifact_rejects_omitted_canonical_stop_metadata() -> None:
+    run = run_debug(_program(), stop_spec=DebugStopSpec(registers=(1,)))
+    payload = json.loads(run.canonical_json())
+    del payload["skip_initial_breakpoint"]
+
+    with pytest.raises(ValueError, match="canonical JSON"):
+        DebugRun.from_dict(payload)
+
+
 def test_debug_cli_writes_and_verifies_artifact(tmp_path, monkeypatch, capsys) -> None:
     program_path = tmp_path / "program.td1"
     program_path.write_text(PROGRAM, encoding="utf-8")
