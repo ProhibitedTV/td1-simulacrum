@@ -18,7 +18,7 @@ from .wire_transcript import (
     ParityTranscriptError,
     ParityWireTranscript,
     ReplayParityLineIO,
-    transcript_for_report,
+    validate_report_transcript,
 )
 
 WIRE_EVIDENCE_SCHEMA = "td1.parity-wire-evidence"
@@ -45,11 +45,7 @@ class ParityWireEvidence:
     def __post_init__(self) -> None:
         if self.schema != WIRE_EVIDENCE_SCHEMA or self.version != WIRE_EVIDENCE_SCHEMA_VERSION:
             raise ParityTranscriptError("unsupported parity-wire-evidence schema")
-        expected = transcript_for_report(self.report)
-        if self.transcript.canonical_json() != expected.canonical_json():
-            raise ParityTranscriptError(
-                "wire evidence transcript disagrees with conformance report traffic"
-            )
+        validate_report_transcript(self.report, self.transcript)
 
     def as_dict(self) -> dict[str, object]:
         return {
