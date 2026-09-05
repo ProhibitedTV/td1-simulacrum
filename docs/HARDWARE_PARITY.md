@@ -6,7 +6,16 @@ TD-1 hardware is not allowed to become authoritative because it is physical. A p
 
 The parity layer defines that conformance boundary independently from the concrete electrical link used by a bench adapter.
 
+Electrical characterization is a separate prerequisite. A board can return the correct logical state and still have inadequate noise margin, loading behavior, hysteresis, or settling. Conversely, a stable analog cell is not yet evidence that its logical behavior matches the Simulacrum.
+
 ```text
+reviewed schematic + datasheets
+             |
+             v
+physical cell characterization
+ td1.trit-cell-characterization
+             |
+             v
 reference model
     |
     +------> fixed golden vectors
@@ -30,9 +39,11 @@ reference model
                                 td1.parity-bench-run
 ```
 
-Both paths pass through the same `ParityTransport`, canonical parity wire, recording layer, stream adapter, and optional serial adapter.
+Both parity paths pass through the same `ParityTransport`, canonical parity wire, recording layer, stream adapter, and optional serial adapter.
 
-> Hardware earns authority through parity.
+> Hardware earns authority through measured characterization **and** parity.
+
+See [`HARDWARE_GROUND_TRUTH.md`](HARDWARE_GROUND_TRUTH.md) for the first-copper evidence policy.
 
 ## Transport neutrality
 
@@ -60,9 +71,10 @@ Current semantic/evidence schemas include:
 - `td1.parity-wire`;
 - `td1.parity-wire-transcript`;
 - `td1.parity-wire-evidence`;
-- `td1.parity-bench-run`.
+- `td1.parity-bench-run`;
+- `td1.trit-cell-characterization`.
 
-`StreamParityLineIO`, `SerialConfig`, and `PySerialByteStream` are adapter/runtime implementations rather than new arithmetic schemas.
+The characterization artifact records measured analog evidence but does not itself define pass/fail limits. `StreamParityLineIO`, `SerialConfig`, and `PySerialByteStream` are adapter/runtime implementations rather than new arithmetic schemas.
 
 ## Capability negotiation
 
@@ -84,7 +96,7 @@ Current parity operations:
 - `add`;
 - `sub`.
 
-A target must advertise only capability it has actually demonstrated.
+A target must advertise only capability it has actually demonstrated. For the first cell, `trit_hold` should not be advertised until the physical state generator/detector has been characterized under the intended load.
 
 ## Fixed golden vectors
 
@@ -99,6 +111,8 @@ TRIT-POS   +
 ```
 
 `golden_trit_vectors()` is the canonical source for those three width-1 `trit_hold` vectors.
+
+These symbols are **logical stimuli**. They do not prescribe rail topology or physical voltage. The board-specific mapping from logical state to analog representation belongs to the reviewed schematic and measured characterization evidence.
 
 `golden_register_vectors(width)` remains backward compatible but derives its leading trit prefix from the same canonical function before adding register-load vectors.
 
@@ -233,9 +247,9 @@ This is the correct evidence artifact for fixed first-hardware golden suites bec
 
 This is transport evidence, not authenticated device identity.
 
-## Bench telemetry
+## Bench telemetry and characterization
 
-Current optional telemetry vocabulary:
+Current optional parity-response telemetry vocabulary:
 
 ```text
 voltage_uv
@@ -246,9 +260,13 @@ board_revision
 temperature_millic
 ```
 
-Scaled numeric values use integers. These values are metadata under the current contract and do not alter arithmetic pass/fail evaluation.
+Scaled numeric values use integers. `voltage_uv` is signed relative to the bench/device reference; the protocol intentionally does not assume that physical ternary levels are all nonnegative.
 
-A future electrical-acceptance contract must be based on actual measured distributions and versioned explicitly.
+These response values are metadata under the current contract and do not alter arithmetic pass/fail evaluation.
+
+For durable analog evidence, use `td1.trit-cell-characterization`, which records measured supply/reference nodes, explicit loads, repeated logical-state observations, instruments, and optional rising/falling switching measurements. Its descriptive voltage summaries do not manufacture legal thresholds.
+
+A future electrical-acceptance contract must be based on reviewed topology, datasheet limits, and actual measured distributions across enough units/loads/conditions to justify limits. It must be versioned explicitly.
 
 ## Reports versus adapter failures
 
@@ -260,7 +278,7 @@ This distinction prevents host plumbing from fabricating device claims.
 
 ## CLI workflows
 
-Fixed first-hardware workflow:
+Fixed first-hardware parity workflow, **after characterization is complete**:
 
 ```bash
 python -m pip install -e '.[serial]'
@@ -303,23 +321,30 @@ All serial deployment values above are operator-supplied examples, not TD-1 defa
 
 The next physical campaign should remain small and evidence-driven:
 
-1. build and independently measure one `TRIT_CELL_REV0` cell;
-2. choose the actual UART/USB-CDC interface presented by the bench controller;
-3. install the optional serial dependency on the host;
-4. select explicit port/baud/read-timeout/write-timeout values appropriate to that controller;
-5. implement the existing `td1.parity-wire` envelope on the device side;
-6. advertise only `trit_hold`, `max_width=1`;
-7. run exactly the three one-trit vectors with `td1-parity serial-golden --suite trit`;
-8. return real voltage/settling/comparator/sample/board telemetry where available;
-9. save the conformance report, exact transcript, and generic wire-evidence bundle;
-10. replay that evidence bundle offline;
-11. inspect measured electrical distributions before defining acceptance thresholds;
-12. expand advertised capability only after evidence supports the next subsystem;
-13. repeat for a multi-trit register slice;
-14. use trace-derived campaigns only once their workload provenance is meaningful;
-15. proceed to physical ALU conformance only after register-slice success.
+1. obtain/review the experienced builder's corrected design information and the actual component datasheets;
+2. resolve the schematic/topology being built and assign a board revision;
+3. verify supply, common-mode, output-swing/current, pull-up/open-drain, loading, and propagation/settling constraints on paper;
+4. power the reference/rail network first and measure all supply/reference nodes;
+5. measure commanded `-1`, `0`, and `+1` output states with a high-impedance instrument and then under explicit representative loads;
+6. sweep comparator boundaries in both directions to measure switching points/hysteresis rather than assuming them;
+7. measure settling and record temperature where practical;
+8. save that evidence as `td1.trit-cell-characterization`;
+9. choose the actual UART/USB-CDC interface presented by the bench controller;
+10. install the optional serial dependency on the host;
+11. select explicit port/baud/read-timeout/write-timeout values appropriate to that controller;
+12. implement the existing `td1.parity-wire` envelope on the device side;
+13. advertise only `trit_hold`, `max_width=1`;
+14. run exactly the three one-trit vectors with `td1-parity serial-golden --suite trit`;
+15. return real signed voltage/settling/comparator/sample/board telemetry where available;
+16. save the conformance report, exact transcript, and generic wire-evidence bundle alongside the characterization artifact;
+17. replay that evidence bundle offline;
+18. inspect measured electrical distributions before defining acceptance thresholds;
+19. expand advertised capability only after evidence supports the next subsystem;
+20. repeat characterization/parity for a multi-trit register slice;
+21. use trace-derived campaigns only once their workload provenance is meaningful;
+22. proceed to physical ALU conformance only after register-slice success.
 
-The software stack can now reach the port and express the honest first-cell test. The missing authority is the copper and its measurements.
+The software stack can reach the port and express the honest first-cell test. The missing authority is the corrected schematic, copper, and measurements.
 
 ## Deferred work
 
@@ -330,6 +355,8 @@ This revision does not define:
 - USB VID/PID;
 - connector/pinout;
 - retry/reconnect policy;
+- supply topology;
+- physical trit voltage levels;
 - analog thresholds;
 - sample cadence;
 - hysteresis/calibration policy;
@@ -339,4 +366,4 @@ This revision does not define:
 - physical instruction fetch/decode;
 - physical 12-trit instruction encoding.
 
-Those decisions remain downstream of first-hardware evidence.
+Those decisions remain downstream of reviewed design inputs and first-hardware evidence.

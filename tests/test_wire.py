@@ -234,11 +234,11 @@ class _TelemetryTarget:
 
     def exchange(self, request: ParityRequest) -> ParityResponse:
         telemetry = BenchTelemetry(
-            voltage_uv=2_750_000,
+            voltage_uv=-740_000,
             settle_us=43,
-            comparator_code="11",
+            comparator_code="N",
             sample_count=16,
-            board_revision="TRIT-REV0",
+            board_revision="SYNTHETIC-BENCH",
             temperature_millic=23_125,
         )
         return ParityResponse(
@@ -254,11 +254,11 @@ class _TelemetryTarget:
 
 def test_bench_telemetry_convention_round_trips_without_affecting_result() -> None:
     telemetry = BenchTelemetry(
-        voltage_uv=550_000,
+        voltage_uv=-125_000,
         settle_us=31,
-        comparator_code="00",
+        comparator_code="fixture-negative",
         sample_count=8,
-        board_revision="TRIT-REV0",
+        board_revision="SYNTHETIC-BENCH",
         temperature_millic=-5_500,
     )
     assert BenchTelemetry.from_pairs(telemetry.as_pairs()) == telemetry
@@ -267,9 +267,9 @@ def test_bench_telemetry_convention_round_trips_without_affecting_result() -> No
     response = transport.exchange(_request())
     assert response.status is ParityStatus.OK
     restored = BenchTelemetry.from_pairs(response.telemetry)
-    assert restored.voltage_uv == 2_750_000
-    assert restored.comparator_code == "11"
-    assert restored.board_revision == "TRIT-REV0"
+    assert restored.voltage_uv == -740_000
+    assert restored.comparator_code == "N"
+    assert restored.board_revision == "SYNTHETIC-BENCH"
 
 
 def test_bench_telemetry_rejects_unknown_or_invalid_fields() -> None:
@@ -277,8 +277,8 @@ def test_bench_telemetry_rejects_unknown_or_invalid_fields() -> None:
         BenchTelemetry.from_pairs((("mystery", 1),))
     with pytest.raises(ParityWireError, match="sample_count must be positive"):
         BenchTelemetry(sample_count=0)
-    with pytest.raises(ParityWireError, match="voltage_uv must be nonnegative"):
-        BenchTelemetry(voltage_uv=-1)
+    with pytest.raises(ParityWireError, match="voltage_uv must be an integer"):
+        BenchTelemetry.from_pairs((("voltage_uv", "-1"),))  # type: ignore[arg-type]
 
 
 def test_trace_campaign_runs_end_to_end_through_wire_codec() -> None:
