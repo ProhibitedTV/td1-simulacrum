@@ -234,7 +234,7 @@ def test_missing_pyserial_dependency_is_explicit(monkeypatch) -> None:
         raise ModuleNotFoundError("no module named serial")
 
     monkeypatch.setattr(serial_adapter.importlib, "import_module", missing)
-    with pytest.raises(ParitySerialDependencyError, match="td1-simulacrum\[serial\]"):
+    with pytest.raises(ParitySerialDependencyError, match=r"td1-simulacrum\[serial\]"):
         open_pyserial_stream(SerialConfig("COM1", 115200, 1.0, 1.0))
 
 

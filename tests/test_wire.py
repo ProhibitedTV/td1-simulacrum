@@ -26,6 +26,7 @@ from td1_simulacrum.wire import (
     WireKind,
     decode_wire_frame,
     encode_wire_frame,
+    parity_request_correlation,
 )
 
 
@@ -111,6 +112,23 @@ def test_device_rejects_wrong_request_correlation() -> None:
         device.handle_frame(encode_wire_frame(envelope))
 
 
+def test_device_rejects_byte_canonical_payload_that_relies_on_type_coercion() -> None:
+    device = ParityWireDevice(ReferenceLoopbackTransport())
+    request = _request()
+    payload = request.as_dict()
+    payload["sequence"] = "0"
+    envelope = ParityWireEnvelope(
+        kind=WireKind.PARITY_REQUEST,
+        correlation_id=parity_request_correlation(request),
+        payload=payload,
+    )
+    frame = encode_wire_frame(envelope)
+
+    assert decode_wire_frame(frame).payload["sequence"] == "0"
+    with pytest.raises(ParityWireError, match="canonical parity schema"):
+        device.handle_frame(frame)
+
+
 class _ScriptedLineIO:
     def __init__(self, response: bytes) -> None:
         self.response = response
@@ -144,6 +162,58 @@ def test_host_rejects_wrong_wire_kind_and_correlation() -> None:
     )
     with pytest.raises(ParityWireError, match="correlation_id"):
         JsonLineParityTransport(_ScriptedLineIO(wrong_correlation)).capabilities()
+
+
+def test_host_rejects_byte_canonical_capabilities_payload_that_normalizes() -> None:
+    capabilities = ReferenceLoopbackTransport().capabilities()
+    payload = capabilities.as_dict()
+    payload["max_width"] = "12"
+    response = encode_wire_frame(
+        ParityWireEnvelope(
+            kind=WireKind.CAPABILITIES_RESPONSE,
+            correlation_id=CAPABILITIES_CORRELATION,
+            payload=payload,
+        )
+    )
+
+    with pytest.raises(ParityWireError, match="capabilities response payload"):
+        JsonLineParityTransport(_ScriptedLineIO(response)).capabilities()
+
+
+def test_host_rejects_byte_canonical_parity_response_with_noncanonical_types() -> None:
+    request = _request()
+    response = ReferenceLoopbackTransport().exchange(request)
+    payload = response.as_dict()
+    payload["sequence"] = "0"
+    frame = encode_wire_frame(
+        ParityWireEnvelope(
+            kind=WireKind.PARITY_RESPONSE,
+            correlation_id=parity_request_correlation(request),
+            payload=payload,
+        )
+    )
+
+    transport = JsonLineParityTransport(_ScriptedLineIO(frame))
+    with pytest.raises(ParityWireError, match="parity response payload"):
+        transport.exchange(request)
+
+
+def test_host_rejects_omitted_canonical_default_response_fields() -> None:
+    request = _request()
+    response = ReferenceLoopbackTransport().exchange(request)
+    payload = response.as_dict()
+    del payload["detail"]
+    frame = encode_wire_frame(
+        ParityWireEnvelope(
+            kind=WireKind.PARITY_RESPONSE,
+            correlation_id=parity_request_correlation(request),
+            payload=payload,
+        )
+    )
+
+    transport = JsonLineParityTransport(_ScriptedLineIO(frame))
+    with pytest.raises(ParityWireError, match="parity response payload"):
+        transport.exchange(request)
 
 
 class _TelemetryTarget:

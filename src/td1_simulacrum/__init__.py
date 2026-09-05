@@ -560,4 +560,4 @@ __all__ = [
     "wrap_int",
 ]
 
-__version__ = "0.21.0a0"
+__version__ = "0.22.0a0"
