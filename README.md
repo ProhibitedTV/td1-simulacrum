@@ -19,16 +19,17 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - Observer Continuity groundwork;
 - frozen Veilbreak-derived provenance tooling;
 - deterministic native geometry, SVG rendering, Relic timelines, morphs, and browser playback;
-- transport-neutral physical parity contracts and golden vectors;
+- transport-neutral physical parity contracts;
+- explicit fixed first-hardware golden suites;
 - trace-derived parity campaigns tied to real logical workloads;
 - canonical `td1.parity-wire` framing beneath the parity API;
-- deterministic wire transcripts and replayable bench-run bundles;
+- deterministic wire transcripts, generic report/transcript evidence, and replayable campaign bench bundles;
 - stream-backed `ParityLineIO` over ordinary binary streams;
-- **an optional pyserial live-bench adapter that can carry the exact existing parity/wire/transcript stack to a real serial-class device without making serial configuration machine semantics.**
+- **an optional pyserial live-bench adapter that can carry the exact existing parity/wire/evidence stack to a real serial-class device without making serial configuration machine semantics.**
 
 The long-term target is **hardware parity**: physical TD-1 subsystems progressively replace emulated subsystems while preserving identical externally observable behavior.
 
-## Current baseline — v0.18 pre-alpha
+## Current baseline — v0.19 pre-alpha
 
 ### Logical machine
 
@@ -61,18 +62,23 @@ The long-term target is **hardware parity**: physical TD-1 subsystems progressiv
 
 - versioned capability/request/response/report contracts;
 - transport-neutral `ParityTransport`;
-- deterministic `trit_hold`, `register_load`, `negate`, `add`, and `sub` vectors;
+- explicit `golden_trit_vectors()` for exactly `-`, `0`, `+` one-trit hold tests;
+- backward-compatible register golden vectors derived from that trit prefix;
+- deterministic `register_load`, `negate`, `add`, and `sub` vectors;
 - explicit `ok`, `unsupported`, `fault`, `timeout`, and `error` outcomes;
 - workload-derived `td1.parity-campaign` and `td1.parity-campaign-run` artifacts;
 - canonical `td1.parity-wire` JSON Lines framing;
 - `JsonLineParityTransport` and reference `ParityWireDevice`;
 - `InMemoryParityLineIO` for pure-software integration;
 - `RecordingParityLineIO` and strict `ReplayParityLineIO`;
-- versioned `td1.parity-wire-transcript` and `td1.parity-bench-run` artifacts;
+- versioned `td1.parity-wire-transcript`, `td1.parity-wire-evidence`, and `td1.parity-bench-run` artifacts;
+- shared deterministic report/transcript validation for generic and campaign evidence;
+- replay of generic wire evidence using exact saved vectors/session IDs;
 - bench telemetry conventions for voltage, settling, comparator state, samples, board revision, and optional temperature;
 - `StreamParityLineIO` over generic binary streams;
 - optional `PySerialByteStream` live deployment adapter;
-- `td1-parity serial-run` for an explicitly configured serial port;
+- `td1-parity serial-golden` for fixed first-hardware suites;
+- `td1-parity serial-run` for trace-derived workload campaigns;
 - no default baud rate, automatic port discovery, connector choice, or pyserial requirement in core installs.
 
 ## Quick start
@@ -148,6 +154,45 @@ Campaign v1 maps only subsystem operations the current parity surface can repres
 
 This is subsystem parity. It is not evidence that hardware fetched or decoded the original logical instruction.
 
+## First-hardware golden vectors
+
+The first planned physical target is deliberately smaller than a workload campaign. It should advertise only:
+
+```text
+operations = [trit_hold]
+max_width  = 1
+```
+
+and run exactly:
+
+```text
+TRIT-NEG   -
+TRIT-ZERO  0
+TRIT-POS   +
+```
+
+That suite is fixed bench conformance, not trace-derived workload provenance.
+
+Run it against an explicitly configured serial device:
+
+```bash
+td1-parity serial-golden \
+  --suite trit \
+  --port /dev/ttyACM0 \
+  --baud 230400 \
+  --read-timeout 2.0 \
+  --write-timeout 2.0 \
+  --report-output trit.report.json \
+  --transcript-output trit.transcript.json \
+  --evidence-output trit.evidence.json
+```
+
+For a target advertising only `trit_hold`, width 1, the transcript contains exactly one capability exchange plus three parity exchanges.
+
+The `register` fixed suite is available later with `--suite register --width N`.
+
+See [`docs/FIRST_HARDWARE_GOLDEN.md`](docs/FIRST_HARDWARE_GOLDEN.md) and ADR 0019.
+
 ## Canonical parity wire
 
 `td1.parity-wire` carries existing parity contracts as canonical UTF-8 JSON Lines.
@@ -169,7 +214,21 @@ Exercise the exact wire codec in software:
 td1-parity wire-loopback sum.campaign.json --output sum.wire.run.json
 ```
 
-## Wire transcripts and bench evidence
+## Wire transcripts and evidence
+
+`td1.parity-wire-transcript` preserves exact canonical host/device frames.
+
+v0.19 adds generic `td1.parity-wire-evidence`, which binds **any** `td1.parity-report` to the exact transcript implied by that report. This is the evidence root used by fixed first-hardware suites.
+
+Verify and replay generic evidence:
+
+```bash
+td1-parity wire-evidence-verify trit.evidence.json
+
+td1-parity wire-evidence-replay trit.evidence.json
+```
+
+Trace-derived campaigns still use `td1.parity-bench-run`:
 
 ```bash
 td1-parity wire-loopback sum.campaign.json \
@@ -177,12 +236,10 @@ td1-parity wire-loopback sum.campaign.json \
   --transcript-output sum.wire.transcript.json \
   --bench-output sum.bench.json
 
-td1-parity wire-transcript-verify sum.wire.transcript.json
-
 td1-parity bench-run-replay sum.bench.json
 ```
 
-`td1.parity-wire-transcript` preserves exact canonical host/device frames. `td1.parity-bench-run` binds those bytes to the exact campaign report and requires offline replay to regenerate the same run.
+Both evidence types use the same deterministic report/transcript reconstruction rule. The campaign-specific bench schema remains v1.
 
 SHA-256 values are integrity fingerprints, not device-authentication signatures.
 
@@ -209,7 +266,7 @@ It deliberately does not parse JSON. Wire semantics remain above it.
 
 ## Optional serial live-bench path
 
-v0.18 adds the first host path that can open a real serial port:
+The host can open a real serial port through:
 
 ```text
 JsonLineParityTransport
@@ -230,7 +287,9 @@ pyserial
 UART / USB CDC device
 ```
 
-Run a saved campaign against an explicitly configured serial device:
+Use `serial-golden` for fixed bring-up suites and `serial-run` for saved trace-derived campaigns.
+
+A workload campaign example:
 
 ```bash
 td1-parity serial-run sum.campaign.json \
@@ -243,18 +302,7 @@ td1-parity serial-run sum.campaign.json \
   --bench-output sum.serial.bench.json
 ```
 
-Windows example:
-
-```bash
-td1-parity serial-run sum.campaign.json \
-  --port COM7 \
-  --baud 230400 \
-  --read-timeout 2.0 \
-  --write-timeout 2.0 \
-  --output sum.serial.run.json
-```
-
-Port, baud rate, and host timeout values are deployment configuration. They may appear in the CLI summary but are not silently embedded into canonical campaign-run, transcript, or bench-run artifacts.
+Port, baud rate, and host timeout values are deployment configuration. They may appear in the CLI summary but are not silently embedded into canonical report, campaign-run, transcript, evidence, or bench-run artifacts.
 
 A serial timeout remains a host adapter diagnostic, not a fabricated `ParityStatus` from the target.
 
@@ -313,52 +361,55 @@ The target layout remains only a design candidate:
 
 It is **not frozen**.
 
-Logical execution, semantic lowering, persistence, parity campaigns, wire framing, stream adapters, serial transport, transcripts, and bench replay do not replace the missing input that matters for Issue #2: measurements and constraints from first physical ternary hardware.
+Logical execution, semantic lowering, persistence, fixed golden suites, parity campaigns, wire framing, stream adapters, serial transport, transcripts, and evidence replay do not replace the missing input that matters for Issue #2: measurements and constraints from first physical ternary hardware.
 
 Software does not get to vote copper out of the room.
 
 ## Authority layering
 
 ```text
-State Weave -> logical instructions -> reference machine
-                                      |
-                                      +-> machine-state / execution trace
-                                      |
-                                      +-> parity campaign
-                                             |
-                                             v
-                                      ParityTransport
-                                             |
-                                             v
-                                      td1.parity-wire
-                                             |
-                                             v
-                                  RecordingParityLineIO
-                                             |
-                                             v
-                                    StreamParityLineIO
-                                             |
-                                             v
-                                    PySerialByteStream
-                                             |
-                                             v
-                                      physical byte link
-                                             |
-                              +--------------+--------------+
-                              |                             |
-                              v                             v
-                       exact transcript              parity response
-                              |                             |
-                              +--------------+--------------+
-                                             |
-                                             v
-                                      conformance report
-                                             |
-                                             v
-                                       parity bench run
+reference semantics
+      |
+      +----> fixed golden suites ----------+
+      |                                    |
+      +----> execution trace -> campaign --+
+                                           |
+                                           v
+                                    ParityTransport
+                                           |
+                                           v
+                                    td1.parity-wire
+                                           |
+                                           v
+                                RecordingParityLineIO
+                                           |
+                                           v
+                                  StreamParityLineIO
+                                           |
+                                           v
+                                  PySerialByteStream
+                                           |
+                                           v
+                                    physical byte link
+                                           |
+                            +--------------+--------------+
+                            |                             |
+                            v                             v
+                     exact transcript              parity response
+                            |                             |
+                            +--------------+--------------+
+                                           |
+                                           v
+                                    conformance report
+                                      /          \
+                                     v            v
+                            generic evidence   campaign run
+                                                  |
+                                                  v
+                                              bench run
 ```
 
-The deployment link may change. The semantic contracts above it do not.
+The deployment link and vector source may change. The semantic contracts above them do not.
 
 ## Design doctrine
 
@@ -369,25 +420,26 @@ The deployment link may change. The semantic contracts above it do not.
 5. **Semantic identity does not hide operands.**
 6. **Transitions are traced before they are animated.**
 7. **Pixels are downstream of truth.**
-8. **Trace-derived campaigns test subsystems, not imaginary instruction decoders.**
-9. **Wire framing transports parity semantics; it does not create them.**
-10. **Stream adapters move bytes; they do not interpret arithmetic.**
-11. **Serial configuration is deployment state, not machine state.**
-12. **Wire transcripts preserve evidence; they do not authenticate hardware.**
-13. **Physicality is not correctness.**
-14. **Hardware earns authority through parity.**
-15. **Determinism wins.**
-16. **Accuracy contracts are explicit.**
-17. **Corpus inputs are frozen before they influence a revision.**
-18. **Physical instruction encoding waits for physical evidence.**
+8. **Fixed golden suites test explicit focused subsystem claims without fake workload provenance.**
+9. **Trace-derived campaigns test subsystems, not imaginary instruction decoders.**
+10. **Wire framing transports parity semantics; it does not create them.**
+11. **Stream adapters move bytes; they do not interpret arithmetic.**
+12. **Serial configuration is deployment state, not machine state.**
+13. **Wire transcripts and evidence preserve exact receipts; they do not authenticate hardware.**
+14. **Physicality is not correctness.**
+15. **Hardware earns authority through parity.**
+16. **Determinism wins.**
+17. **Accuracy contracts are explicit.**
+18. **Corpus inputs are frozen before they influence a revision.**
+19. **Physical instruction encoding waits for physical evidence.**
 
 ## Repository status
 
-**Pre-alpha / architecture stabilization.**
+**Pre-alpha / first-hardware host-path ready.**
 
-The host software path now reaches all the way to an optional explicitly configured serial port while preserving the existing parity/wire/transcript authority boundaries.
+The host software can now express the smallest honest first-copper test: a target advertising only `trit_hold`, width 1, receiving exactly three fixed golden vectors over the same canonical serial/wire/evidence stack used by later subsystems.
 
-That does **not** mean TD-1 hardware exists or has passed. The next physical milestone remains the first real one-trit adapter advertising only demonstrated capability and returning measured bench telemetry.
+That does **not** mean TD-1 hardware exists or has passed. The next milestone is physical: build and measure `TRIT_CELL_REV0`, implement the device-side wire endpoint, run `serial-golden --suite trit`, preserve the evidence, and inspect the actual analog distributions before defining electrical acceptance limits.
 
 ## Documentation
 
@@ -398,6 +450,7 @@ That does **not** mean TD-1 hardware exists or has passed. The next physical mil
 - [`docs/PARITY_WIRE.md`](docs/PARITY_WIRE.md)
 - [`docs/STREAM_LINE_IO.md`](docs/STREAM_LINE_IO.md)
 - [`docs/SERIAL_ADAPTER.md`](docs/SERIAL_ADAPTER.md)
+- [`docs/FIRST_HARDWARE_GOLDEN.md`](docs/FIRST_HARDWARE_GOLDEN.md)
 - [`docs/WIRE_TRANSCRIPTS.md`](docs/WIRE_TRANSCRIPTS.md)
 - [`docs/HARDWARE_PARITY.md`](docs/HARDWARE_PARITY.md)
 - [`docs/SEMANTIC_LOWERING.md`](docs/SEMANTIC_LOWERING.md)
@@ -414,6 +467,6 @@ That does **not** mean TD-1 hardware exists or has passed. The next physical mil
 
 TD-1 does **not** assume that DMT/Veilbreak reports establish extraterrestrial, interdimensional, or otherwise external intelligences. The project treats those reports as a structured phenomenological corpus capable of generating unconventional interface constraints and testable design hypotheses.
 
-A valid machine checkpoint proves only reference-state reconstruction. A valid campaign proves deterministic vector derivation. A passing report proves only the tested operations represented by that report. A valid transcript proves only the canonical byte conversation it contains. A bench bundle proves transcript/report linkage and replay equivalence. A successful serial run proves the configured host byte path exchanged and evaluated those frames; it does not independently prove electrical quality, hardware authorship, or physical instruction execution.
+A valid machine checkpoint proves only reference-state reconstruction. A valid fixed golden report proves only the explicit vectors it evaluated. A valid campaign proves deterministic vector derivation from its logical trace. A valid transcript proves only the canonical byte conversation it contains. A valid wire-evidence bundle proves report/transcript linkage and replay equivalence. A campaign bench bundle additionally binds that relationship to one exact trace-derived campaign. A successful serial run proves the configured host byte path exchanged and evaluated those frames; it does not independently prove electrical quality, hardware authorship, or physical instruction execution.
 
 **Human-built hardware. Exotic design provenance. Bench validation required.**
