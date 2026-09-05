@@ -3,7 +3,6 @@ import json
 import sys
 
 import pytest
-
 import td1_simulacrum as td1
 
 
