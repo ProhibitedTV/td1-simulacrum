@@ -18,7 +18,7 @@ Exit criterion: deterministic execution with no known semantic ambiguity in the 
 
 ## M1 — Engineering toolchain
 
-Status: **trace + checkpoint + workload-parity packaging implemented**
+Status: **trace + checkpoint + deterministic time travel + workload-parity packaging implemented**
 
 Implemented:
 - text assembler/disassembler, labels, relative branches, CLI, and examples;
@@ -30,6 +30,11 @@ Implemented:
 - canonical checkpoint JSON and SHA-256 digests;
 - intermediate checkpoint/resume with final-state parity to uninterrupted execution;
 - explicit `RenderState -> MachineState` machine-truth bridge;
+- deterministic `trace_state_at()` reconstruction at every exact trace boundary;
+- per-event delta validation against complete before/after machine digests during time-travel reconstruction;
+- `TraceCursor` with seek, forward, and backward inspection over immutable traces;
+- deterministic `TraceQuery` filters for opcode, instruction index, touched registers/memory, condition changes, and halt transitions;
+- `td1-trace state` and `td1-trace find` engineering workflows;
 - versioned `td1.parity-campaign` artifacts derived from real execution traces;
 - exact initial/final machine checkpoints embedded in each campaign;
 - event-indexed subsystem vectors for encountered register-load, negate, add, and subtract work;
@@ -40,11 +45,13 @@ Implemented:
 - deterministic register and ALU golden parity vectors.
 
 Next:
+- indexed/cached trace seeking only if real traces make O(N) reconstruction materially expensive;
+- live stop/breakpoint debugging for non-terminating executions without creating debugger-owned machine semantics;
 - checkpoint/campaign-aware real hardware differential testing;
 - versioned program image only after first-hardware constraints are available;
 - optional compact/binary persistence after audit-first JSON schemas stabilize.
 
-`td1.machine-state` and `td1.parity-campaign` are not physical program-image formats and do not freeze Issue #2.
+`td1.machine-state`, `td1.execution-trace`, trace inspection state, and `td1.parity-campaign` are not physical program-image formats and do not freeze Issue #2.
 
 ## M2 — Native representation
 
@@ -203,6 +210,8 @@ The semantic/compiler prerequisite for Issue #2 is implemented. Physical instruc
 - treating phenomenology as proof of ontology;
 - hiding conventional compute behind decorative weirdness;
 - freezing physical instruction encoding before hardware measurements exist;
+- creating debugger-owned logical state or synthetic reverse-instruction semantics;
+- treating trace queries as new execution events;
 - claiming fixed first-hardware vectors or trace-derived subsystem parity prove physical instruction decoding;
 - manufacturing workload provenance for a fixed electrical bring-up suite;
 - treating wire framing, stream counters, serial configuration, transcript hashes, evidence digests, or telemetry as arithmetic semantics;
