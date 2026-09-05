@@ -307,7 +307,12 @@ class ParityWireDevice:
             return encode_wire_frame(response)
 
         if envelope.kind is WireKind.PARITY_REQUEST:
-            request = ParityRequest.from_dict(envelope.payload)
+            try:
+                request = ParityRequest.from_dict(envelope.payload)
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ParityWireError(
+                    "parity request payload violates canonical parity schema"
+                ) from exc
             _require_canonical_payload(
                 envelope.payload,
                 request.as_dict(),
@@ -381,7 +386,12 @@ class JsonLineParityTransport:
                 request,
                 expected_kind=WireKind.CAPABILITIES_RESPONSE,
             )
-            capabilities = ParityCapabilities.from_dict(response.payload)
+            try:
+                capabilities = ParityCapabilities.from_dict(response.payload)
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ParityWireError(
+                    "capabilities response payload violates canonical parity schema"
+                ) from exc
             _require_canonical_payload(
                 response.payload,
                 capabilities.as_dict(),
@@ -401,7 +411,12 @@ class JsonLineParityTransport:
             envelope,
             expected_kind=WireKind.PARITY_RESPONSE,
         )
-        response = ParityResponse.from_dict(response_envelope.payload)
+        try:
+            response = ParityResponse.from_dict(response_envelope.payload)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ParityWireError(
+                "parity response payload violates canonical parity schema"
+            ) from exc
         _require_canonical_payload(
             response_envelope.payload,
             response.as_dict(),
