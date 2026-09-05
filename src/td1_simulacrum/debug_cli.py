@@ -154,7 +154,9 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument(
         "--skip-initial-breakpoint",
         action="store_true",
-        help="execute past a breakpoint at the supplied initial boundary before evaluating it again",
+        help=(
+            "execute past a breakpoint at the supplied initial boundary before evaluating it again"
+        ),
     )
     run_parser.add_argument("--output", type=Path, help="write the td1.debug-run artifact")
 
