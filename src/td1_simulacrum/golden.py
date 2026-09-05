@@ -19,11 +19,29 @@ def golden_trit_vectors() -> tuple[ParityVector, ...]:
     )
 
 
+def golden_register_suite(width: int = 12) -> tuple[ParityVector, ...]:
+    """Return the backward-compatible register suite with an explicit trit prefix.
+
+    The legacy `golden_register_vectors()` remains the stable reference set. This
+    first-hardware selector rebuilds its trit prefix from `golden_trit_vectors()`
+    so the one-trit campaign has a single explicit source while preserving exact
+    vector identity and ordering for existing callers.
+    """
+    legacy = golden_register_vectors(width)
+    register_vectors = tuple(
+        vector for vector in legacy if vector.operation is ParityOperation.REGISTER_LOAD
+    )
+    suite = golden_trit_vectors() + register_vectors
+    if suite != legacy:
+        raise RuntimeError("first-hardware register suite drifted from legacy golden vectors")
+    return suite
+
+
 def golden_suite(name: str, *, width: int = 12) -> tuple[ParityVector, ...]:
     """Select one explicit fixed-vector suite for bench execution."""
     normalized = name.strip().lower()
     if normalized == "trit":
         return golden_trit_vectors()
     if normalized == "register":
-        return golden_register_vectors(width)
+        return golden_register_suite(width)
     raise ValueError(f"unsupported golden suite {name!r}")
