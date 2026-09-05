@@ -15,7 +15,7 @@ from .campaign import (
     run_parity_campaign,
 )
 from .golden import golden_suite
-from .parity import ConformanceReport, ReferenceLoopbackTransport, run_conformance
+from .parity import ReferenceLoopbackTransport, run_conformance
 from .serial_adapter import ParitySerialError, SerialConfig, open_pyserial_stream
 from .stream_io import StreamParityLineIO
 from .trace import trace_program
