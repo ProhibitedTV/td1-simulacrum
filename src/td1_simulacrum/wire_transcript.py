@@ -362,12 +362,13 @@ def validate_report_transcript(
     transcript: ParityWireTranscript,
     *,
     context: str = "wire evidence",
+    report_name: str = "conformance report",
 ) -> None:
     """Require a transcript to equal the canonical wire traffic implied by a report."""
     expected = transcript_for_report(report)
     if transcript.canonical_json() != expected.canonical_json():
         raise ParityTranscriptError(
-            f"{context} transcript disagrees with conformance report wire traffic"
+            f"{context} transcript disagrees with {report_name} wire traffic"
         )
 
 
@@ -387,6 +388,7 @@ class ParityBenchRun:
             self.campaign_run.report,
             self.transcript,
             context="bench run",
+            report_name="campaign report",
         )
 
     def as_dict(self) -> dict[str, object]:
