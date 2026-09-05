@@ -27,6 +27,16 @@ from .corpus import (
     compare_snapshots,
     export_requirement_traces,
 )
+from .debug import (
+    DEBUG_RUN_SCHEMA,
+    DEBUG_RUN_SCHEMA_VERSION,
+    DebugError,
+    DebugRun,
+    DebugStopKind,
+    DebugStopSpec,
+    run_debug,
+    verify_debug_run,
+)
 from .geometry import (
     GEOMETRY_GRID,
     GEOMETRY_SCHEMA,
@@ -232,6 +242,7 @@ from .trace import (
     PrimitiveChangeKind,
     RegisterDelta,
     TraceError,
+    TraceRecorder,
     diff_geometry,
     logical_program_digest,
     trace_program,
@@ -310,6 +321,12 @@ __all__ = [
     "CorpusDelta",
     "CorpusError",
     "CorpusSnapshot",
+    "DEBUG_RUN_SCHEMA",
+    "DEBUG_RUN_SCHEMA_VERSION",
+    "DebugError",
+    "DebugRun",
+    "DebugStopKind",
+    "DebugStopSpec",
     "EvidenceStatus",
     "ExecutionEvent",
     "ExecutionTrace",
@@ -471,6 +488,7 @@ __all__ = [
     "TraceInspectionError",
     "TraceParityEntry",
     "TraceQuery",
+    "TraceRecorder",
     "UnsupportedWeaveError",
     "VeilbreakExportAdapter",
     "VeilbreakFieldMap",
@@ -524,6 +542,7 @@ __all__ = [
     "replay_wire_evidence",
     "representable_range",
     "run_conformance",
+    "run_debug",
     "run_parity_campaign",
     "supported_lowerings",
     "supports_weave",
@@ -534,10 +553,11 @@ __all__ = [
     "triad_to_glyph_id",
     "trits_to_int",
     "vector_set_digest",
+    "verify_debug_run",
     "verify_execution_trace",
     "verify_relic_player_html",
     "word_to_glyph_ids",
     "wrap_int",
 ]
 
-__version__ = "0.20.0a0"
+__version__ = "0.21.0a0"
