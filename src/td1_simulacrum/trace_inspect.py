@@ -37,6 +37,8 @@ def _apply_event(machine: Machine, event: ExecutionEvent) -> None:
         )
     if machine.ip != event.ip_before:
         raise TraceInspectionError(f"event {event.event_index} ip_before mismatch")
+    if event.instruction_index != event.ip_before:
+        raise TraceInspectionError(f"event {event.event_index} instruction_index mismatch")
     if machine.cond != event.cond_before:
         raise TraceInspectionError(f"event {event.event_index} cond_before mismatch")
     if machine.halted != event.halted_before:
@@ -186,6 +188,8 @@ class TraceQuery:
             raise TraceInspectionError(
                 f"memory query address must be within 0..{MEMORY_WORDS - 1}"
             )
+        if type(self.condition_change) is not bool or type(self.halt_transition) is not bool:
+            raise TraceInspectionError("trace query transition flags must be booleans")
 
         object.__setattr__(self, "instruction_indices", indices)
         object.__setattr__(self, "operations", operations)
