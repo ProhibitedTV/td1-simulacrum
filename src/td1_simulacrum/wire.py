@@ -51,6 +51,44 @@ def _canonical_json(payload: object) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
+def _json_exact(actual: object, expected: object) -> bool:
+    """Compare JSON values without Python's bool/int coercion semantics."""
+    if type(actual) is not type(expected):
+        return False
+    if isinstance(actual, dict):
+        if not isinstance(expected, dict) or actual.keys() != expected.keys():
+            return False
+        return all(_json_exact(actual[key], expected[key]) for key in actual)
+    if isinstance(actual, list):
+        if not isinstance(expected, list) or len(actual) != len(expected):
+            return False
+        return all(
+            _json_exact(left, right)
+            for left, right in zip(actual, expected, strict=True)
+        )
+    return actual == expected
+
+
+def _require_canonical_payload(
+    raw: Mapping[str, object],
+    canonical: Mapping[str, object],
+    *,
+    label: str,
+) -> None:
+    """Reject nested parity payloads that rely on parser normalization.
+
+    Frame canonicality alone is insufficient because a byte-canonical JSON object
+    can still encode a schema integer as a string, a boolean as an integer, omit a
+    canonical default field, or provide a list that the parity model normalizes.
+    The wire contract therefore requires the parsed parity object to reproduce the
+    exact same JSON values *and JSON types* as the received nested payload.
+    """
+    if not _json_exact(dict(raw), dict(canonical)):
+        raise ParityWireError(
+            f"{label} payload must use canonical parity schema values and JSON types"
+        )
+
+
 def parity_request_correlation(request: ParityRequest) -> str:
     """Return the deterministic v1 correlation ID for one parity request."""
     digest = hashlib.sha256(request.canonical_json().encode("utf-8")).hexdigest()
@@ -270,6 +308,11 @@ class ParityWireDevice:
 
         if envelope.kind is WireKind.PARITY_REQUEST:
             request = ParityRequest.from_dict(envelope.payload)
+            _require_canonical_payload(
+                envelope.payload,
+                request.as_dict(),
+                label="parity request",
+            )
             expected = parity_request_correlation(request)
             if envelope.correlation_id != expected:
                 raise ParityWireError("parity request correlation mismatch")
@@ -338,7 +381,13 @@ class JsonLineParityTransport:
                 request,
                 expected_kind=WireKind.CAPABILITIES_RESPONSE,
             )
-            self._cached_capabilities = ParityCapabilities.from_dict(response.payload)
+            capabilities = ParityCapabilities.from_dict(response.payload)
+            _require_canonical_payload(
+                response.payload,
+                capabilities.as_dict(),
+                label="capabilities response",
+            )
+            self._cached_capabilities = capabilities
         return self._cached_capabilities
 
     def exchange(self, request: ParityRequest) -> ParityResponse:
@@ -353,6 +402,11 @@ class JsonLineParityTransport:
             expected_kind=WireKind.PARITY_RESPONSE,
         )
         response = ParityResponse.from_dict(response_envelope.payload)
+        _require_canonical_payload(
+            response_envelope.payload,
+            response.as_dict(),
+            label="parity response",
+        )
         if response.session_id != request.session_id:
             raise ParityWireError("wire parity response session_id mismatch")
         if response.sequence != request.sequence:
