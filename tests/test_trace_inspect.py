@@ -1,12 +1,12 @@
-import dataclasses
-import importlib
 import json
 import sys
+from dataclasses import replace
+from importlib import import_module
 
 import pytest
 
 
-td1 = importlib.import_module("td1_simulacrum")
+td1 = import_module("td1_simulacrum")
 
 SOURCE = """
 LDI R0, 2
@@ -72,7 +72,7 @@ def test_trace_reconstruction_rejects_tampered_register_delta() -> None:
     assert event.register_deltas
     delta = event.register_deltas[0]
     tampered_delta = td1.RegisterDelta(delta.index, delta.before, "000000000000")
-    tampered_event = dataclasses.replace(event, register_deltas=(tampered_delta,))
+    tampered_event = replace(event, register_deltas=(tampered_delta,))
     tampered_trace = td1.ExecutionTrace(
         program_digest=trace.program_digest,
         initial_state=trace.initial_state,
@@ -87,7 +87,7 @@ def test_trace_reconstruction_rejects_tampered_register_delta() -> None:
 def test_trace_reconstruction_rejects_instruction_identity_drift() -> None:
     trace = td1.trace_program(_program())
     event = trace.events[0]
-    tampered_event = dataclasses.replace(event, instruction_index=event.instruction_index + 1)
+    tampered_event = replace(event, instruction_index=event.instruction_index + 1)
     tampered_trace = td1.ExecutionTrace(
         program_digest=trace.program_digest,
         initial_state=trace.initial_state,
@@ -121,7 +121,7 @@ def test_trace_queries_filter_by_machine_effects_and_control_state() -> None:
 
 
 def test_trace_cli_state_and_find(tmp_path, monkeypatch, capsys) -> None:
-    trace_cli = importlib.import_module("td1_simulacrum.trace_cli")
+    trace_cli = import_module("td1_simulacrum.trace_cli")
 
     trace = td1.trace_program(_program())
     trace_path = tmp_path / "run.trace.json"
