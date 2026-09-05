@@ -14,6 +14,7 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 - renderer-independent `td1.machine-state` checkpoints;
 - assembler/disassembler and deterministic execution tooling;
 - exact execution traces and replay verification;
+- deterministic trace time-travel reconstruction and event queries;
 - native State Weave semantic IR and typed lowering;
 - reversible 27-state microglyph encoding;
 - Observer Continuity groundwork;
@@ -29,7 +30,7 @@ TD-1 is a human-built experimental computer centered on physical balanced-ternar
 
 The long-term target is **hardware parity**: physical TD-1 subsystems progressively replace emulated subsystems while preserving identical externally observable behavior.
 
-## Current baseline — v0.19 pre-alpha
+## Current baseline — v0.20 pre-alpha
 
 ### Logical machine
 
@@ -42,6 +43,17 @@ The long-term target is **hardware parity**: physical TD-1 subsystems progressiv
 - ternary condition state: negative / zero / positive;
 - logical ISA: `NOP`, `LDI`, `MOV`, `ADD`, `SUB`, `NEG`, `ADDI`, `CMP`, `LD`, `ST`, `BRN`, `BRZ`, `BRP`, `JMP`, `HALT`;
 - deterministic snapshots and complete machine-state SHA-256 digests.
+
+### Engineering inspection stack
+
+- versioned `td1.execution-trace` with exact before/after complete machine digests;
+- exact register/memory/control deltas per logical instruction;
+- deterministic trace replay verification against source programs;
+- `trace_state_at()` reconstruction of any trace boundary as ordinary `td1.machine-state` truth;
+- digest-validated delta application that rejects corrupted or incomplete state changes;
+- seek/forward/backward `TraceCursor` over immutable trace boundaries;
+- deterministic event queries for logical opcode, instruction index, register/memory touches, condition changes, and halt transitions;
+- `td1-trace` CLI for trace-state extraction and event search.
 
 ### Native semantic and visual stack
 
@@ -127,6 +139,46 @@ td1-sim trace-verify examples/sum.td1 trace.json
 ```
 
 Trace events preserve logical instruction identity, before/after complete machine digests, instruction-pointer/condition changes, and exact register/memory deltas.
+
+## Deterministic trace time travel
+
+v0.20 makes those exact traces directly inspectable without creating a second execution engine.
+
+A trace containing `N` events has `N + 1` exact boundaries. Position `0` is the initial machine state; position `N` is the final state after all events. Every traversed delta must reproduce the existing before/after complete machine digest chain.
+
+Reconstruct an exact checkpoint after five events:
+
+```bash
+td1-trace state trace.json --position 5
+```
+
+Write that checkpoint as ordinary `td1.machine-state`:
+
+```bash
+td1-trace state trace.json \
+  --position 5 \
+  --output step5.machine.json
+```
+
+Find every `ADD` that changes R1:
+
+```bash
+td1-trace find trace.json --op ADD --register R1
+```
+
+Find writes touching memory word 10, condition changes, or the transition into HALT:
+
+```bash
+td1-trace find trace.json --memory 10
+
+td1-trace find trace.json --condition-change
+
+td1-trace find trace.json --halt-transition
+```
+
+`TraceCursor` can seek, step forward, and step backward across immutable trace boundaries. Backward movement reconstructs an earlier state from trace truth; it does not reverse-execute synthetic inverse instructions.
+
+See [`docs/TRACE_INSPECTION.md`](docs/TRACE_INSPECTION.md) and ADR 0020.
 
 ## Trace-derived parity campaigns
 
@@ -361,55 +413,62 @@ The target layout remains only a design candidate:
 
 It is **not frozen**.
 
-Logical execution, semantic lowering, persistence, fixed golden suites, parity campaigns, wire framing, stream adapters, serial transport, transcripts, and evidence replay do not replace the missing input that matters for Issue #2: measurements and constraints from first physical ternary hardware.
+Logical execution, semantic lowering, persistence, trace inspection, fixed golden suites, parity campaigns, wire framing, stream adapters, serial transport, transcripts, and evidence replay do not replace the missing input that matters for Issue #2: measurements and constraints from first physical ternary hardware.
 
 Software does not get to vote copper out of the room.
 
 ## Authority layering
 
 ```text
-reference semantics
+reference machine
       |
-      +----> fixed golden suites ----------+
-      |                                    |
-      +----> execution trace -> campaign --+
-                                           |
-                                           v
-                                    ParityTransport
-                                           |
-                                           v
-                                    td1.parity-wire
-                                           |
-                                           v
-                                RecordingParityLineIO
-                                           |
-                                           v
-                                  StreamParityLineIO
-                                           |
-                                           v
-                                  PySerialByteStream
-                                           |
-                                           v
-                                    physical byte link
-                                           |
-                            +--------------+--------------+
-                            |                             |
-                            v                             v
-                     exact transcript              parity response
-                            |                             |
-                            +--------------+--------------+
-                                           |
-                                           v
-                                    conformance report
-                                      /          \
-                                     v            v
-                            generic evidence   campaign run
-                                                  |
-                                                  v
-                                              bench run
+      +----> td1.machine-state
+      |
+      +----> td1.execution-trace ----> deterministic time-travel inspection
+      |             |                              |
+      |             |                              v
+      |             |                      td1.machine-state
+      |             |
+      |             +----> trace-derived campaigns --------+
+      |                                                   |
+      +----> fixed golden suites --------------------------+
+                                                          |
+                                                          v
+                                                   ParityTransport
+                                                          |
+                                                          v
+                                                   td1.parity-wire
+                                                          |
+                                                          v
+                                               RecordingParityLineIO
+                                                          |
+                                                          v
+                                                 StreamParityLineIO
+                                                          |
+                                                          v
+                                                 PySerialByteStream
+                                                          |
+                                                          v
+                                                   physical byte link
+                                                          |
+                                           +--------------+--------------+
+                                           |                             |
+                                           v                             v
+                                    exact transcript              parity response
+                                           |                             |
+                                           +--------------+--------------+
+                                                          |
+                                                          v
+                                                   conformance report
+                                                     /          \
+                                                    v            v
+                                           generic evidence   campaign run
+                                                                 |
+                                                                 v
+                                                             bench run
 ```
 
-The deployment link and vector source may change. The semantic contracts above them do not.
+Trace inspection cannot alter the trace it consumes. The deployment link and vector source may change. The semantic contracts above them do not.
 
 ## Design doctrine
 
@@ -419,33 +478,35 @@ The deployment link and vector source may change. The semantic contracts above t
 4. **Machine persistence contains machine truth only.**
 5. **Semantic identity does not hide operands.**
 6. **Transitions are traced before they are animated.**
-7. **Pixels are downstream of truth.**
-8. **Fixed golden suites test explicit focused subsystem claims without fake workload provenance.**
-9. **Trace-derived campaigns test subsystems, not imaginary instruction decoders.**
-10. **Wire framing transports parity semantics; it does not create them.**
-11. **Stream adapters move bytes; they do not interpret arithmetic.**
-12. **Serial configuration is deployment state, not machine state.**
-13. **Wire transcripts and evidence preserve exact receipts; they do not authenticate hardware.**
-14. **Physicality is not correctness.**
-15. **Hardware earns authority through parity.**
-16. **Determinism wins.**
-17. **Accuracy contracts are explicit.**
-18. **Corpus inputs are frozen before they influence a revision.**
-19. **Physical instruction encoding waits for physical evidence.**
+7. **Time travel reconstructs trace truth; it does not reverse-invent execution.**
+8. **Pixels are downstream of truth.**
+9. **Fixed golden suites test explicit focused subsystem claims without fake workload provenance.**
+10. **Trace-derived campaigns test subsystems, not imaginary instruction decoders.**
+11. **Wire framing transports parity semantics; it does not create them.**
+12. **Stream adapters move bytes; they do not interpret arithmetic.**
+13. **Serial configuration is deployment state, not machine state.**
+14. **Wire transcripts and evidence preserve exact receipts; they do not authenticate hardware.**
+15. **Physicality is not correctness.**
+16. **Hardware earns authority through parity.**
+17. **Determinism wins.**
+18. **Accuracy contracts are explicit.**
+19. **Corpus inputs are frozen before they influence a revision.**
+20. **Physical instruction encoding waits for physical evidence.**
 
 ## Repository status
 
-**Pre-alpha / first-hardware host-path ready.**
+**Pre-alpha / deterministic trace inspection + first-hardware host path ready.**
 
-The host software can now express the smallest honest first-copper test: a target advertising only `trit_hold`, width 1, receiving exactly three fixed golden vectors over the same canonical serial/wire/evidence stack used by later subsystems.
+The logical emulator can now be inspected backward and forward at exact trace boundaries without creating a second execution authority. Separately, the host software can express the smallest honest first-copper test: a target advertising only `trit_hold`, width 1, receiving exactly three fixed golden vectors over the canonical serial/wire/evidence stack.
 
-That does **not** mean TD-1 hardware exists or has passed. The next milestone is physical: build and measure `TRIT_CELL_REV0`, implement the device-side wire endpoint, run `serial-golden --suite trit`, preserve the evidence, and inspect the actual analog distributions before defining electrical acceptance limits.
+Neither capability means physical TD-1 hardware exists or has passed. The next hardware milestone remains physical: build and measure `TRIT_CELL_REV0`, implement the device-side wire endpoint, run `serial-golden --suite trit`, preserve the evidence, and inspect the actual analog distributions before defining electrical acceptance limits.
 
 ## Documentation
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/MACHINE_STATE.md`](docs/MACHINE_STATE.md)
 - [`docs/TRACE.md`](docs/TRACE.md)
+- [`docs/TRACE_INSPECTION.md`](docs/TRACE_INSPECTION.md)
 - [`docs/PARITY_CAMPAIGNS.md`](docs/PARITY_CAMPAIGNS.md)
 - [`docs/PARITY_WIRE.md`](docs/PARITY_WIRE.md)
 - [`docs/STREAM_LINE_IO.md`](docs/STREAM_LINE_IO.md)
@@ -467,6 +528,6 @@ That does **not** mean TD-1 hardware exists or has passed. The next milestone is
 
 TD-1 does **not** assume that DMT/Veilbreak reports establish extraterrestrial, interdimensional, or otherwise external intelligences. The project treats those reports as a structured phenomenological corpus capable of generating unconventional interface constraints and testable design hypotheses.
 
-A valid machine checkpoint proves only reference-state reconstruction. A valid fixed golden report proves only the explicit vectors it evaluated. A valid campaign proves deterministic vector derivation from its logical trace. A valid transcript proves only the canonical byte conversation it contains. A valid wire-evidence bundle proves report/transcript linkage and replay equivalence. A campaign bench bundle additionally binds that relationship to one exact trace-derived campaign. A successful serial run proves the configured host byte path exchanged and evaluated those frames; it does not independently prove electrical quality, hardware authorship, or physical instruction execution.
+A valid machine checkpoint proves only reference-state reconstruction. A trace-time-travel checkpoint proves only deterministic reconstruction of the saved logical trace boundary and its complete digest chain. A valid fixed golden report proves only the explicit vectors it evaluated. A valid campaign proves deterministic vector derivation from its logical trace. A valid transcript proves only the canonical byte conversation it contains. A valid wire-evidence bundle proves report/transcript linkage and replay equivalence. A campaign bench bundle additionally binds that relationship to one exact trace-derived campaign. A successful serial run proves the configured host byte path exchanged and evaluated those frames; it does not independently prove electrical quality, hardware authorship, or physical instruction execution.
 
 **Human-built hardware. Exotic design provenance. Bench validation required.**

@@ -237,6 +237,13 @@ from .trace import (
     trace_program,
     verify_execution_trace,
 )
+from .trace_inspect import (
+    TraceCursor,
+    TraceInspectionError,
+    TraceQuery,
+    find_trace_events,
+    trace_state_at,
+)
 from .wire import (
     BENCH_TELEMETRY_KEYS,
     CAPABILITIES_CORRELATION,
@@ -459,8 +466,11 @@ __all__ = [
     "TimelineMorphManifest",
     "TimelineSVGEntry",
     "TimelineSVGManifest",
+    "TraceCursor",
     "TraceError",
+    "TraceInspectionError",
     "TraceParityEntry",
+    "TraceQuery",
     "UnsupportedWeaveError",
     "VeilbreakExportAdapter",
     "VeilbreakFieldMap",
@@ -488,6 +498,7 @@ __all__ = [
     "disassemble",
     "encode_wire_frame",
     "export_requirement_traces",
+    "find_trace_events",
     "geodetic_to_ecef",
     "glyph_id_from_geometry",
     "glyph_id_to_triad",
@@ -518,6 +529,7 @@ __all__ = [
     "supports_weave",
     "ternary_state_digest",
     "trace_program",
+    "trace_state_at",
     "transcript_for_report",
     "triad_to_glyph_id",
     "trits_to_int",
@@ -528,4 +540,4 @@ __all__ = [
     "wrap_int",
 ]
 
-__version__ = "0.19.0a0"
+__version__ = "0.20.0a0"

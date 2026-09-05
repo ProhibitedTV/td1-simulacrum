@@ -22,11 +22,13 @@ State Weave -> typed lowering -> 12-trit reference machine
               v                                       v
       td1.machine-state                      td1.execution-trace
                                                       |
-                                                      v
-                                            td1.parity-campaign
-                                                      |
-                                                      v
-                                              campaign parity run
+                                     +----------------+----------------+
+                                     |                                 |
+                                     v                                 v
+                          deterministic inspection           td1.parity-campaign
+                                     |                                 |
+                                     v                                 v
+                             td1.machine-state                  campaign parity run
 
 fixed golden vectors ---------------------> fixed parity run
               |                                       |
@@ -75,17 +77,18 @@ Authority rules:
 1. logical machine semantics are normative;
 2. `td1.machine-state` persists execution truth only;
 3. execution traces record exact logical transitions without freezing physical encoding;
-4. fixed golden suites represent explicit focused subsystem stimuli and do not manufacture workload provenance;
-5. parity campaigns derive only subsystem operations the parity surface can represent faithfully from real logical traces;
-6. `td1.parity-wire` transports existing parity contracts but does not redefine them;
-7. `StreamParityLineIO` moves/buffers bytes and does not interpret arithmetic;
-8. `PySerialByteStream` is optional deployment plumbing and does not create machine semantics;
-9. serial port, baud rate, and host timeout values are deployment configuration, not machine state;
-10. wire transcripts preserve exact transport evidence but are not arithmetic truth or hardware signatures;
-11. generic wire-evidence bundles bind any report to its exact implied transcript without inventing campaign provenance;
-12. campaign bench-run bundles bind one trace-derived campaign run to the same report/transcript relationship;
-13. rendering and browser playback remain downstream of machine truth;
-14. physical hardware becomes authoritative only after deterministic parity testing.
+4. trace inspection may reconstruct and query existing trace truth but may not create execution semantics, synthetic reverse instructions, or debugger-owned machine state;
+5. fixed golden suites represent explicit focused subsystem stimuli and do not manufacture workload provenance;
+6. parity campaigns derive only subsystem operations the parity surface can represent faithfully from real logical traces;
+7. `td1.parity-wire` transports existing parity contracts but does not redefine them;
+8. `StreamParityLineIO` moves/buffers bytes and does not interpret arithmetic;
+9. `PySerialByteStream` is optional deployment plumbing and does not create machine semantics;
+10. serial port, baud rate, and host timeout values are deployment configuration, not machine state;
+11. wire transcripts preserve exact transport evidence but are not arithmetic truth or hardware signatures;
+12. generic wire-evidence bundles bind any report to its exact implied transcript without inventing campaign provenance;
+13. campaign bench-run bundles bind one trace-derived campaign run to the same report/transcript relationship;
+14. rendering and browser playback remain downstream of machine truth;
+15. physical hardware becomes authoritative only after deterministic parity testing.
 
 ## 3. Reference machine
 
@@ -125,13 +128,38 @@ No amount of host transport or evidence maturity substitutes for those measureme
 
 It records architecture invariants, instruction pointer, condition state, halted state, step count, all registers, sparse nonzero memory, and the complete machine digest.
 
-It excludes glyphs, Observer Continuity, geometry, corpus provenance, browser state, parity transport, serial configuration, transcripts, and physical instruction encoding.
+It excludes glyphs, Observer Continuity, geometry, corpus provenance, browser state, parity transport, serial configuration, transcripts, debugger cursor state, and physical instruction encoding.
 
 Checkpoint restore must reconstruct a `Machine` with the claimed complete digest. Resume tests require the same final state as uninterrupted execution.
 
 ## 5. Execution traces and workload parity campaigns
 
 `td1.execution-trace` records one exact transition per executed logical instruction, including before/after machine digests and register/memory deltas.
+
+### 5.1 Deterministic trace inspection
+
+v0.20 adds a downstream time-travel inspection layer over that existing trace contract.
+
+For a trace containing `N` events, inspection exposes `N + 1` exact boundaries:
+
+```text
+position 0  = trace initial state
+position 1  = state after event 0
+...
+position N  = trace final state
+```
+
+`trace_state_at()` reconstructs a requested boundary from the validated initial state plus recorded register, memory, instruction-pointer, condition, halt, and step changes. Every traversed event must reproduce its existing `before_digest` and `after_digest` complete machine-state chain. The output is an ordinary `td1.machine-state` checkpoint rather than a debugger-specific persistence schema.
+
+`TraceCursor` supplies seek, forward, and backward movement over immutable trace boundaries. Backward movement reconstructs an earlier boundary from trace truth; it does not reverse-execute a synthetic inverse opcode.
+
+`TraceQuery` selects existing events by logical instruction index, logical opcode, touched register, touched memory address, condition-state change, and halt transition. Querying does not insert derived execution events.
+
+This architecture intentionally leaves live interactive debugging of a not-yet-complete or non-terminating execution as separate future work.
+
+See [`TRACE_INSPECTION.md`](TRACE_INSPECTION.md) and ADR 0020.
+
+### 5.2 Workload parity campaigns
 
 `td1.parity-campaign` converts trace events into deterministic subsystem conformance vectors only when the current parity surface has a faithful equivalent.
 
@@ -360,6 +388,12 @@ State Weave -> OperandBindings -> logical instructions -> execution trace
 
 Machine -> td1.machine-state -> restore Machine -> identical digest
 
+execution trace -> deterministic inspection -> td1.machine-state
+      |                    |
+      |                    +-> exact boundary seek / query
+      |
+      +-> existing before/after digest chain remains authoritative
+
 fixed golden vectors -> parity wire -> stream/serial adapter -> target
                                                 |
                                                 v
@@ -385,7 +419,7 @@ execution trace -> parity campaign -> parity wire -> stream/serial adapter -> ta
 execution trace -> render state -> geometry -> timeline/morph -> browser endpoint
 ```
 
-Digests support integrity, replay, and regression. They are not authorship signatures unless explicitly stated otherwise.
+Digests support integrity, replay, regression, and trace-boundary reconstruction. They are not authorship signatures unless explicitly stated otherwise.
 
 ## 18. Physical replacement gate
 
@@ -397,6 +431,6 @@ Hardware earns authority through parity, and electrical claims require electrica
 
 ## 19. Primary engineering rule
 
-**No decorative weirdness, no semantic hand-waving, no persistence exceptionalism, no renderer exceptionalism, no campaign exceptionalism, no wire exceptionalism, no stream/serial exceptionalism, no evidence exceptionalism, and no hardware exceptionalism.**
+**No decorative weirdness, no semantic hand-waving, no persistence exceptionalism, no debugger exceptionalism, no renderer exceptionalism, no campaign exceptionalism, no wire exceptionalism, no stream/serial exceptionalism, no evidence exceptionalism, and no hardware exceptionalism.**
 
 Every claimed behavior must map to explicit state, a measured event, a documented engineering convention, a versioned rule, or a passing conformance record.
