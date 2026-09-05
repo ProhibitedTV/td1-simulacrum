@@ -712,16 +712,22 @@ def _word(value: int, width: int) -> str:
     return str(TernaryWord.from_int(value, width))
 
 
+def golden_trit_vectors() -> tuple[ParityVector, ...]:
+    """Return exactly the three deterministic one-trit hold vectors."""
+    return (
+        ParityVector.create("TRIT-NEG", ParityOperation.TRIT_HOLD, 1, ("-",)),
+        ParityVector.create("TRIT-ZERO", ParityOperation.TRIT_HOLD, 1, ("0",)),
+        ParityVector.create("TRIT-POS", ParityOperation.TRIT_HOLD, 1, ("+",)),
+    )
+
+
 def golden_register_vectors(width: int = 12) -> tuple[ParityVector, ...]:
     """Golden vectors for the first physical trit/register-slice campaign."""
     if width <= 0:
         raise ParityError("golden register width must be positive")
     low, high = representable_range(width)
     alternating = "".join("+0-"[index % 3] for index in range(width))
-    return (
-        ParityVector.create("TRIT-NEG", ParityOperation.TRIT_HOLD, 1, ("-",)),
-        ParityVector.create("TRIT-ZERO", ParityOperation.TRIT_HOLD, 1, ("0",)),
-        ParityVector.create("TRIT-POS", ParityOperation.TRIT_HOLD, 1, ("+",)),
+    return golden_trit_vectors() + (
         ParityVector.create(
             "REG-ZERO", ParityOperation.REGISTER_LOAD, width, (_word(0, width),)
         ),
