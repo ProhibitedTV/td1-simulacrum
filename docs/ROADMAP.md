@@ -16,6 +16,8 @@ Implemented:
 
 Exit criterion: deterministic execution with no known semantic ambiguity in the logical ISA.
 
+The 12-trit / 9-register / 729-word configuration is the current logical Simulacrum profile. It is not an electrical specification and is not evidence that those dimensions are the optimal physical implementation. Physical constraints that justify changing the machine profile require an explicit architecture/schema review rather than a silent hardware workaround.
+
 ## M1 — Engineering toolchain
 
 Status: **trace + checkpoint + deterministic time travel + live stop debugging + workload-parity packaging implemented**
@@ -133,7 +135,7 @@ Next:
 
 ## M5 — Physical parity interface
 
-Status: **host software ready for an honest first one-trit live bench session**
+Status: **host software ready; first-cell electrical assumptions are being replaced with measured ground truth before copper earns authority**
 
 Implemented:
 - capability advertisement and versioned parity request/response/report schemas;
@@ -149,6 +151,7 @@ Implemented:
 - deterministic capability and parity request/response correlation;
 - `JsonLineParityTransport` over minimal `ParityLineIO`;
 - reference `ParityWireDevice` plus in-memory wire integration;
+- signed bench voltage telemetry so the wire contract does not assume a single-supply ternary representation;
 - bench telemetry naming conventions for voltage, settling, comparator state, samples, board revision, and optional temperature;
 - versioned `td1.parity-wire-transcript` exact byte-level transport receipts;
 - `RecordingParityLineIO`, strict `ReplayParityLineIO`, and deterministic transcript reconstruction;
@@ -166,26 +169,36 @@ Implemented:
 - `td1-parity serial-run` retained for saved trace-derived workload campaigns;
 - serial deployment settings and stream counters kept in CLI diagnostics rather than silently inserted into normative parity artifacts;
 - fake/injected serial test infrastructure so default CI requires neither pyserial nor physical hardware;
-- a trit-only fake target proving the first-hardware session shape is one capability exchange plus exactly three parity exchanges.
+- a trit-only fake target proving the first-hardware session shape is one capability exchange plus exactly three parity exchanges;
+- versioned `td1.trit-cell-characterization` evidence for measured board/unit/bench identity, instruments, signed supply/reference nodes, explicit loads, repeated `-1/0/+1` observations, settling/temperature, and optional rising/falling switching measurements;
+- descriptive characterization summaries that report observed ranges without inventing acceptance thresholds;
+- a documented hardware-ground-truth policy that quarantines the earlier speculative `TRIT_CELL_REV0` numeric recipe pending corrected builder input and measurement.
 
 Next:
-- build and independently measure the first real `TRIT_CELL_REV0` cell;
+- obtain and review the experienced builder's corrected electrical design values/topology and their source context; do not guess them;
+- resolve the actual first-cell schematic and component selection from reviewed information plus datasheets;
+- verify supply/common-mode/output-swing/current/pull-up/loading/propagation constraints on paper;
+- build the first real cell only from that reviewed schematic, not the earlier speculative voltage/threshold recipe;
+- measure all rails/references before enabling the full cell;
+- measure `-1`, `0`, and `+1` outputs high-impedance and under explicit representative loads;
+- measure comparator switching points in both directions and characterize real hysteresis;
+- measure settling and record temperature/context;
+- preserve the first genuine `td1.trit-cell-characterization` artifact;
 - choose explicit deployment settings for the actual UART/USB-CDC bench device;
 - implement the existing parity-wire device side on the bench controller;
-- advertise only `trit_hold`, `max_width=1`;
+- advertise only `trit_hold`, `max_width=1` after characterization;
 - run `td1-parity serial-golden --suite trit` against the real device;
-- capture real `voltage_uv`, `settle_us`, `comparator_code`, `sample_count`, and `board_revision` telemetry;
-- preserve the first genuine hardware report, exact transcript, and `td1.parity-wire-evidence` artifact;
-- replay that evidence offline;
-- inspect measured electrical distributions before defining acceptance thresholds;
-- multi-trit register-slice adapter and fixed register-suite bring-up;
+- capture real signed `voltage_uv`, `settle_us`, `comparator_code`, `sample_count`, and `board_revision` telemetry;
+- preserve the first genuine hardware report, exact transcript, and `td1.parity-wire-evidence` artifact beside the characterization evidence;
+- replay that wire evidence offline;
+- inspect measured distributions across enough units/loads/conditions before defining a versioned electrical-acceptance profile;
+- multi-trit register-slice characterization and fixed register-suite bring-up;
 - execute trace-derived campaigns against real adapters only once workload provenance is meaningful;
-- versioned electrical acceptance criteria after measured distributions exist;
 - optional authenticated hardware identity only if bench provenance actually requires it;
-- ALU-board conformance after register-slice success;
+- ALU-board characterization/conformance after register-slice success;
 - physical subsystem replacement gate in the emulator runtime.
 
-Exit criterion: at least one physical ternary subsystem replaces its emulated counterpart and passes the same reference semantics with preserved bench evidence.
+Exit criterion: at least one physical ternary subsystem has a preserved electrical characterization, passes the same reference semantics, and replaces its emulated counterpart with evidence sufficient to justify the claimed operating envelope.
 
 ## M6 — Native TD-1 operation
 
@@ -215,6 +228,10 @@ The semantic/compiler prerequisite for Issue #2 is implemented. Physical instruc
 
 - treating phenomenology as proof of ontology;
 - hiding conventional compute behind decorative weirdness;
+- treating the earlier speculative first-cell voltage/threshold recipe as build authority;
+- guessing corrected electrical values that have not been supplied/reviewed;
+- assuming single-supply or bipolar physical ternary encoding before the schematic earns that choice;
+- inferring electrical acceptance thresholds from one board or three nominal-state observations;
 - freezing physical instruction encoding before hardware measurements exist;
 - creating debugger-owned logical state or synthetic reverse-instruction semantics;
 - treating debugger stops, breakpoint/watchpoint metadata, or event budgets as machine events;
@@ -225,11 +242,11 @@ The semantic/compiler prerequisite for Issue #2 is implemented. Physical instruc
 - treating transcript SHA-256 values as authenticated device signatures;
 - adding nondeterministic wall-clock timestamps to normative evidence artifacts;
 - auto-discovering a serial port or defining a TD-1 default baud rate;
-- defining USB identity, connector, pinout, retry/reconnect policy, or electrical thresholds before the bench hardware earns those choices;
+- defining USB identity, connector, pinout, retry/reconnect policy, physical trit voltages, or electrical thresholds before the bench hardware earns those choices;
 - claiming navigation-grade accuracy before the timing/reference stack earns it;
 - inventing animation activity not grounded in traced state changes;
 - fabricating executable meanings for unsupported State Weaves;
-- treating a physical board as authoritative before deterministic parity passes;
+- treating a physical board as authoritative before electrical characterization and deterministic parity pass;
 - allowing renderer/browser state to become machine truth;
 - allowing presentation timing/interpolation to fabricate machine state;
 - allowing corpus-derived hints to lose provenance or become arithmetic semantics;
