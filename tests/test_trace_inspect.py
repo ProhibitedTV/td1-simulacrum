@@ -1,6 +1,6 @@
+import dataclasses
 import json
 import sys
-from dataclasses import replace
 
 import pytest
 
@@ -48,7 +48,8 @@ def test_trace_state_at_every_boundary_matches_direct_execution() -> None:
         assert reconstructed == MachineState.capture(machine)
         assert reconstructed.machine_digest == event.after_digest
 
-    assert trace_state_at(trace, len(trace.events)).machine_digest == trace.final_state.machine_digest
+    final_state = trace_state_at(trace, len(trace.events))
+    assert final_state.machine_digest == trace.final_state.machine_digest
 
 
 def test_trace_cursor_seek_forward_backward_round_trip() -> None:
@@ -81,7 +82,7 @@ def test_trace_reconstruction_rejects_tampered_register_delta() -> None:
     assert event.register_deltas
     delta = event.register_deltas[0]
     tampered_delta = RegisterDelta(delta.index, delta.before, "000000000000")
-    tampered_event = replace(event, register_deltas=(tampered_delta,))
+    tampered_event = dataclasses.replace(event, register_deltas=(tampered_delta,))
     tampered_trace = ExecutionTrace(
         program_digest=trace.program_digest,
         initial_state=trace.initial_state,
