@@ -1,46 +1,24 @@
-# TD-1 Parity Wire Transcripts and Bench Runs
+# TD-1 Parity Wire Transcripts and Evidence
 
 ## Purpose
 
 The parity wire can be preserved as deterministic transport evidence.
 
-A transcript records the **exact canonical line bytes** successfully written and read at the `ParityLineIO` boundary. It exists so a future hardware session can be inspected, fingerprinted, replayed without the original device, and linked back to the exact campaign/report that produced it.
+A transcript records the **exact canonical line bytes** successfully written and read at the `ParityLineIO` boundary. It exists so a future hardware session can be inspected, fingerprinted, replayed without the original device, and linked back to the exact conformance result that produced it.
 
 It is not a second arithmetic authority and it is not proof that a particular physical board authored the bytes.
 
-```text
-ParityCampaign
-      |
-      v
-run_conformance()
-      |
-      v
-JsonLineParityTransport
-      |
-      v
-RecordingParityLineIO ------> td1.parity-wire-transcript
-      |
-      v
-StreamParityLineIO / other line I/O
-      |
-      v
-physical/reference target
+v0.19 supports two evidence roots over the same transcript contract:
 
-campaign run + exact transcript
-      |
-      v
- td1.parity-bench-run
-      |
-      +------> verification
-      |
-      +------> ReplayParityLineIO
-                       |
-                       v
-                normal wire transport
-                       |
-                       v
-             identical campaign report
+```text
+any td1.parity-report + exact transcript
+        -> td1.parity-wire-evidence
+
+trace-derived td1.parity-campaign-run + exact transcript
+        -> td1.parity-bench-run
 ```
+
+The campaign-specific bench bundle keeps its v1 schema. Both artifact families use the same deterministic report-to-transcript reconstruction rule.
 
 ## Transcript schema
 
@@ -104,29 +82,9 @@ It preserves successful traffic without changing the underlying wire semantics:
 
 The wrapper enforces write/read alternation. A transcript cannot be finalized while a device response is still unread.
 
-The reference path remains:
+## Stream and serial composition
 
-```text
-JsonLineParityTransport
-        |
-        v
-RecordingParityLineIO
-        |
-        v
-InMemoryParityLineIO
-        |
-        v
-ParityWireDevice
-        |
-        v
-ReferenceLoopbackTransport
-```
-
-## Stream-backed composition
-
-v0.17 adds `StreamParityLineIO`, a concrete `ParityLineIO` over ordinary binary reader/writer streams.
-
-The recording layer intentionally sits **above** it:
+The recording layer sits above byte-stream transport:
 
 ```text
 JsonLineParityTransport
@@ -138,39 +96,19 @@ RecordingParityLineIO
 StreamParityLineIO
         |
         v
-binary byte stream
+PySerialByteStream / other binary stream
         |
         v
-future UART / USB CDC / other serial-class link
+physical/reference target
 ```
 
 That placement matters. Transcript v1 records the same canonical line frames regardless of whether the lower channel is in-memory, fragmented, coalesced, UART-backed, USB-backed, or another compatible stream. No transcript schema change is needed merely because the host begins talking to real serial-class hardware.
 
 `StreamParityLineIO` may split writes or reassemble fragmented reads internally, but the recorder sees only complete canonical line operations. Its deterministic byte/frame counters are adapter diagnostics, not transcript fields or machine state.
 
-CI exercises a complete campaign through `JsonLineParityTransport -> RecordingParityLineIO -> StreamParityLineIO -> scripted device stream`, creates a valid bench bundle, and verifies replay equivalence.
-
-See [`STREAM_LINE_IO.md`](STREAM_LINE_IO.md) and ADR 0017.
-
-## Replay
-
-`ReplayParityLineIO` consumes a validated transcript.
-
-Host writes must match the next recorded `host_to_device` frame **byte for byte**. Reads return the exact saved device-response bytes.
-
-Replay rejects:
-
-- read before the required host write;
-- a second host write before the response is consumed;
-- request bytes that differ from the transcript;
-- traffic after transcript end;
-- incomplete transcript consumption.
-
-This means replay is not a loose mock. It is a deterministic byte-level reproduction of one recorded wire conversation.
-
 ## Reconstructing expected traffic from a report
 
-`transcript_for_report()` deterministically regenerates the canonical wire traffic implied by a `td1.parity-report`:
+`transcript_for_report()` deterministically regenerates the canonical wire traffic implied by any `td1.parity-report`:
 
 1. capability request;
 2. capability response containing the exact saved capabilities;
@@ -180,16 +118,59 @@ Vectors rejected by capability negotiation never reach `ParityTransport.exchange
 
 This distinction matters: an `unsupported` report record synthesized by host capability gating is report truth, but it was not device wire traffic.
 
-## Bench-run bundle
+`validate_report_transcript()` is the shared linkage rule used by both generic wire evidence and campaign-specific bench runs. It reconstructs the expected transcript and requires canonical equality.
 
-`td1.parity-bench-run` binds:
+That rejects substitution of a different:
+
+- target capability advertisement;
+- session;
+- vector order or operands;
+- response status or observed value;
+- telemetry payload;
+- canonical wire frame.
+
+## Generic wire-evidence bundle
+
+v0.19 introduces:
+
+```text
+schema  = td1.parity-wire-evidence
+version = 1
+```
+
+`ParityWireEvidence` binds:
+
+- one exact `td1.parity-report`;
+- one exact `td1.parity-wire-transcript`.
+
+Unlike `td1.parity-bench-run`, it does not require a trace-derived campaign. This is important for fixed first-hardware suites such as the three one-trit `trit_hold` vectors used by TRIT_CELL_REV0 bring-up.
+
+The artifact stores report and transcript digests for integrity and reconstructs the complete expected wire conversation during validation.
+
+## Generic evidence replay
+
+`replay_wire_evidence()` creates a normal `JsonLineParityTransport` over `ReplayParityLineIO`, reruns the exact saved request vectors with the exact saved session ID, requires complete transcript consumption, and requires the regenerated canonical `td1.parity-report` to equal the saved report.
+
+This is a deterministic replay of one conformance conversation, not a permissive mock.
+
+CLI:
+
+```bash
+td1-parity wire-evidence-verify trit.evidence.json
+
+td1-parity wire-evidence-replay trit.evidence.json
+```
+
+## Campaign-specific bench-run bundle
+
+`td1.parity-bench-run` still binds:
 
 - one exact `td1.parity-campaign-run`;
 - one exact `td1.parity-wire-transcript`.
 
-The bundle validates the transcript by reconstructing the expected wire traffic from the saved conformance report and requiring canonical equality.
+The v1 schema is unchanged.
 
-Because `ParityCampaignRun` already binds the report to the exact campaign and ordered vectors, the bench bundle creates this provenance chain:
+Because `ParityCampaignRun` already binds the report to the exact trace-derived campaign and ordered vectors, the bench bundle creates this provenance chain:
 
 ```text
 logical execution trace
@@ -202,15 +183,39 @@ logical execution trace
                 -> bench run
 ```
 
-A transcript cannot be substituted from a different target, session, vector sequence, response set, or telemetry set without invalidating the bench bundle.
+The bench artifact now reuses the same report/transcript validation rule as generic wire evidence rather than maintaining a different interpretation of what the report implies on the wire.
 
-## Deterministic replay verification
+## Bench replay
 
 `replay_bench_run()` creates a normal `JsonLineParityTransport` over `ReplayParityLineIO`, reruns the saved campaign with the saved session ID, and requires the resulting canonical `ParityCampaignRun` to equal the saved campaign run exactly.
 
-The replay therefore passes through the same capability negotiation and response parsing used by live wire execution.
+CLI:
 
-## CLI
+```bash
+td1-parity bench-run-replay sum.bench.json
+```
+
+## First-hardware evidence
+
+The first one-trit serial session should use fixed golden vectors rather than manufacturing trace provenance:
+
+```bash
+td1-parity serial-golden \
+  --suite trit \
+  --port /dev/ttyACM0 \
+  --baud 230400 \
+  --read-timeout 2.0 \
+  --write-timeout 2.0 \
+  --report-output trit.report.json \
+  --transcript-output trit.transcript.json \
+  --evidence-output trit.evidence.json
+```
+
+For a target advertising only `trit_hold`, width 1, the transcript contains exactly four exchanges: one capability exchange and three parity exchanges.
+
+See [`FIRST_HARDWARE_GOLDEN.md`](FIRST_HARDWARE_GOLDEN.md) and ADR 0019.
+
+## Existing campaign recording CLI
 
 Record a normal wire-loopback campaign plus transport evidence:
 
@@ -227,12 +232,6 @@ Verify a saved transcript independently:
 td1-parity wire-transcript-verify sum.wire.transcript.json
 ```
 
-Verify the complete bench bundle and replay it through the normal wire transport:
-
-```bash
-td1-parity bench-run-replay sum.bench.json
-```
-
 ## What a transcript proves
 
 A valid transcript proves that:
@@ -243,9 +242,11 @@ A valid transcript proves that:
 - request/response ordering is legal;
 - a replay consumer can reproduce the same byte conversation.
 
-A valid bench run additionally proves that the saved transcript is exactly the wire conversation implied by its saved campaign report.
+A valid generic wire-evidence artifact additionally proves that the transcript is exactly the wire conversation implied by the saved conformance report.
 
-It does **not** by itself prove:
+A valid bench run additionally binds that same report/transcript relationship to one exact trace-derived campaign run.
+
+None of these artifacts by themselves prove:
 
 - which physical device generated the response;
 - that a physical device was attached at all;

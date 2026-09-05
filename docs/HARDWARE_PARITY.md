@@ -10,49 +10,27 @@ The parity layer defines that conformance boundary independently from the concre
 reference model
     |
     +------> fixed golden vectors
+    |              |
+    |              v
+    |        td1.parity-report
+    |              |
+    |              +----> exact transcript
+    |                         |
+    |                         v
+    |              td1.parity-wire-evidence
     |
     +------> execution trace -> td1.parity-campaign
                                |
                                v
-                        td1.parity-request
+                      td1.parity-campaign-run
                                |
-                               v
-                         ParityTransport
-                               |
-                               v
-                        td1.parity-wire
-                               |
-                               v
-                  RecordingParityLineIO
-                               |
-                               v
-                    StreamParityLineIO
-                               |
-                               v
-                    PySerialByteStream
-                               |
-                               v
-                    optional serial link
-                               |
-                               v
-                        physical target
-                               |
-                               v
-                        td1.parity-response
-                               |
-                 +-------------+-------------+
-                 |                           |
-                 v                           v
-        exact wire transcript         td1.parity-report
-                 |                           |
-                 +-------------+-------------+
-                               |
-                               v
-                   td1.parity-campaign-run
-                               |
-                               v
-                     td1.parity-bench-run
+                               +----> exact transcript
+                                          |
+                                          v
+                                td1.parity-bench-run
 ```
+
+Both paths pass through the same `ParityTransport`, canonical parity wire, recording layer, stream adapter, and optional serial adapter.
 
 > Hardware earns authority through parity.
 
@@ -81,6 +59,7 @@ Current semantic/evidence schemas include:
 - `td1.parity-campaign-run`;
 - `td1.parity-wire`;
 - `td1.parity-wire-transcript`;
+- `td1.parity-wire-evidence`;
 - `td1.parity-bench-run`.
 
 `StreamParityLineIO`, `SerialConfig`, and `PySerialByteStream` are adapter/runtime implementations rather than new arithmetic schemas.
@@ -114,14 +93,25 @@ A target must advertise only capability it has actually demonstrated.
 The first real target remains deliberately small:
 
 ```text
--
-0
-+
+TRIT-NEG   -
+TRIT-ZERO  0
+TRIT-POS   +
 ```
 
-Each one-trit state must be driven, held, observed, and returned through the adapter without spontaneous semantic change.
+`golden_trit_vectors()` is the canonical source for those three width-1 `trit_hold` vectors.
 
-This is the bridge from `TRIT_CELL_REV0` bench measurements into software conformance.
+`golden_register_vectors(width)` remains backward compatible but derives its leading trit prefix from the same canonical function before adding register-load vectors.
+
+The first trit suite is intentionally **not** represented as a trace-derived `td1.parity-campaign`. It is a fixed bench conformance experiment, not a claim about operations encountered in a logical workload.
+
+For a target advertising only `trit_hold`, `max_width=1`, a successful session produces exactly:
+
+```text
+1 capability request/response exchange
+3 parity request/response exchanges
+```
+
+No register or ALU vectors are sent in the `trit` suite.
 
 ### Later register and ALU campaigns
 
@@ -133,7 +123,7 @@ Those vectors define reference expectations. They do not imply that correspondin
 
 ## Trace-derived workload campaigns
 
-`td1.parity-campaign` adds workload-derived values to the fixed edge cases.
+`td1.parity-campaign` adds workload-derived values to fixed edge-case testing once a physical subsystem is mature enough for logical-workload provenance to be meaningful.
 
 Current mappings are deliberately narrow:
 
@@ -184,7 +174,7 @@ Adapter-specific `ParityStreamError` subclasses are allowed to propagate unchang
 
 ## Optional live serial adapter
 
-v0.18 adds an optional pyserial-backed deployment path:
+The optional pyserial-backed deployment path is:
 
 ```text
 JsonLineParityTransport
@@ -197,56 +187,47 @@ JsonLineParityTransport
 
 Core installs remain free of pyserial. Live hosts install the optional `serial` extra.
 
-`SerialConfig` requires explicit:
-
-- port;
-- baud rate;
-- positive finite read timeout;
-- positive finite write timeout.
+`SerialConfig` requires explicit port, baud rate, positive finite read timeout, and positive finite write timeout.
 
 TD-1 does not auto-discover ports and does not define a default baud rate.
 
-`PySerialByteStream` distinguishes:
-
-- read timeout;
-- write timeout;
-- underlying serial read failure;
-- underlying serial write/flush failure;
-- use after close;
-- close failure;
-- missing optional dependency.
-
 A zero-byte pyserial read with the required finite timeout is a host serial timeout, not EOF and not a target-generated `ParityStatus.TIMEOUT`.
 
-`td1-parity serial-run` executes an existing saved campaign through this exact stack and may emit the same campaign-run, transcript, and bench-run artifacts used by in-memory testing.
+Two live CLI paths exist:
+
+- `td1-parity serial-golden` for fixed bring-up suites;
+- `td1-parity serial-run` for saved trace-derived campaigns.
 
 Port name, baud rate, host timeout values, and stream counters may appear in CLI diagnostics. They are not silently inserted into canonical parity artifacts.
 
-See [`SERIAL_ADAPTER.md`](SERIAL_ADAPTER.md) and ADR 0018.
+See [`SERIAL_ADAPTER.md`](SERIAL_ADAPTER.md), ADR 0018, and ADR 0019.
 
-## Wire transcripts
+## Wire transcripts and generic evidence
 
 `td1.parity-wire-transcript` records exact canonical traffic at `ParityLineIO`.
 
-Each record preserves:
+`transcript_for_report()` reconstructs the exact wire traffic implied by any saved `td1.parity-report`.
 
-- direction;
-- contiguous ordinal;
-- exact frame bytes represented as canonical frame text;
-- frame SHA-256;
-- message kind;
-- correlation ID;
-- envelope digest.
+`validate_report_transcript()` is the shared report/transcript linkage rule. It is used by both:
 
-`RecordingParityLineIO` composes unchanged above in-memory, generic stream, or serial-backed adapters.
+- generic `td1.parity-wire-evidence`;
+- campaign-specific `td1.parity-bench-run`.
+
+This shared validation prevents target/session/vector/response/telemetry substitution while keeping `td1.parity-bench-run` v1 unchanged.
 
 `ReplayParityLineIO` requires exact host bytes and returns exact saved device bytes. Replay must consume the entire transcript.
 
-## Bench-run bundles
+## Generic wire evidence
 
-`td1.parity-bench-run` binds one exact campaign run to the exact transcript implied by its report.
+`td1.parity-wire-evidence` binds any exact `td1.parity-report` to the exact `td1.parity-wire-transcript` implied by that report.
 
-Validation prevents substitution of a transcript from a different target, session, vector ordering, response set, or telemetry set.
+This is the correct evidence artifact for fixed first-hardware golden suites because no trace-derived campaign exists.
+
+`replay_wire_evidence()` reruns the exact saved request vectors and session through the normal wire transport over transcript replay and requires canonical report equivalence.
+
+## Campaign bench bundles
+
+`td1.parity-bench-run` continues to bind one exact `td1.parity-campaign-run` to the exact transcript implied by its report.
 
 `replay_bench_run()` reruns the campaign through the ordinary wire transport over replayed bytes and requires the canonical campaign run to match the saved run.
 
@@ -279,27 +260,30 @@ This distinction prevents host plumbing from fabricating device claims.
 
 ## CLI workflows
 
-Reference/software workflows:
-
-```bash
-td1-sim parity-vectors --width 12
-
-td1-sim parity-loopback --width 12
-
-td1-parity build examples/sum.td1 --output sum.campaign.json
-
-td1-parity wire-loopback sum.campaign.json \
-  --output sum.wire.run.json \
-  --transcript-output sum.wire.transcript.json \
-  --bench-output sum.bench.json
-
-td1-parity bench-run-replay sum.bench.json
-```
-
-Optional live serial workflow:
+Fixed first-hardware workflow:
 
 ```bash
 python -m pip install -e '.[serial]'
+
+td1-parity serial-golden \
+  --suite trit \
+  --port /dev/ttyACM0 \
+  --baud 230400 \
+  --read-timeout 2.0 \
+  --write-timeout 2.0 \
+  --report-output trit.report.json \
+  --transcript-output trit.transcript.json \
+  --evidence-output trit.evidence.json
+
+td1-parity wire-evidence-verify trit.evidence.json
+
+td1-parity wire-evidence-replay trit.evidence.json
+```
+
+Trace-derived campaign workflow:
+
+```bash
+td1-parity build examples/sum.td1 --output sum.campaign.json
 
 td1-parity serial-run sum.campaign.json \
   --port /dev/ttyACM0 \
@@ -309,9 +293,11 @@ td1-parity serial-run sum.campaign.json \
   --output sum.serial.run.json \
   --transcript-output sum.serial.transcript.json \
   --bench-output sum.serial.bench.json
+
+td1-parity bench-run-replay sum.serial.bench.json
 ```
 
-All serial deployment values above are examples supplied by the operator, not TD-1 defaults.
+All serial deployment values above are operator-supplied examples, not TD-1 defaults.
 
 ## First real adapter sequence
 
@@ -323,16 +309,17 @@ The next physical campaign should remain small and evidence-driven:
 4. select explicit port/baud/read-timeout/write-timeout values appropriate to that controller;
 5. implement the existing `td1.parity-wire` envelope on the device side;
 6. advertise only `trit_hold`, `max_width=1`;
-7. run the three one-trit golden vectors through `serial-run`;
+7. run exactly the three one-trit vectors with `td1-parity serial-golden --suite trit`;
 8. return real voltage/settling/comparator/sample/board telemetry where available;
-9. save the conformance report, exact transcript, and linked bench-run bundle;
-10. replay that bundle offline;
+9. save the conformance report, exact transcript, and generic wire-evidence bundle;
+10. replay that evidence bundle offline;
 11. inspect measured electrical distributions before defining acceptance thresholds;
 12. expand advertised capability only after evidence supports the next subsystem;
 13. repeat for a multi-trit register slice;
-14. proceed to physical ALU conformance only after register-slice success.
+14. use trace-derived campaigns only once their workload provenance is meaningful;
+15. proceed to physical ALU conformance only after register-slice success.
 
-The software stack is now capable of reaching the port. The missing authority is the copper and its measurements.
+The software stack can now reach the port and express the honest first-cell test. The missing authority is the copper and its measurements.
 
 ## Deferred work
 

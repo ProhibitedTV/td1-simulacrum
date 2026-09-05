@@ -1,4 +1,4 @@
-"""Command-line workflows for trace-derived TD-1 parity campaigns."""
+"""Command-line workflows for TD-1 parity campaigns and bench execution."""
 
 from __future__ import annotations
 
@@ -14,11 +14,13 @@ from .campaign import (
     build_parity_campaign,
     run_parity_campaign,
 )
-from .parity import ReferenceLoopbackTransport
+from .golden import golden_suite
+from .parity import ReferenceLoopbackTransport, run_conformance
 from .serial_adapter import ParitySerialError, SerialConfig, open_pyserial_stream
 from .stream_io import StreamParityLineIO
 from .trace import trace_program
 from .wire import InMemoryParityLineIO, JsonLineParityTransport, ParityWireDevice
+from .wire_evidence import ParityWireEvidence, replay_wire_evidence
 from .wire_transcript import (
     ParityBenchRun,
     ParityWireTranscript,
@@ -34,6 +36,16 @@ def _write_json(payload: dict[str, object], output: Path | None) -> None:
         return
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(text, encoding="utf-8", newline="\n")
+
+
+def _stream_stats_payload(stats) -> dict[str, int]:
+    return {
+        "bytes_read": stats.bytes_read,
+        "bytes_written": stats.bytes_written,
+        "frames_read": stats.frames_read,
+        "frames_written": stats.frames_written,
+        "buffered_bytes": stats.buffered_bytes,
+    }
 
 
 def _build(program_path: Path, max_steps: int, output: Path | None) -> int:
@@ -202,13 +214,7 @@ def _serial_run(
             "output": str(output),
             "transport": "td1.parity-wire/v1+serial-stream",
             "deployment": config.as_dict(),
-            "stream_stats": {
-                "bytes_read": stats.bytes_read,
-                "bytes_written": stats.bytes_written,
-                "frames_read": stats.frames_read,
-                "frames_written": stats.frames_written,
-                "buffered_bytes": stats.buffered_bytes,
-            },
+            "stream_stats": _stream_stats_payload(stats),
             "run_digest": run.digest(),
             "campaign_digest": run.campaign.digest(),
             "report_digest": run.report.digest(),
@@ -224,6 +230,70 @@ def _serial_run(
             payload["bench_output"] = str(bench_output)
         print(json.dumps(payload, indent=2, sort_keys=True))
     return 0 if run.report.passed else 2
+
+
+def _serial_golden(
+    suite: str,
+    width: int,
+    port: str,
+    baud: int,
+    read_timeout: float,
+    write_timeout: float,
+    report_output: Path | None,
+    transcript_output: Path | None,
+    evidence_output: Path | None,
+) -> int:
+    vectors = golden_suite(suite, width=width)
+    config = SerialConfig(
+        port=port,
+        baudrate=baud,
+        read_timeout_s=read_timeout,
+        write_timeout_s=write_timeout,
+    )
+
+    with open_pyserial_stream(config) as serial_stream:
+        stream_line = StreamParityLineIO(serial_stream)
+        recording = RecordingParityLineIO(stream_line)
+        transport = JsonLineParityTransport(recording)
+        report = run_conformance(transport, vectors)
+        transcript = recording.transcript()
+        evidence = ParityWireEvidence(report, transcript)
+        stats = stream_line.stats
+
+    if report_output is not None:
+        _write_json(report.as_dict(), report_output)
+    if transcript_output is not None:
+        _write_json(transcript.as_dict(), transcript_output)
+    if evidence_output is not None:
+        _write_json(evidence.as_dict(), evidence_output)
+
+    if report_output is None:
+        _write_json(report.as_dict(), None)
+    else:
+        payload: dict[str, object] = {
+            "report_output": str(report_output),
+            "transport": "td1.parity-wire/v1+serial-stream",
+            "suite": suite,
+            "vector_count": len(vectors),
+            "deployment": config.as_dict(),
+            "stream_stats": _stream_stats_payload(stats),
+            "report_digest": report.digest(),
+            "transcript_digest": transcript.digest(),
+            "wire_evidence_digest": evidence.digest(),
+            "passed": report.passed,
+            "passed_count": report.passed_count,
+            "failed_count": report.failed_count,
+        }
+        if suite == "register":
+            payload["width"] = width
+        else:
+            payload["width"] = 1
+        if transcript_output is not None:
+            payload["transcript_output"] = str(transcript_output)
+        if evidence_output is not None:
+            payload["evidence_output"] = str(evidence_output)
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0 if report.passed else 2
 
 
 def _verify_run(path: Path) -> int:
@@ -268,16 +338,53 @@ def _replay_bench(path: Path) -> int:
     return 0 if replayed.report.passed else 2
 
 
+def _verify_wire_evidence(path: Path) -> int:
+    evidence = ParityWireEvidence.from_json(path.read_text(encoding="utf-8"))
+    payload = {
+        "verified": True,
+        "wire_evidence_digest": evidence.digest(),
+        "report_digest": evidence.report.digest(),
+        "transcript_digest": evidence.transcript.digest(),
+        "passed": evidence.report.passed,
+        "vectors": len(evidence.report.records),
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0 if evidence.report.passed else 2
+
+
+def _replay_wire_evidence(path: Path) -> int:
+    evidence = ParityWireEvidence.from_json(path.read_text(encoding="utf-8"))
+    report = replay_wire_evidence(evidence)
+    payload = {
+        "verified": True,
+        "replayed": True,
+        "wire_evidence_digest": evidence.digest(),
+        "report_digest": report.digest(),
+        "transcript_digest": evidence.transcript.digest(),
+        "passed": report.passed,
+        "vectors": len(report.records),
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0 if report.passed else 2
+
+
 def _add_target_options(parser: argparse.ArgumentParser, *, default_id: str) -> None:
     parser.add_argument("--target-max-width", type=int, default=12)
     parser.add_argument("--target-id", default=default_id)
     parser.add_argument("--output", type=Path)
 
 
+def _add_serial_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--port", required=True)
+    parser.add_argument("--baud", required=True, type=int)
+    parser.add_argument("--read-timeout", required=True, type=float)
+    parser.add_argument("--write-timeout", required=True, type=float)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="td1-parity",
-        description="TD-1 trace-derived physical parity campaign tooling",
+        description="TD-1 physical parity campaign and bench tooling",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -308,29 +415,33 @@ def build_parser() -> argparse.ArgumentParser:
     )
     wire_loopback_parser.add_argument("path", type=Path)
     _add_target_options(wire_loopback_parser, default_id="simulacrum.wire-loopback")
-    wire_loopback_parser.add_argument(
-        "--transcript-output",
-        type=Path,
-        help="optional td1.parity-wire-transcript artifact path",
-    )
-    wire_loopback_parser.add_argument(
-        "--bench-output",
-        type=Path,
-        help="optional td1.parity-bench-run artifact path",
-    )
+    wire_loopback_parser.add_argument("--transcript-output", type=Path)
+    wire_loopback_parser.add_argument("--bench-output", type=Path)
 
     serial_parser = subparsers.add_parser(
         "serial-run",
-        help="run a saved campaign against an explicitly configured live serial port",
+        help="run a saved workload campaign against an explicitly configured serial port",
     )
     serial_parser.add_argument("path", type=Path)
-    serial_parser.add_argument("--port", required=True)
-    serial_parser.add_argument("--baud", required=True, type=int)
-    serial_parser.add_argument("--read-timeout", required=True, type=float)
-    serial_parser.add_argument("--write-timeout", required=True, type=float)
+    _add_serial_options(serial_parser)
     serial_parser.add_argument("--output", type=Path)
     serial_parser.add_argument("--transcript-output", type=Path)
     serial_parser.add_argument("--bench-output", type=Path)
+
+    serial_golden_parser = subparsers.add_parser(
+        "serial-golden",
+        help="run fixed first-hardware golden vectors against a configured serial port",
+    )
+    serial_golden_parser.add_argument(
+        "--suite",
+        choices=("trit", "register"),
+        required=True,
+    )
+    serial_golden_parser.add_argument("--width", type=int, default=12)
+    _add_serial_options(serial_golden_parser)
+    serial_golden_parser.add_argument("--report-output", type=Path)
+    serial_golden_parser.add_argument("--transcript-output", type=Path)
+    serial_golden_parser.add_argument("--evidence-output", type=Path)
 
     run_verify_parser = subparsers.add_parser(
         "run-verify",
@@ -349,6 +460,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="verify and replay a saved td1.parity-bench-run through transcript bytes",
     )
     bench_replay_parser.add_argument("path", type=Path)
+
+    evidence_verify_parser = subparsers.add_parser(
+        "wire-evidence-verify",
+        help="verify a generic td1.parity-wire-evidence report/transcript bundle",
+    )
+    evidence_verify_parser.add_argument("path", type=Path)
+
+    evidence_replay_parser = subparsers.add_parser(
+        "wire-evidence-replay",
+        help="replay generic wire evidence through the normal parity-wire transport",
+    )
+    evidence_replay_parser.add_argument("path", type=Path)
 
     return parser
 
@@ -375,17 +498,29 @@ def main() -> int:
             args.transcript_output,
             args.bench_output,
         )
-    if args.command == "serial-run":
+    if args.command in ("serial-run", "serial-golden"):
         try:
-            return _serial_run(
-                args.path,
+            if args.command == "serial-run":
+                return _serial_run(
+                    args.path,
+                    args.port,
+                    args.baud,
+                    args.read_timeout,
+                    args.write_timeout,
+                    args.output,
+                    args.transcript_output,
+                    args.bench_output,
+                )
+            return _serial_golden(
+                args.suite,
+                args.width,
                 args.port,
                 args.baud,
                 args.read_timeout,
                 args.write_timeout,
-                args.output,
+                args.report_output,
                 args.transcript_output,
-                args.bench_output,
+                args.evidence_output,
             )
         except ParitySerialError as exc:
             print(f"serial adapter error: {exc}", file=sys.stderr)
@@ -396,6 +531,10 @@ def main() -> int:
         return _verify_transcript(args.path)
     if args.command == "bench-run-replay":
         return _replay_bench(args.path)
+    if args.command == "wire-evidence-verify":
+        return _verify_wire_evidence(args.path)
+    if args.command == "wire-evidence-replay":
+        return _replay_wire_evidence(args.path)
     raise RuntimeError(f"unknown command {args.command!r}")
 
 

@@ -2,12 +2,21 @@
 
 ## Purpose
 
-v0.18 adds the first optional host deployment path capable of opening a real serial port and running an existing TD-1 parity campaign through the same stream, wire, transcript, and bench-run contracts already exercised in CI.
+v0.18 adds the first optional host deployment path capable of opening a real serial port and carrying TD-1 parity traffic through the same stream, wire, transcript, and evidence contracts already exercised in CI.
+
+The serial adapter supports two intentionally different live workflows:
 
 ```text
-saved td1.parity-campaign
-          |
-          v
+trace-derived workload campaign
+        -> td1-parity serial-run
+
+fixed first-hardware golden vectors
+        -> td1-parity serial-golden
+```
+
+Both use the same lower stack:
+
+```text
  JsonLineParityTransport
           |
           v
@@ -26,7 +35,7 @@ saved td1.parity-campaign
  UART / USB CDC device
 ```
 
-Serial deployment details remain below TD-1 semantics. Port names, baud rate, and host timeout values are runtime settings rather than machine-state, parity, wire, transcript, or bench-run fields.
+Serial deployment details remain below TD-1 semantics. Port names, baud rate, and host timeout values are runtime settings rather than machine-state, parity, wire, transcript, bench-run, or generic wire-evidence fields.
 
 ## Optional dependency
 
@@ -103,9 +112,9 @@ Normal exit closes the port exactly once. Explicit repeated `close()` calls are 
 
 Use after close is rejected.
 
-## Live CLI
+## Workload campaign CLI
 
-`td1-parity serial-run` executes a saved parity campaign against an explicitly configured live port:
+`td1-parity serial-run` executes a saved trace-derived parity campaign against an explicitly configured live port:
 
 ```bash
 td1-parity serial-run sum.campaign.json \
@@ -118,18 +127,7 @@ td1-parity serial-run sum.campaign.json \
   --bench-output sum.serial.bench.json
 ```
 
-Windows example:
-
-```bash
-td1-parity serial-run sum.campaign.json \
-  --port COM7 \
-  --baud 230400 \
-  --read-timeout 2.0 \
-  --write-timeout 2.0 \
-  --output sum.serial.run.json
-```
-
-The command requires explicit `--port`, `--baud`, `--read-timeout`, and `--write-timeout` values.
+This is the correct path once physical hardware is mature enough to run subsystem operations derived from logical TD-1 workloads.
 
 The normal output artifacts remain unchanged:
 
@@ -137,16 +135,74 @@ The normal output artifacts remain unchanged:
 - optional `td1.parity-wire-transcript`;
 - optional `td1.parity-bench-run`.
 
-The CLI summary may additionally show serial deployment settings and deterministic `StreamParityStats`. Those summary fields are not embedded into the normative artifacts.
+## First-hardware golden CLI
+
+v0.19 adds `td1-parity serial-golden` for focused bring-up that does **not** originate from a logical workload.
+
+The first TD-1 trit-cell target should advertise only `trit_hold` at width 1. Its canonical live command is:
+
+```bash
+td1-parity serial-golden \
+  --suite trit \
+  --port /dev/ttyACM0 \
+  --baud 230400 \
+  --read-timeout 2.0 \
+  --write-timeout 2.0 \
+  --report-output trit.report.json \
+  --transcript-output trit.transcript.json \
+  --evidence-output trit.evidence.json
+```
+
+Windows example:
+
+```bash
+td1-parity serial-golden \
+  --suite trit \
+  --port COM7 \
+  --baud 230400 \
+  --read-timeout 2.0 \
+  --write-timeout 2.0 \
+  --report-output trit.report.json
+```
+
+The `trit` suite sends exactly three one-trit `trit_hold` vectors: `-`, `0`, and `+`.
+
+The `register` suite is also available for later register-slice bring-up:
+
+```bash
+td1-parity serial-golden \
+  --suite register \
+  --width 12 \
+  --port /dev/ttyACM0 \
+  --baud 230400 \
+  --read-timeout 2.0 \
+  --write-timeout 2.0
+```
+
+`serial-golden` can emit:
+
+- `td1.parity-report`;
+- `td1.parity-wire-transcript`;
+- `td1.parity-wire-evidence`.
+
+It does not manufacture `td1.parity-campaign` provenance for a fixed bench suite.
+
+See [`FIRST_HARDWARE_GOLDEN.md`](FIRST_HARDWARE_GOLDEN.md) and ADR 0019.
+
+## CLI diagnostics versus normative artifacts
+
+Both serial commands require explicit `--port`, `--baud`, `--read-timeout`, and `--write-timeout` values.
+
+The CLI summary may additionally show serial deployment settings and deterministic `StreamParityStats`. Those summary fields are not embedded into normative report, campaign-run, transcript, bench-run, or generic wire-evidence artifacts.
 
 ## Evidence boundary
 
-A successful `serial-run` means the host successfully:
+A successful serial session means the host successfully:
 
 1. opened the configured serial port;
 2. exchanged canonical TD-1 parity-wire frames;
-3. received responses that passed the existing parity evaluation;
-4. optionally preserved the exact wire conversation and linked bench bundle.
+3. received responses that passed the existing parity evaluation for the requested vectors;
+4. optionally preserved the exact wire conversation and linked evidence artifact.
 
 It does not by itself prove:
 
@@ -159,9 +215,11 @@ It does not by itself prove:
 
 Those claims require the corresponding measured telemetry, lab evidence, or future authenticated/physical contracts.
 
+A fake-serial pass proves only software composition and deterministic artifact behavior.
+
 ## Non-goals
 
-v0.18 does not:
+The serial adapter does not:
 
 - auto-discover serial ports;
 - select a default baud rate;

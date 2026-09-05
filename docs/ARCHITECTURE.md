@@ -26,38 +26,46 @@ State Weave -> typed lowering -> 12-trit reference machine
                                             td1.parity-campaign
                                                       |
                                                       v
-                                                ParityTransport
-                                                      |
-                                                      v
-                                               td1.parity-wire
-                                                      |
-                                                      v
-                                           RecordingParityLineIO
-                                                      |
-                                                      v
-                                             StreamParityLineIO
-                                                      |
-                                                      v
-                                             PySerialByteStream
-                                                      |
-                                                      v
-                                          optional physical byte link
-                                                      |
-                              +-----------------------+-----------------------+
-                              |                                               |
-                              v                                               v
-                     exact wire transcript                           parity response
-                              |                                               |
-                              +-----------------------+-----------------------+
-                                                      |
-                                                      v
-                                             conformance report
-                                                      |
-                                                      v
-                                         td1.parity-campaign-run
-                                                      |
-                                                      v
-                                           td1.parity-bench-run
+                                              campaign parity run
+
+fixed golden vectors ---------------------> fixed parity run
+              |                                       |
+              +-------------------+-------------------+
+                                  |
+                                  v
+                           ParityTransport
+                                  |
+                                  v
+                           td1.parity-wire
+                                  |
+                                  v
+                      RecordingParityLineIO
+                                  |
+                                  v
+                        StreamParityLineIO
+                                  |
+                                  v
+                        PySerialByteStream
+                                  |
+                                  v
+                     optional physical byte link
+                                  |
+                    +-------------+-------------+
+                    |                           |
+                    v                           v
+           exact wire transcript          parity response
+                    |                           |
+                    +-------------+-------------+
+                                  |
+                                  v
+                         td1.parity-report
+                           /              \
+                          /                \
+                         v                  v
+             td1.parity-wire-evidence   td1.parity-campaign-run
+                                              |
+                                              v
+                                    td1.parity-bench-run
 
 reference machine -> render state -> native geometry -> Relic playback
 ```
@@ -67,15 +75,17 @@ Authority rules:
 1. logical machine semantics are normative;
 2. `td1.machine-state` persists execution truth only;
 3. execution traces record exact logical transitions without freezing physical encoding;
-4. parity campaigns derive only subsystem operations the parity surface can represent faithfully;
-5. `td1.parity-wire` transports existing parity contracts but does not redefine them;
-6. `StreamParityLineIO` moves/buffers bytes and does not interpret arithmetic;
-7. `PySerialByteStream` is optional deployment plumbing and does not create machine semantics;
-8. serial port, baud rate, and host timeout values are deployment configuration, not machine state;
-9. wire transcripts preserve exact transport evidence but are not arithmetic truth or hardware signatures;
-10. bench-run bundles bind one report to one exact transcript without claiming device authorship;
-11. rendering and browser playback remain downstream of machine truth;
-12. physical hardware becomes authoritative only after deterministic parity testing.
+4. fixed golden suites represent explicit focused subsystem stimuli and do not manufacture workload provenance;
+5. parity campaigns derive only subsystem operations the parity surface can represent faithfully from real logical traces;
+6. `td1.parity-wire` transports existing parity contracts but does not redefine them;
+7. `StreamParityLineIO` moves/buffers bytes and does not interpret arithmetic;
+8. `PySerialByteStream` is optional deployment plumbing and does not create machine semantics;
+9. serial port, baud rate, and host timeout values are deployment configuration, not machine state;
+10. wire transcripts preserve exact transport evidence but are not arithmetic truth or hardware signatures;
+11. generic wire-evidence bundles bind any report to its exact implied transcript without inventing campaign provenance;
+12. campaign bench-run bundles bind one trace-derived campaign run to the same report/transcript relationship;
+13. rendering and browser playback remain downstream of machine truth;
+14. physical hardware becomes authoritative only after deterministic parity testing.
 
 ## 3. Reference machine
 
@@ -107,7 +117,7 @@ The current target shape remains:
 
 This is not a normative physical encoding table. Issue #2 remains deferred until first-hardware measurements and semantic-lowering constraints can be reviewed together.
 
-No amount of host transport maturity substitutes for those measurements.
+No amount of host transport or evidence maturity substitutes for those measurements.
 
 ## 4. Machine-state persistence
 
@@ -119,7 +129,7 @@ It excludes glyphs, Observer Continuity, geometry, corpus provenance, browser st
 
 Checkpoint restore must reconstruct a `Machine` with the claimed complete digest. Resume tests require the same final state as uninterrupted execution.
 
-## 5. Execution traces and parity campaigns
+## 5. Execution traces and workload parity campaigns
 
 `td1.execution-trace` records one exact transition per executed logical instruction, including before/after machine digests and register/memory deltas.
 
@@ -143,7 +153,27 @@ A campaign embeds its source trace plus exact initial/final machine checkpoints.
 
 `td1.parity-campaign-run` binds one exact campaign to one exact conformance report.
 
-## 6. Parity semantics
+## 6. Fixed first-hardware golden suites
+
+The first planned physical target is smaller than a workload campaign: one ternary state cell advertising only `trit_hold`, width 1.
+
+`golden_trit_vectors()` contains exactly:
+
+```text
+TRIT-NEG   -
+TRIT-ZERO  0
+TRIT-POS   +
+```
+
+Those vectors are a fixed bench conformance suite, not trace-derived workload evidence.
+
+`golden_register_vectors(width)` remains backward compatible and derives its first three vectors from that canonical trit suite before adding register-load stimuli.
+
+`td1-parity serial-golden --suite trit` therefore expresses the honest first-cell claim without fabricating logical-workload provenance. A trit-only target produces one capability exchange plus exactly three parity exchanges.
+
+See [`FIRST_HARDWARE_GOLDEN.md`](FIRST_HARDWARE_GOLDEN.md) and ADR 0019.
+
+## 7. Parity semantics
 
 Current parity operations are:
 
@@ -159,7 +189,7 @@ Responses distinguish `ok`, `unsupported`, `fault`, `timeout`, and `error` at th
 
 Host adapter failures such as serial timeouts are separate from target `ParityStatus` values.
 
-## 7. Canonical parity wire
+## 8. Canonical parity wire
 
 `td1.parity-wire` is the deterministic byte-oriented adapter protocol underneath `ParityTransport`.
 
@@ -176,7 +206,7 @@ The envelope wraps existing `ParityCapabilities`, `ParityRequest`, and `ParityRe
 
 `JsonLineParityTransport` adapts `ParityLineIO` to the existing parity interface. `ParityWireDevice` is the Python reference device-side dispatcher used in CI.
 
-## 8. Stream-backed line I/O
+## 9. Stream-backed line I/O
 
 `StreamParityLineIO` implements `ParityLineIO` over generic binary reader/writer streams.
 
@@ -195,9 +225,9 @@ It does not parse JSON or decide parity meaning.
 
 Lower-layer `ParityStreamError` subclasses are preserved so deployment adapters can retain specific diagnostics.
 
-## 9. Optional serial deployment adapter
+## 10. Optional serial deployment adapter
 
-v0.18 adds `PySerialByteStream` and `SerialConfig` as an optional deployment layer beneath `StreamParityLineIO`.
+`PySerialByteStream` and `SerialConfig` form an optional deployment layer beneath `StreamParityLineIO`.
 
 ```text
 JsonLineParityTransport
@@ -220,46 +250,55 @@ UART / USB CDC device
 
 Core installs remain dependency-free. Pyserial is loaded lazily only when live serial use is requested.
 
-`SerialConfig` requires explicit:
-
-- port;
-- baud rate;
-- host read timeout;
-- host write timeout.
+`SerialConfig` requires explicit port, baud rate, host read timeout, and host write timeout.
 
 TD-1 defines no default baud rate and performs no automatic port discovery.
 
 Finite serial read timeouts mean a zero-byte pyserial read is classified as `ParitySerialReadTimeoutError`, not generic EOF.
 
-The serial adapter also distinguishes write timeout, underlying serial read/write failure, closed-port access, and close failure.
+Two live execution surfaces sit above the same adapter:
 
-`td1-parity serial-run` uses the ordinary campaign/wire/recording/stream stack. Deployment settings and stream counters may be displayed in its CLI summary but are not silently copied into canonical parity artifacts.
+- `td1-parity serial-golden` for fixed focused suites;
+- `td1-parity serial-run` for saved trace-derived campaigns.
 
-See [`SERIAL_ADAPTER.md`](SERIAL_ADAPTER.md) and ADR 0018.
+Deployment settings and stream counters may be displayed in CLI summaries but are not silently copied into canonical parity artifacts.
 
-## 10. Wire transcripts and bench evidence
+See [`SERIAL_ADAPTER.md`](SERIAL_ADAPTER.md), ADR 0018, and ADR 0019.
+
+## 11. Wire transcripts and report linkage
 
 `td1.parity-wire-transcript` records exact canonical frames at the `ParityLineIO` boundary.
 
-Each record preserves:
-
-- contiguous ordinal;
-- host/device direction;
-- exact frame text including LF;
-- frame SHA-256;
-- decoded message kind;
-- correlation ID;
-- envelope digest.
+Each record preserves contiguous ordinal, host/device direction, exact frame text including LF, frame SHA-256, decoded message kind, correlation ID, and envelope digest.
 
 `RecordingParityLineIO` can wrap in-memory, generic stream, or serial-backed line I/O without changing transcript schema.
 
 `ReplayParityLineIO` requires exact host request bytes and returns exact recorded device bytes. Replay must consume the full transcript.
 
-`td1.parity-bench-run` binds one campaign run to the exact transcript implied by its saved report. `replay_bench_run()` must regenerate the same canonical campaign run.
+`transcript_for_report()` reconstructs the exact canonical wire conversation implied by any `td1.parity-report`.
 
-Transcript hashes are integrity fingerprints, not cryptographic hardware-authorship proof.
+`validate_report_transcript()` is the single linkage rule used by both generic wire evidence and campaign bench runs. It rejects substitution of target capabilities, session, vectors, responses, telemetry, or canonical frames.
 
-## 11. Bench telemetry
+## 12. Generic wire evidence and campaign bench evidence
+
+v0.19 adds:
+
+```text
+schema  = td1.parity-wire-evidence
+version = 1
+```
+
+`ParityWireEvidence` binds any exact `td1.parity-report` to the exact transcript implied by that report. It is independent from workload campaigns and is therefore suitable for fixed first-hardware suites.
+
+`replay_wire_evidence()` replays the exact saved vectors and session through `JsonLineParityTransport -> ReplayParityLineIO` and requires canonical report equivalence.
+
+`td1.parity-bench-run` keeps its v1 schema. It binds a trace-derived `td1.parity-campaign-run` to the same exact report/transcript relationship and reuses the shared validation rule.
+
+`replay_bench_run()` must regenerate the same canonical campaign run.
+
+Transcript/evidence hashes are integrity fingerprints, not cryptographic hardware-authorship proof.
+
+## 13. Bench telemetry
 
 Wire/parity responses may include optional first-bench telemetry keys:
 
@@ -276,7 +315,7 @@ These remain metadata in the current contract. They do not alter arithmetic pass
 
 Electrical acceptance limits require a separate versioned contract after real measured distributions exist.
 
-## 12. Semantic and native representation layer
+## 14. Semantic and native representation layer
 
 TD-1's native operator model uses semantic roots rather than alphabetic text.
 
@@ -294,7 +333,7 @@ Balanced-ternary modifiers provide directional semantics:
 
 A 12-trit word partitions into four reversible 3-trit microglyph cells (`3^3 = 27` states each).
 
-## 13. Rendering authority
+## 15. Rendering authority
 
 `td1.render-state` is a deterministic projection from machine state plus allowed presentation inputs.
 
@@ -304,18 +343,13 @@ SVG and browser renderers consume geometry. They do not own logical state.
 
 Relic timelines join exact execution events to exact geometry frames. Morph plans may animate between authoritative endpoints but cannot invent endpoint state.
 
-## 14. Observer Continuity
+## 16. Observer Continuity
 
-Current groundwork includes:
-
-- timezone-aware UTC timestamps;
-- WGS-84 geodetic -> ECEF conversion;
-- UTC Julian Date;
-- explicitly approximate Earth Rotation Angle.
+Current groundwork includes timezone-aware UTC timestamps, WGS-84 geodetic -> ECEF conversion, UTC Julian Date, and explicitly approximate Earth Rotation Angle.
 
 Precision navigation remains future work requiring explicit time scales, Earth-orientation data, ephemerides, sensor covariance, and uncertainty contracts.
 
-## 15. Deterministic provenance chains
+## 17. Deterministic provenance chains
 
 Major chains remain separable:
 
@@ -326,6 +360,17 @@ State Weave -> OperandBindings -> logical instructions -> execution trace
 
 Machine -> td1.machine-state -> restore Machine -> identical digest
 
+fixed golden vectors -> parity wire -> stream/serial adapter -> target
+                                                |
+                                                v
+                                         exact transcript
+                                                |
+                                                v
+                                         parity report
+                                                |
+                                                v
+                                  td1.parity-wire-evidence
+
 execution trace -> parity campaign -> parity wire -> stream/serial adapter -> target
                                                     |
                                                     v
@@ -335,23 +380,23 @@ execution trace -> parity campaign -> parity wire -> stream/serial adapter -> ta
                                              conformance report
                                                     |
                                                     v
-                                              bench-run replay
+                                          campaign-run / bench-run
 
 execution trace -> render state -> geometry -> timeline/morph -> browser endpoint
 ```
 
 Digests support integrity, replay, and regression. They are not authorship signatures unless explicitly stated otherwise.
 
-## 16. Physical replacement gate
+## 18. Physical replacement gate
 
 A physical subsystem may replace its emulated counterpart only after deterministic conformance against the reference model.
 
-A successful serial connection is not enough. A valid transcript is not enough. A visually convincing board is not enough.
+A successful serial connection is not enough. A valid transcript is not enough. A valid evidence bundle is not enough. A visually convincing board is not enough.
 
-Hardware earns authority through parity.
+Hardware earns authority through parity, and electrical claims require electrical measurements.
 
-## 17. Primary engineering rule
+## 19. Primary engineering rule
 
-**No decorative weirdness, no semantic hand-waving, no persistence exceptionalism, no renderer exceptionalism, no campaign exceptionalism, no wire exceptionalism, no stream/serial exceptionalism, no transcript exceptionalism, and no hardware exceptionalism.**
+**No decorative weirdness, no semantic hand-waving, no persistence exceptionalism, no renderer exceptionalism, no campaign exceptionalism, no wire exceptionalism, no stream/serial exceptionalism, no evidence exceptionalism, and no hardware exceptionalism.**
 
 Every claimed behavior must map to explicit state, a measured event, a documented engineering convention, a versioned rule, or a passing conformance record.
