@@ -16,6 +16,7 @@ from enum import Enum
 from .geometry import GeometryPrimitive, GeometryScene
 from .machine import Instruction, Machine, ProgramCounterError, StepLimitExceeded
 from .render_state import RenderState
+from .strict_json import require_canonical_mapping
 
 TRACE_SCHEMA = "td1.execution-trace"
 TRACE_SCHEMA_VERSION = 1
@@ -42,7 +43,9 @@ class RegisterDelta:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, object]) -> "RegisterDelta":
-        return cls(int(payload["index"]), str(payload["before"]), str(payload["after"]))
+        state = cls(int(payload["index"]), str(payload["before"]), str(payload["after"]))
+        require_canonical_mapping(payload, state.as_dict(), label="register delta")
+        return state
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,7 +59,9 @@ class MemoryDelta:
 
     @classmethod
     def from_dict(cls, payload: Mapping[str, object]) -> "MemoryDelta":
-        return cls(int(payload["address"]), str(payload["before"]), str(payload["after"]))
+        state = cls(int(payload["address"]), str(payload["before"]), str(payload["after"]))
+        require_canonical_mapping(payload, state.as_dict(), label="memory delta")
+        return state
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,7 +130,7 @@ class ExecutionEvent:
             raise TraceError("execution event instruction must be an object")
         if not isinstance(register_deltas, list) or not isinstance(memory_deltas, list):
             raise TraceError("execution event deltas must be lists")
-        return cls(
+        state = cls(
             event_index=int(payload["event_index"]),
             machine_step=int(payload["machine_step"]),
             instruction_index=int(payload["instruction_index"]),
@@ -144,6 +149,8 @@ class ExecutionEvent:
             register_deltas=tuple(RegisterDelta.from_dict(item) for item in register_deltas),
             memory_deltas=tuple(MemoryDelta.from_dict(item) for item in memory_deltas),
         )
+        require_canonical_mapping(payload, state.as_dict(), label="execution event")
+        return state
 
 
 @dataclass(frozen=True, slots=True)
@@ -204,7 +211,7 @@ class ExecutionTrace:
             raise TraceError("execution trace states must be objects")
         if not isinstance(events, list):
             raise TraceError("execution trace events must be a list")
-        return cls(
+        state = cls(
             schema=str(payload["schema"]),
             version=int(payload["version"]),
             program_digest=str(payload["program_digest"]),
@@ -212,6 +219,8 @@ class ExecutionTrace:
             final_state=RenderState.from_dict(final_state),
             events=tuple(ExecutionEvent.from_dict(item) for item in events),
         )
+        require_canonical_mapping(payload, state.as_dict(), label="execution trace")
+        return state
 
     @classmethod
     def from_json(cls, text: str) -> "ExecutionTrace":
@@ -425,12 +434,14 @@ class PrimitiveChange:
     def from_dict(cls, payload: Mapping[str, object]) -> "PrimitiveChange":
         before = payload.get("before")
         after = payload.get("after")
-        return cls(
+        state = cls(
             primitive_id=str(payload["primitive_id"]),
             kind=PrimitiveChangeKind(str(payload["kind"])),
             before=GeometryPrimitive.from_dict(before) if isinstance(before, Mapping) else None,
             after=GeometryPrimitive.from_dict(after) if isinstance(after, Mapping) else None,
         )
+        require_canonical_mapping(payload, state.as_dict(), label="geometry primitive change")
+        return state
 
 
 @dataclass(frozen=True, slots=True)
@@ -477,7 +488,7 @@ class GeometryDelta:
         changes = payload.get("changes")
         if not isinstance(changes, list):
             raise TraceError("geometry delta changes must be a list")
-        return cls(
+        state = cls(
             schema=str(payload["schema"]),
             version=int(payload["version"]),
             before_scene_digest=str(payload["before_scene_digest"]),
@@ -486,6 +497,8 @@ class GeometryDelta:
             after_render_digest=str(payload["after_render_digest"]),
             changes=tuple(PrimitiveChange.from_dict(item) for item in changes),
         )
+        require_canonical_mapping(payload, state.as_dict(), label="geometry delta")
+        return state
 
     @classmethod
     def from_json(cls, text: str) -> "GeometryDelta":
