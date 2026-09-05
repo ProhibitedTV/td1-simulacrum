@@ -210,30 +210,18 @@ Parity responses already permit optional integer/string telemetry. Wire v1 stand
 
 | key | type | convention |
 |---|---|---|
-| `voltage_uv` | integer | sampled node voltage in microvolts |
+| `voltage_uv` | signed integer | sampled node voltage in microvolts relative to the bench/device reference |
 | `settle_us` | integer | measured settling time in microseconds |
-| `comparator_code` | string | adapter-defined comparator/decode code such as `00`, `10`, `11` |
+| `comparator_code` | string | adapter-defined comparator/decode code; no project-wide electrical code mapping is assumed |
 | `sample_count` | integer | number of samples contributing to the reported observation |
 | `board_revision` | string | stable human engineering board identifier |
 | `temperature_millic` | integer | optional temperature in milli-degrees Celsius |
 
-`BenchTelemetry` validates and round-trips these conventions.
+`BenchTelemetry` validates and round-trips these conventions. `voltage_uv` is deliberately signed: wire v1 does not assume single-supply, split-supply, shifted-level, or any other physical ternary encoding.
 
-These values are **metadata only** in v1. They do not alter the existing parity pass/fail evaluation. A future measured-acceptance schema may add explicit electrical criteria, but that must be a versioned engineering decision rather than a hidden side effect of telemetry.
+These values are **metadata only** in v1. They do not alter the existing parity pass/fail evaluation. A future measured-acceptance schema may add explicit electrical criteria, but that must be a versioned engineering decision based on reviewed topology and characterization evidence rather than a hidden side effect of telemetry.
 
-For the planned TRIT_CELL_REV0 adapter, a plausible successful response may eventually resemble:
-
-```json
-{
-  "voltage_uv": 2750000,
-  "settle_us": 43,
-  "comparator_code": "11",
-  "sample_count": 16,
-  "board_revision": "TRIT-REV0"
-}
-```
-
-The numbers above are illustrative transport metadata, not a claim that a physical board has produced them.
+Tests use synthetic signed values only to exercise serialization. They are not recommended TD-1 rail, state, threshold, or comparator values. See [`HARDWARE_GROUND_TRUTH.md`](HARDWARE_GROUND_TRUTH.md).
 
 ## CLI
 
@@ -276,17 +264,19 @@ The ordinary campaign-run artifact remains the conformance result. Transcript an
 
 The intended next hardware path is:
 
-1. validate one real trit cell on the bench;
-2. select the actual UART/USB-CDC byte interface and expose it as a compatible binary stream;
-3. wrap that stream with `StreamParityLineIO`;
-4. wrap the line adapter with `RecordingParityLineIO`;
-5. use `JsonLineParityTransport` unchanged above it;
-6. advertise only `trit_hold`, width 1;
-7. run the existing three one-trit parity vectors;
-8. report `voltage_uv`, `settle_us`, `comparator_code`, `sample_count`, and `board_revision` where available;
-9. save the parity report, exact wire transcript, and linked bench-run bundle;
-10. replay the bundle offline as a regression receipt;
-11. expand capabilities only after measured evidence supports the next subsystem.
+1. resolve the first-cell schematic from reviewed builder feedback, component datasheets, and actual intended topology; do not build from the earlier speculative numeric recipe;
+2. power and characterize one physical trit cell according to [`HARDWARE_GROUND_TRUTH.md`](HARDWARE_GROUND_TRUTH.md), preserving signed rail/reference/output/load/switching measurements in `td1.trit-cell-characterization`;
+3. select the actual UART/USB-CDC byte interface and expose it as a compatible binary stream;
+4. wrap that stream with `StreamParityLineIO`;
+5. wrap the line adapter with `RecordingParityLineIO`;
+6. use `JsonLineParityTransport` unchanged above it;
+7. advertise only `trit_hold`, width 1 after the cell has been electrically characterized;
+8. run the existing three one-trit parity vectors;
+9. report real `voltage_uv`, `settle_us`, `comparator_code`, `sample_count`, and `board_revision` telemetry where available;
+10. save characterization evidence plus the parity report, exact wire transcript, and generic wire-evidence bundle;
+11. replay the wire evidence offline;
+12. define electrical acceptance criteria only after measurements justify them;
+13. expand capabilities only after measured evidence supports the next subsystem.
 
 ## Explicit non-goals
 
@@ -298,6 +288,8 @@ Wire/transcript/stream v1 does not define:
 - connector type;
 - PCB pinout;
 - read/write timeout or reconnect policy;
+- supply topology;
+- physical trit voltages;
 - analog thresholds;
 - ADC resolution;
 - comparator hysteresis;
@@ -308,4 +300,4 @@ Wire/transcript/stream v1 does not define:
 - physical instruction words;
 - Issue #2 encoding.
 
-Those belong to later adapter/hardware revisions.
+Those belong to later adapter/hardware revisions backed by actual constraints and evidence.
