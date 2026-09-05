@@ -17,18 +17,21 @@ frozen provenance / interface constraints
       v
 State Weave -> typed lowering -> 12-trit reference machine
                                   |
+                                  v
+                             TraceRecorder
+                                  |
               +-------------------+-------------------+
               |                                       |
               v                                       v
       td1.machine-state                      td1.execution-trace
                                                       |
-                                     +----------------+----------------+
-                                     |                                 |
-                                     v                                 v
-                          deterministic inspection           td1.parity-campaign
-                                     |                                 |
-                                     v                                 v
-                             td1.machine-state                  campaign parity run
+                           +--------------------------+-------------------------+
+                           |                          |                         |
+                           v                          v                         v
+                deterministic inspection       td1.debug-run        td1.parity-campaign
+                           |                                                |
+                           v                                                v
+                   td1.machine-state                               campaign parity run
 
 fixed golden vectors ---------------------> fixed parity run
               |                                       |
@@ -76,19 +79,21 @@ Authority rules:
 
 1. logical machine semantics are normative;
 2. `td1.machine-state` persists execution truth only;
-3. execution traces record exact logical transitions without freezing physical encoding;
-4. trace inspection may reconstruct and query existing trace truth but may not create execution semantics, synthetic reverse instructions, or debugger-owned machine state;
-5. fixed golden suites represent explicit focused subsystem stimuli and do not manufacture workload provenance;
-6. parity campaigns derive only subsystem operations the parity surface can represent faithfully from real logical traces;
-7. `td1.parity-wire` transports existing parity contracts but does not redefine them;
-8. `StreamParityLineIO` moves/buffers bytes and does not interpret arithmetic;
-9. `PySerialByteStream` is optional deployment plumbing and does not create machine semantics;
-10. serial port, baud rate, and host timeout values are deployment configuration, not machine state;
-11. wire transcripts preserve exact transport evidence but are not arithmetic truth or hardware signatures;
-12. generic wire-evidence bundles bind any report to its exact implied transcript without inventing campaign provenance;
-13. campaign bench-run bundles bind one trace-derived campaign run to the same report/transcript relationship;
-14. rendering and browser playback remain downstream of machine truth;
-15. physical hardware becomes authoritative only after deterministic parity testing.
+3. `TraceRecorder` observes real `Machine.step()` transitions and is shared by complete tracing and live debugging;
+4. `td1.execution-trace` records exact logical transitions without freezing physical encoding and may represent a complete execution or an exact non-halted prefix;
+5. trace inspection may reconstruct and query existing trace truth but may not create execution semantics or synthetic reverse instructions;
+6. debugger stops may pause host execution but may not mutate machine truth, add breakpoint instructions, or become trace events;
+7. fixed golden suites represent explicit focused subsystem stimuli and do not manufacture workload provenance;
+8. parity campaigns derive only subsystem operations the parity surface can represent faithfully from real logical traces;
+9. `td1.parity-wire` transports existing parity contracts but does not redefine them;
+10. `StreamParityLineIO` moves and buffers bytes and does not interpret arithmetic;
+11. `PySerialByteStream` is optional deployment plumbing and does not create machine semantics;
+12. serial port, baud rate, and host timeout values are deployment configuration, not machine state;
+13. wire transcripts preserve exact transport evidence but are not arithmetic truth or hardware signatures;
+14. generic wire-evidence bundles bind any report to its exact implied transcript without inventing campaign provenance;
+15. campaign bench-run bundles bind one trace-derived campaign run to the same report/transcript relationship;
+16. rendering and browser playback remain downstream of machine truth;
+17. physical hardware becomes authoritative only after deterministic parity testing.
 
 ## 3. Reference machine
 
@@ -120,7 +125,7 @@ The current target shape remains:
 
 This is not a normative physical encoding table. Issue #2 remains deferred until first-hardware measurements and semantic-lowering constraints can be reviewed together.
 
-No amount of host transport or evidence maturity substitutes for those measurements.
+No amount of host tooling, debugging, transport, or evidence maturity substitutes for those measurements.
 
 ## 4. Machine-state persistence
 
@@ -128,17 +133,40 @@ No amount of host transport or evidence maturity substitutes for those measureme
 
 It records architecture invariants, instruction pointer, condition state, halted state, step count, all registers, sparse nonzero memory, and the complete machine digest.
 
-It excludes glyphs, Observer Continuity, geometry, corpus provenance, browser state, parity transport, serial configuration, transcripts, debugger cursor state, and physical instruction encoding.
+It excludes glyphs, Observer Continuity, geometry, corpus provenance, browser state, parity transport, serial configuration, transcripts, debugger stop metadata, and physical instruction encoding.
 
 Checkpoint restore must reconstruct a `Machine` with the claimed complete digest. Resume tests require the same final state as uninterrupted execution.
 
-## 5. Execution traces and workload parity campaigns
+## 5. Execution traces, inspection, debugging, and workload parity
 
-`td1.execution-trace` records one exact transition per executed logical instruction, including before/after machine digests and register/memory deltas.
+`td1.execution-trace` records one exact transition per executed logical instruction, including before/after machine digests, control state, and register/memory deltas.
 
-### 5.1 Deterministic trace inspection
+The trace schema is permitted to represent either:
 
-v0.20 adds a downstream time-travel inspection layer over that existing trace contract.
+- a complete execution ending in machine HALT; or
+- an exact prefix ending at any ordinary non-halted machine boundary.
+
+A host-side pause is not encoded as HALT.
+
+### 5.1 Shared incremental trace recording
+
+`TraceRecorder` is the single event-construction path for both complete tracing and debugger execution.
+
+For every step it:
+
+1. validates the current instruction pointer against the logical program;
+2. captures the complete before-state digest and exact register/memory/control state needed for deltas;
+3. invokes the normative `Machine.step()` implementation;
+4. derives the canonical `ExecutionEvent` from that real transition;
+5. appends the event to an immutable-order trace prefix.
+
+`trace_program()` is therefore a policy around `TraceRecorder`: continue stepping until HALT or the caller's deterministic step ceiling is exceeded.
+
+`verify_execution_trace()` replays exactly the number of events present in the artifact and requires canonical equality. This verifies both complete traces and non-halted prefixes without giving a pause machine semantics.
+
+### 5.2 Deterministic trace inspection
+
+v0.20 added a downstream time-travel inspection layer over the trace contract.
 
 For a trace containing `N` events, inspection exposes `N + 1` exact boundaries:
 
@@ -149,17 +177,41 @@ position 1  = state after event 0
 position N  = trace final state
 ```
 
-`trace_state_at()` reconstructs a requested boundary from the validated initial state plus recorded register, memory, instruction-pointer, condition, halt, and step changes. Every traversed event must reproduce its existing `before_digest` and `after_digest` complete machine-state chain. The output is an ordinary `td1.machine-state` checkpoint rather than a debugger-specific persistence schema.
+`trace_state_at()` reconstructs a requested boundary from the validated initial state plus recorded register, memory, instruction-pointer, condition, halt, and step changes. Every traversed event must reproduce its existing `before_digest` and `after_digest` complete machine-state chain. The output is an ordinary `td1.machine-state` checkpoint rather than an inspection-specific persistence schema.
 
 `TraceCursor` supplies seek, forward, and backward movement over immutable trace boundaries. Backward movement reconstructs an earlier boundary from trace truth; it does not reverse-execute a synthetic inverse opcode.
 
 `TraceQuery` selects existing events by logical instruction index, logical opcode, touched register, touched memory address, condition-state change, and halt transition. Querying does not insert derived execution events.
 
-This architecture intentionally leaves live interactive debugging of a not-yet-complete or non-terminating execution as separate future work.
-
 See [`TRACE_INSPECTION.md`](TRACE_INSPECTION.md) and ADR 0020.
 
-### 5.2 Workload parity campaigns
+### 5.3 Deterministic live debugging
+
+v0.21 adds live stop conditions without creating a second execution authority.
+
+`DebugStopSpec` separates two classes of host observation:
+
+- instruction-index and opcode **breakpoints** are evaluated before the next logical instruction executes;
+- register and memory **watchpoints** are evaluated after the real event that changed the watched state.
+
+`td1.debug-run` embeds the exact execution-trace prefix plus deterministic stop metadata. Stop kinds are:
+
+- `halted` — the machine really executed HALT;
+- `breakpoint` — host execution paused before a matching instruction;
+- `watchpoint` — host execution paused after a matching state change;
+- `event_budget` — host execution paused after a deterministic number of events while the machine remained live.
+
+Breakpoint/watchpoint matches and event budgets are metadata. They cannot alter instruction pointer, condition state, registers, memory, step count, or halted state.
+
+`verify_debug_run()` first verifies the embedded trace prefix, then re-runs the same debugger configuration from the captured initial state and requires canonical artifact equality. This proves the stop decision is deterministic for the supplied program and initial machine state.
+
+Checkpoint-style continuation may explicitly skip breakpoint evaluation at the supplied initial boundary once. That policy is recorded in the debug artifact; it does not modify the machine.
+
+The debugger does **not** define a BREAK opcode, reverse execution semantics, wall-clock timing, physical debug pins, JTAG/UART debug commands, or hardware breakpoint circuitry.
+
+See [`DEBUGGING.md`](DEBUGGING.md) and ADR 0021.
+
+### 5.4 Workload parity campaigns
 
 `td1.parity-campaign` converts trace events into deterministic subsystem conformance vectors only when the current parity surface has a faithful equivalent.
 
@@ -309,14 +361,7 @@ Each record preserves contiguous ordinal, host/device direction, exact frame tex
 
 ## 12. Generic wire evidence and campaign bench evidence
 
-v0.19 adds:
-
-```text
-schema  = td1.parity-wire-evidence
-version = 1
-```
-
-`ParityWireEvidence` binds any exact `td1.parity-report` to the exact transcript implied by that report. It is independent from workload campaigns and is therefore suitable for fixed first-hardware suites.
+`td1.parity-wire-evidence` binds any exact `td1.parity-report` to the exact transcript implied by that report. It is independent from workload campaigns and is therefore suitable for fixed first-hardware suites.
 
 `replay_wire_evidence()` replays the exact saved vectors and session through `JsonLineParityTransport -> ReplayParityLineIO` and requires canonical report equivalence.
 
@@ -384,15 +429,19 @@ Major chains remain separable:
 ```text
 source observation -> motif -> requirement -> implementation -> validation
 
-State Weave -> OperandBindings -> logical instructions -> execution trace
+State Weave -> OperandBindings -> logical instructions -> reference machine
 
 Machine -> td1.machine-state -> restore Machine -> identical digest
 
-execution trace -> deterministic inspection -> td1.machine-state
-      |                    |
-      |                    +-> exact boundary seek / query
-      |
-      +-> existing before/after digest chain remains authoritative
+reference machine -> TraceRecorder -> execution trace
+                                      |          |
+                                      |          +-> deterministic inspection
+                                      |                    |
+                                      |                    +-> exact boundary state/query
+                                      |
+                                      +-> td1.debug-run
+                                            |
+                                            +-> deterministic host stop metadata
 
 fixed golden vectors -> parity wire -> stream/serial adapter -> target
                                                 |
@@ -419,7 +468,7 @@ execution trace -> parity campaign -> parity wire -> stream/serial adapter -> ta
 execution trace -> render state -> geometry -> timeline/morph -> browser endpoint
 ```
 
-Digests support integrity, replay, regression, and trace-boundary reconstruction. They are not authorship signatures unless explicitly stated otherwise.
+Digests support integrity, replay, regression, trace-boundary reconstruction, and deterministic debugger-stop verification. They are not authorship signatures unless explicitly stated otherwise.
 
 ## 18. Physical replacement gate
 

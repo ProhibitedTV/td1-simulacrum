@@ -18,7 +18,7 @@ Exit criterion: deterministic execution with no known semantic ambiguity in the 
 
 ## M1 — Engineering toolchain
 
-Status: **trace + checkpoint + deterministic time travel + workload-parity packaging implemented**
+Status: **trace + checkpoint + deterministic time travel + live stop debugging + workload-parity packaging implemented**
 
 Implemented:
 - text assembler/disassembler, labels, relative branches, CLI, and examples;
@@ -35,6 +35,12 @@ Implemented:
 - `TraceCursor` with seek, forward, and backward inspection over immutable traces;
 - deterministic `TraceQuery` filters for opcode, instruction index, touched registers/memory, condition changes, and halt transitions;
 - `td1-trace state` and `td1-trace find` engineering workflows;
+- shared incremental `TraceRecorder` used by full tracing and debugger execution;
+- exact replay verification for complete halted traces and non-halted execution-trace prefixes;
+- versioned `td1.debug-run` artifacts with breakpoint, watchpoint, HALT, and deterministic event-budget stops;
+- pre-instruction instruction-index/opcode breakpoints and post-instruction register/memory watchpoints;
+- checkpoint-style debugger continuation with an explicit initial-breakpoint skip policy;
+- `td1-debug run` and `td1-debug verify` engineering workflows;
 - versioned `td1.parity-campaign` artifacts derived from real execution traces;
 - exact initial/final machine checkpoints embedded in each campaign;
 - event-indexed subsystem vectors for encountered register-load, negate, add, and subtract work;
@@ -46,12 +52,12 @@ Implemented:
 
 Next:
 - indexed/cached trace seeking only if real traces make O(N) reconstruction materially expensive;
-- live stop/breakpoint debugging for non-terminating executions without creating debugger-owned machine semantics;
+- debugger continuation-chain packaging only if multi-stop sessions need one canonical history artifact;
 - checkpoint/campaign-aware real hardware differential testing;
 - versioned program image only after first-hardware constraints are available;
 - optional compact/binary persistence after audit-first JSON schemas stabilize.
 
-`td1.machine-state`, `td1.execution-trace`, trace inspection state, and `td1.parity-campaign` are not physical program-image formats and do not freeze Issue #2.
+`td1.machine-state`, `td1.execution-trace`, trace inspection state, `td1.debug-run`, and `td1.parity-campaign` are not physical program-image formats and do not freeze Issue #2.
 
 ## M2 — Native representation
 
@@ -211,6 +217,7 @@ The semantic/compiler prerequisite for Issue #2 is implemented. Physical instruc
 - hiding conventional compute behind decorative weirdness;
 - freezing physical instruction encoding before hardware measurements exist;
 - creating debugger-owned logical state or synthetic reverse-instruction semantics;
+- treating debugger stops, breakpoint/watchpoint metadata, or event budgets as machine events;
 - treating trace queries as new execution events;
 - claiming fixed first-hardware vectors or trace-derived subsystem parity prove physical instruction decoding;
 - manufacturing workload provenance for a fixed electrical bring-up suite;
