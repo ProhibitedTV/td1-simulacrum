@@ -4,17 +4,21 @@ import sys
 import pytest
 
 from td1_simulacrum.campaign_cli import main
-from td1_simulacrum.golden import golden_suite, golden_trit_vectors
+from td1_simulacrum.golden import (
+    golden_register_suite,
+    golden_suite,
+    golden_trit_vectors,
+)
 from td1_simulacrum.parity import (
     ParityCapabilities,
     ParityOperation,
     ParityRequest,
     ParityResponse,
     ParityStatus,
+    golden_register_vectors,
     run_conformance,
     ternary_state_digest,
 )
-from td1_simulacrum.stream_io import StreamParityLineIO
 from td1_simulacrum.wire import (
     InMemoryParityLineIO,
     JsonLineParityTransport,
@@ -109,9 +113,7 @@ class ScriptedSerialStream:
 
 
 def _record(target, vectors):
-    recording = RecordingParityLineIO(
-        InMemoryParityLineIO(ParityWireDevice(target))
-    )
+    recording = RecordingParityLineIO(InMemoryParityLineIO(ParityWireDevice(target)))
     report = run_conformance(JsonLineParityTransport(recording), vectors)
     return report, recording.transcript()
 
@@ -127,6 +129,12 @@ def test_golden_trit_suite_is_exactly_three_one_trit_holds() -> None:
     assert all(vector.operation is ParityOperation.TRIT_HOLD for vector in vectors)
     assert all(vector.width == 1 for vector in vectors)
     assert golden_suite("trit", width=99) == vectors
+
+
+def test_first_hardware_register_suite_preserves_legacy_vector_identity() -> None:
+    for width in (1, 3, 12):
+        assert golden_register_suite(width) == golden_register_vectors(width)
+        assert golden_register_suite(width)[:3] == golden_trit_vectors()
 
 
 def test_trit_only_target_passes_exact_first_hardware_wire_session() -> None:
