@@ -4,11 +4,7 @@ import sys
 import pytest
 
 from td1_simulacrum.campaign_cli import main
-from td1_simulacrum.golden import (
-    golden_register_suite,
-    golden_suite,
-    golden_trit_vectors,
-)
+from td1_simulacrum.golden import golden_suite, golden_trit_vectors
 from td1_simulacrum.parity import (
     ParityCapabilities,
     ParityOperation,
@@ -131,10 +127,11 @@ def test_golden_trit_suite_is_exactly_three_one_trit_holds() -> None:
     assert golden_suite("trit", width=99) == vectors
 
 
-def test_first_hardware_register_suite_preserves_legacy_vector_identity() -> None:
+def test_register_golden_vectors_preserve_canonical_trit_prefix() -> None:
     for width in (1, 3, 12):
-        assert golden_register_suite(width) == golden_register_vectors(width)
-        assert golden_register_suite(width)[:3] == golden_trit_vectors()
+        vectors = golden_register_vectors(width)
+        assert golden_suite("register", width=width) == vectors
+        assert vectors[:3] == golden_trit_vectors()
 
 
 def test_trit_only_target_passes_exact_first_hardware_wire_session() -> None:
