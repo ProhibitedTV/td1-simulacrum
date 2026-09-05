@@ -148,7 +148,7 @@ class ExecutionEvent:
 
 @dataclass(frozen=True, slots=True)
 class ExecutionTrace:
-    """Versioned deterministic trace for one logical TD-1 program execution."""
+    """Versioned deterministic trace for a complete execution or exact prefix."""
 
     program_digest: str
     initial_state: RenderState
@@ -235,43 +235,72 @@ def logical_program_digest(program: Sequence[Instruction]) -> str:
     return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
 
 
-def trace_program(
-    program: Sequence[Instruction],
-    *,
-    initial_machine: Machine | None = None,
-    max_steps: int = 100_000,
-) -> ExecutionTrace:
-    """Execute a logical program while recording replayable state transitions."""
-    if max_steps <= 0:
-        raise ValueError("max_steps must be positive")
-    machine = (
-        Machine()
-        if initial_machine is None
-        else RenderState.capture(initial_machine).restore_machine()
-    )
-    initial_state = RenderState.capture(machine)
-    events: list[ExecutionEvent] = []
+class TraceRecorder:
+    """Incrementally execute the reference machine while recording canonical events.
 
-    while not machine.halted:
-        if machine.steps >= max_steps:
-            raise StepLimitExceeded(f"execution exceeded max_steps={max_steps}")
-        instruction_index = machine.ip
-        if not 0 <= instruction_index < len(program):
+    The recorder owns no alternate machine semantics. Every transition is produced
+    by ``Machine.step()`` and captured in the same ``ExecutionEvent`` format used by
+    full traces. A recorder may therefore expose a complete halted trace or an exact
+    non-halted prefix for debugger and inspection workflows.
+    """
+
+    def __init__(
+        self,
+        program: Sequence[Instruction],
+        *,
+        initial_machine: Machine | None = None,
+    ) -> None:
+        self.program = tuple(program)
+        self.program_digest = logical_program_digest(self.program)
+        self._machine = (
+            Machine()
+            if initial_machine is None
+            else RenderState.capture(initial_machine).restore_machine()
+        )
+        self.initial_state = RenderState.capture(self._machine)
+        self._events: list[ExecutionEvent] = []
+
+    @property
+    def events(self) -> tuple[ExecutionEvent, ...]:
+        return tuple(self._events)
+
+    @property
+    def halted(self) -> bool:
+        return self._machine.halted
+
+    @property
+    def machine_steps(self) -> int:
+        return self._machine.steps
+
+    def current_state(self) -> RenderState:
+        return RenderState.capture(self._machine)
+
+    def next_instruction(self) -> tuple[int, Instruction]:
+        if self._machine.halted:
+            raise TraceError("halted machine has no next instruction")
+        instruction_index = self._machine.ip
+        if not 0 <= instruction_index < len(self.program):
             raise ProgramCounterError(
                 f"instruction pointer out of program range: {instruction_index}"
             )
-        instruction = program[instruction_index]
-        before_digest = machine.state_digest(include_memory=True)
-        before_registers = tuple(str(word) for word in machine.registers)
-        before_memory = tuple(str(word) for word in machine.memory)
-        ip_before = machine.ip
-        cond_before = machine.cond
-        halted_before = machine.halted
+        return instruction_index, self.program[instruction_index]
 
-        machine.step(program)
+    def step(self) -> ExecutionEvent:
+        if self._machine.halted:
+            raise TraceError("cannot record a step after HALT")
 
-        after_registers = tuple(str(word) for word in machine.registers)
-        after_memory = tuple(str(word) for word in machine.memory)
+        instruction_index, instruction = self.next_instruction()
+        before_digest = self._machine.state_digest(include_memory=True)
+        before_registers = tuple(str(word) for word in self._machine.registers)
+        before_memory = tuple(str(word) for word in self._machine.memory)
+        ip_before = self._machine.ip
+        cond_before = self._machine.cond
+        halted_before = self._machine.halted
+
+        self._machine.step(self.program)
+
+        after_registers = tuple(str(word) for word in self._machine.registers)
+        after_memory = tuple(str(word) for word in self._machine.memory)
         register_deltas = tuple(
             RegisterDelta(index, before, after)
             for index, (before, after) in enumerate(
@@ -286,45 +315,70 @@ def trace_program(
             )
             if before != after
         )
-        events.append(
-            ExecutionEvent(
-                event_index=len(events),
-                machine_step=machine.steps,
-                instruction_index=instruction_index,
-                op=instruction.op.name,
-                a=instruction.a,
-                b=instruction.b,
-                imm=instruction.imm,
-                before_digest=before_digest,
-                after_digest=machine.state_digest(include_memory=True),
-                ip_before=ip_before,
-                ip_after=machine.ip,
-                cond_before=cond_before,
-                cond_after=machine.cond,
-                halted_before=halted_before,
-                halted_after=machine.halted,
-                register_deltas=register_deltas,
-                memory_deltas=memory_deltas,
-            )
+        event = ExecutionEvent(
+            event_index=len(self._events),
+            machine_step=self._machine.steps,
+            instruction_index=instruction_index,
+            op=instruction.op.name,
+            a=instruction.a,
+            b=instruction.b,
+            imm=instruction.imm,
+            before_digest=before_digest,
+            after_digest=self._machine.state_digest(include_memory=True),
+            ip_before=ip_before,
+            ip_after=self._machine.ip,
+            cond_before=cond_before,
+            cond_after=self._machine.cond,
+            halted_before=halted_before,
+            halted_after=self._machine.halted,
+            register_deltas=register_deltas,
+            memory_deltas=memory_deltas,
+        )
+        self._events.append(event)
+        return event
+
+    def trace(self) -> ExecutionTrace:
+        return ExecutionTrace(
+            program_digest=self.program_digest,
+            initial_state=self.initial_state,
+            final_state=self.current_state(),
+            events=self.events,
         )
 
-    return ExecutionTrace(
-        program_digest=logical_program_digest(program),
-        initial_state=initial_state,
-        final_state=RenderState.capture(machine),
-        events=tuple(events),
-    )
+
+def trace_program(
+    program: Sequence[Instruction],
+    *,
+    initial_machine: Machine | None = None,
+    max_steps: int = 100_000,
+) -> ExecutionTrace:
+    """Execute a logical program to HALT while recording replayable transitions."""
+    if max_steps <= 0:
+        raise ValueError("max_steps must be positive")
+    recorder = TraceRecorder(program, initial_machine=initial_machine)
+
+    while not recorder.halted:
+        if recorder.machine_steps >= max_steps:
+            raise StepLimitExceeded(f"execution exceeded max_steps={max_steps}")
+        recorder.step()
+
+    return recorder.trace()
 
 
 def verify_execution_trace(program: Sequence[Instruction], trace: ExecutionTrace) -> None:
-    """Replay a trace from its captured initial state and require canonical equality."""
+    """Replay a complete trace or exact trace prefix and require canonical equality."""
     if logical_program_digest(program) != trace.program_digest:
         raise TraceError("logical program digest does not match execution trace")
-    replay = trace_program(
+
+    recorder = TraceRecorder(
         program,
         initial_machine=trace.initial_state.restore_machine(),
-        max_steps=max(1, len(trace.events) + 1),
     )
+    for _ in trace.events:
+        if recorder.halted:
+            raise TraceError("execution trace records events after the replay machine halted")
+        recorder.step()
+    replay = recorder.trace()
     if replay.canonical_json() != trace.canonical_json():
         raise TraceError("execution trace replay diverged from recorded trace")
 
