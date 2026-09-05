@@ -94,6 +94,25 @@ A decoder rejects:
 
 This intentionally removes serializer ambiguity from first-bench debugging.
 
+## Nested payload canonicality
+
+v0.22 hardens a distinction that matters at the hardware boundary: **a byte-canonical wire envelope is necessary but not sufficient.** The nested parity object must also already be in the exact canonical form of its own typed schema.
+
+After parsing a `ParityCapabilities`, `ParityRequest`, or `ParityResponse`, the host/device wire adapter re-emits that object through its canonical `as_dict()` representation and requires the received nested payload to match exactly, including JSON value types. The comparison deliberately does not use Python's loose `bool == 1` or other coercive equality behavior.
+
+The following are rejected even when the outer JSON frame is byte-canonical:
+
+- `"sequence":"0"` where the schema requires integer `0`;
+- `"max_width":"12"` where the schema requires integer `12`;
+- booleans substituted for integer fields;
+- omission of canonical default fields such as an empty response `detail`;
+- capability operation/version/telemetry lists whose order or duplicates would be silently normalized by the model;
+- any other payload that parses only because `int()`, `str()`, default insertion, sorting, or deduplication changes the received representation.
+
+This is intentionally a parser/transport hardening of wire v1, not a wire-schema revision. Existing canonical frames are unchanged. The rule is:
+
+> **Canonical transport bytes may not hide non-canonical parity schema values.**
+
 ## Correlation
 
 The capability handshake uses the fixed v1 correlation identifier:
@@ -124,7 +143,8 @@ It performs:
 2. capability caching for the life of the transport;
 3. one canonical wire request for each accepted parity exchange;
 4. response-kind and correlation validation;
-5. restoration of the ordinary `ParityResponse` object.
+5. exact nested parity-payload canonicality validation;
+6. restoration of the ordinary `ParityResponse` object.
 
 Because it implements the existing protocol, `run_conformance()` and trace-derived `ParityCampaign` execution require no wire-specific arithmetic logic.
 
@@ -133,6 +153,8 @@ Because it implements the existing protocol, `run_conformance()` and trace-deriv
 `ParityWireDevice` wraps any existing `ParityTransport` target.
 
 For CI, it wraps `ReferenceLoopbackTransport`. A future microcontroller-side implementation can reproduce the same envelope and parity schemas while replacing the in-memory channel with UART, USB CDC, or another byte stream.
+
+Inbound parity requests must be canonical both as wire envelopes and as nested `ParityRequest` payloads before the target sees them.
 
 The Python reference dispatcher is a protocol oracle, not a requirement that firmware run Python.
 
