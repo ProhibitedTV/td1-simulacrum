@@ -155,12 +155,16 @@ class DebugRun:
                 raise DebugError("breakpoint stop requires non-halted state and at least one match")
         elif self.stop_kind is DebugStopKind.WATCHPOINT:
             if not self.trace.events or not self.matches:
-                raise DebugError("watchpoint stop requires an executed event and at least one match")
+                raise DebugError(
+                    "watchpoint stop requires an executed event and at least one match"
+                )
         elif self.stop_kind is DebugStopKind.EVENT_BUDGET:
             if self.trace.final_state.halted:
                 raise DebugError("event-budget stop may not claim a halted final state")
             if len(self.trace.events) != self.event_budget:
-                raise DebugError("event-budget stop must end exactly at the configured event budget")
+                raise DebugError(
+                    "event-budget stop must end exactly at the configured event budget"
+                )
             if self.matches:
                 raise DebugError("event-budget stop may not carry breakpoint/watchpoint matches")
 
