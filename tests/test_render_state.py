@@ -33,6 +33,20 @@ def _golden_machine() -> Machine:
     return machine
 
 
+def _semantic_state() -> RenderState:
+    observer = ObserverState(
+        datetime(2026, 9, 4, 16, 0, tzinfo=UTC),
+        latitude_deg=40.4233,
+        longitude_deg=-104.7091,
+        altitude_m=1420.0,
+    )
+    weave = StateWeave(
+        (SemanticRoot.TIME, SemanticRoot.REFERENCE),
+        Modifier.POSITIVE,
+    )
+    return RenderState.capture(_golden_machine(), observer=observer, weave=weave)
+
+
 def test_render_state_v1_golden_fixture() -> None:
     state = RenderState.capture(_golden_machine())
     expected = json.loads(FIXTURE.read_text(encoding="utf-8"))
@@ -55,17 +69,7 @@ def test_render_state_serialization_and_machine_restore_round_trip() -> None:
 
 
 def test_engineering_and_relic_modes_share_one_source_state() -> None:
-    observer = ObserverState(
-        datetime(2026, 9, 4, 16, 0, tzinfo=UTC),
-        latitude_deg=40.4233,
-        longitude_deg=-104.7091,
-        altitude_m=1420.0,
-    )
-    weave = StateWeave(
-        (SemanticRoot.TIME, SemanticRoot.REFERENCE),
-        Modifier.POSITIVE,
-    )
-    state = RenderState.capture(_golden_machine(), observer=observer, weave=weave)
+    state = _semantic_state()
 
     engineering = project_render_state(state, RenderMode.ENGINEERING)
     relic = project_render_state(state, RenderMode.RELIC)
@@ -102,6 +106,59 @@ def test_corrupt_redundant_glyph_data_is_rejected() -> None:
     payload["registers"][0]["glyph_ids"][3] = 0  # type: ignore[index]
 
     with pytest.raises(ValueError, match="inconsistent register render state"):
+        RenderState.from_dict(payload)
+
+
+def test_render_state_rejects_numeric_string_and_boolean_coercion() -> None:
+    payload = RenderState.capture(_golden_machine()).as_dict()
+    payload["ip"] = "4"
+    with pytest.raises(ValueError, match="canonical JSON"):
+        RenderState.from_dict(payload)
+
+    payload = RenderState.capture(_golden_machine()).as_dict()
+    payload["halted"] = 0
+    with pytest.raises(ValueError, match="canonical JSON"):
+        RenderState.from_dict(payload)
+
+    payload = RenderState.capture(_golden_machine()).as_dict()
+    payload["registers"][0]["index"] = "0"  # type: ignore[index]
+    with pytest.raises(ValueError, match="canonical JSON"):
+        RenderState.from_dict(payload)
+
+
+def test_render_state_rejects_redundant_plane_and_weave_metadata_drift() -> None:
+    payload = _semantic_state().as_dict()
+    payload["planes"] = ["carrier", "machine", "observer", "semantic"]
+    with pytest.raises(ValueError, match="canonical JSON"):
+        RenderState.from_dict(payload)
+
+    payload = _semantic_state().as_dict()
+    payload["weave"]["version"] = 999  # type: ignore[index]
+    with pytest.raises(ValueError, match="canonical JSON"):
+        RenderState.from_dict(payload)
+
+    payload = _semantic_state().as_dict()
+    del payload["planes"]
+    with pytest.raises(ValueError, match="canonical JSON"):
+        RenderState.from_dict(payload)
+
+
+def test_render_state_rejects_zero_word_in_sparse_nonzero_memory() -> None:
+    payload = RenderState.capture(_golden_machine()).as_dict()
+    zero = TernaryWord.zero()
+    payload["nonzero_memory"].append(  # type: ignore[union-attr]
+        {
+            "address": 100,
+            "ternary": str(zero),
+            "glyph_ids": [13, 13, 13, 13],
+        }
+    )
+    payload["nonzero_memory"] = sorted(  # type: ignore[assignment]
+        payload["nonzero_memory"],  # type: ignore[arg-type]
+        key=lambda item: item["address"],
+    )
+
+    with pytest.raises(ValueError, match="may not contain zero-valued words"):
         RenderState.from_dict(payload)
 
 
