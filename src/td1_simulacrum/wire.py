@@ -212,7 +212,9 @@ class BenchTelemetry:
     """Optional convention for first-bench measurement telemetry.
 
     These fields are metadata only in wire v1. They do not alter arithmetic
-    pass/fail evaluation in the parity harness.
+    pass/fail evaluation in the parity harness. `voltage_uv` is signed relative to
+    the bench/device reference; wire v1 assumes neither single-supply nor bipolar
+    physical ternary levels.
     """
 
     voltage_uv: int | None = None
@@ -223,8 +225,6 @@ class BenchTelemetry:
     temperature_millic: int | None = None
 
     def __post_init__(self) -> None:
-        if self.voltage_uv is not None and self.voltage_uv < 0:
-            raise ParityWireError("voltage_uv must be nonnegative")
         if self.settle_us is not None and self.settle_us < 0:
             raise ParityWireError("settle_us must be nonnegative")
         if self.sample_count is not None and self.sample_count <= 0:
