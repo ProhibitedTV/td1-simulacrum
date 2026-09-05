@@ -49,6 +49,7 @@ from .glyphs import (
     triad_to_glyph_id,
     word_to_glyph_ids,
 )
+from .golden import golden_suite, golden_trit_vectors
 from .lowering import (
     LOWERING_SCHEMA,
     LOWERING_SCHEMA_VERSION,
@@ -255,6 +256,12 @@ from .wire import (
     encode_wire_frame,
     parity_request_correlation,
 )
+from .wire_evidence import (
+    WIRE_EVIDENCE_SCHEMA,
+    WIRE_EVIDENCE_SCHEMA_VERSION,
+    ParityWireEvidence,
+    replay_wire_evidence,
+)
 from .wire_transcript import (
     BENCH_RUN_SCHEMA,
     BENCH_RUN_SCHEMA_VERSION,
@@ -390,6 +397,7 @@ __all__ = [
     "ParityWireDevice",
     "ParityWireEnvelope",
     "ParityWireError",
+    "ParityWireEvidence",
     "ParityWireTranscript",
     "PlayerArtifactError",
     "PlayerArtifactVerification",
@@ -457,6 +465,8 @@ __all__ = [
     "VeilbreakExportAdapter",
     "VeilbreakFieldMap",
     "WIRE_ENCODING",
+    "WIRE_EVIDENCE_SCHEMA",
+    "WIRE_EVIDENCE_SCHEMA_VERSION",
     "WIRE_MAX_FRAME_BYTES",
     "WIRE_SCHEMA",
     "WIRE_SCHEMA_VERSION",
@@ -485,6 +495,8 @@ __all__ = [
     "golden_alu_vectors",
     "golden_parity_vectors",
     "golden_register_vectors",
+    "golden_suite",
+    "golden_trit_vectors",
     "int_to_trits",
     "julian_date_utc",
     "logical_program_digest",
@@ -498,6 +510,7 @@ __all__ = [
     "render_svg",
     "render_timeline_svgs",
     "replay_bench_run",
+    "replay_wire_evidence",
     "representable_range",
     "run_conformance",
     "run_parity_campaign",
@@ -515,4 +528,4 @@ __all__ = [
     "wrap_int",
 ]
 
-__version__ = "0.18.0a0"
+__version__ = "0.19.0a0"
