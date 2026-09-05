@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "td1-simulacrum"
-version = "0.19.0a0"
+version = "0.20.0a0"
 description = "Reference emulator and native software environment for the TD-1 balanced-ternary experimental computer"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,6 +21,7 @@ classifiers = [
 [project.scripts]
 td1-sim = "td1_simulacrum.cli:main"
 td1-parity = "td1_simulacrum.campaign_cli:main"
+td1-trace = "td1_simulacrum.trace_cli:main"
 
 [project.optional-dependencies]
 serial = [
