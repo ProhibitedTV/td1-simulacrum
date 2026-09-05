@@ -5,7 +5,7 @@ import sys
 import pytest
 
 import td1_simulacrum as td1
-from td1_simulacrum.trace_cli import main
+import td1_simulacrum.trace_cli as trace_cli
 
 
 SOURCE = """
@@ -139,7 +139,7 @@ def test_trace_cli_state_and_find(tmp_path, monkeypatch, capsys) -> None:
             str(state_path),
         ],
     )
-    assert main() == 0
+    assert trace_cli.main() == 0
     summary = json.loads(capsys.readouterr().out)
     assert summary["position"] == 3
     assert summary["event_count"] == len(trace.events)
@@ -159,7 +159,7 @@ def test_trace_cli_state_and_find(tmp_path, monkeypatch, capsys) -> None:
             "R1",
         ],
     )
-    assert main() == 0
+    assert trace_cli.main() == 0
     result = json.loads(capsys.readouterr().out)
     assert result["schema"] == "td1.trace-query-result"
     assert result["match_count"] == 2
