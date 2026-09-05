@@ -120,12 +120,14 @@ Next:
 
 ## M5 — Physical parity interface
 
-Status: **conformance + campaigns + canonical wire + replayable evidence + stream/serial host path implemented**
+Status: **host software ready for an honest first one-trit live bench session**
 
 Implemented:
 - capability advertisement and versioned parity request/response/report schemas;
 - deterministic ternary slice-state digests;
-- register/trit and ALU golden vectors;
+- explicit `golden_trit_vectors()` containing exactly `TRIT-NEG`, `TRIT-ZERO`, and `TRIT-POS`;
+- backward-compatible register golden vectors derived from that canonical trit prefix;
+- deterministic register and ALU golden suites;
 - explicit `ok`, `unsupported`, `fault`, `timeout`, and `error` outcomes;
 - capability-gated conformance sessions and replayable reports;
 - deterministic trace-derived parity campaigns and campaign-run artifacts;
@@ -136,32 +138,41 @@ Implemented:
 - reference `ParityWireDevice` plus in-memory wire integration;
 - bench telemetry naming conventions for voltage, settling, comparator state, samples, board revision, and optional temperature;
 - versioned `td1.parity-wire-transcript` exact byte-level transport receipts;
-- `RecordingParityLineIO`, strict `ReplayParityLineIO`, deterministic transcript reconstruction, and `td1.parity-bench-run`;
-- offline replay requiring regenerated campaign/report equivalence;
+- `RecordingParityLineIO`, strict `ReplayParityLineIO`, and deterministic transcript reconstruction;
+- shared report/transcript validation reused by generic evidence and campaign bench bundles;
+- versioned `td1.parity-wire-evidence` for exact report/transcript linkage independent of workload campaigns;
+- deterministic generic wire-evidence replay using saved vectors/session and canonical report equivalence;
+- versioned `td1.parity-bench-run` retained unchanged for trace-derived campaign evidence;
 - minimal binary reader/writer/duplex stream protocols;
 - `StreamParityLineIO` with partial-write completion, fragmented/coalesced read buffering, bounded frame handling, explicit adapter errors, and deterministic counters;
-- complete campaign -> stream -> transcript -> bench bundle -> offline replay proof in CI;
 - optional `serial` dependency extra for pyserial while core installs remain dependency-free;
 - explicit `SerialConfig` deployment settings for port, baud rate, and finite host read/write timeouts;
 - `PySerialByteStream` with lazy pyserial loading, serial timeout/error classification, closed-port protection, and deterministic close/context-manager behavior;
 - preservation of serial-specific stream errors through `StreamParityLineIO`;
-- `td1-parity serial-run` using the unchanged wire/recording/stream stack and optionally emitting ordinary run/transcript/bench artifacts;
+- `td1-parity serial-golden` for fixed first-hardware suites with optional report/transcript/evidence emission;
+- `td1-parity serial-run` retained for saved trace-derived workload campaigns;
 - serial deployment settings and stream counters kept in CLI diagnostics rather than silently inserted into normative parity artifacts;
-- fake/injected serial test infrastructure so default CI requires neither pyserial nor physical hardware.
+- fake/injected serial test infrastructure so default CI requires neither pyserial nor physical hardware;
+- a trit-only fake target proving the first-hardware session shape is one capability exchange plus exactly three parity exchanges.
 
 Next:
-- build and measure the first real one-trit hardware adapter;
-- choose explicit deployment settings for the actual UART/USB-CDC bench device and run `serial-run` against it;
-- capture real `voltage_uv`, `settle_us`, `comparator_code`, `sample_count`, and `board_revision` telemetry from TRIT_CELL_REV0;
-- preserve the first genuine hardware campaign run, transcript, and bench bundle;
-- multi-trit register-slice adapter;
-- execute and preserve workload-derived campaigns against real adapters;
+- build and independently measure the first real `TRIT_CELL_REV0` cell;
+- choose explicit deployment settings for the actual UART/USB-CDC bench device;
+- implement the existing parity-wire device side on the bench controller;
+- advertise only `trit_hold`, `max_width=1`;
+- run `td1-parity serial-golden --suite trit` against the real device;
+- capture real `voltage_uv`, `settle_us`, `comparator_code`, `sample_count`, and `board_revision` telemetry;
+- preserve the first genuine hardware report, exact transcript, and `td1.parity-wire-evidence` artifact;
+- replay that evidence offline;
+- inspect measured electrical distributions before defining acceptance thresholds;
+- multi-trit register-slice adapter and fixed register-suite bring-up;
+- execute trace-derived campaigns against real adapters only once workload provenance is meaningful;
 - versioned electrical acceptance criteria after measured distributions exist;
 - optional authenticated hardware identity only if bench provenance actually requires it;
 - ALU-board conformance after register-slice success;
 - physical subsystem replacement gate in the emulator runtime.
 
-Exit criterion: at least one physical ternary subsystem replaces its emulated counterpart and passes the same reference/campaign vectors with preserved bench evidence.
+Exit criterion: at least one physical ternary subsystem replaces its emulated counterpart and passes the same reference semantics with preserved bench evidence.
 
 ## M6 — Native TD-1 operation
 
@@ -192,10 +203,11 @@ The semantic/compiler prerequisite for Issue #2 is implemented. Physical instruc
 - treating phenomenology as proof of ontology;
 - hiding conventional compute behind decorative weirdness;
 - freezing physical instruction encoding before hardware measurements exist;
-- claiming trace-derived subsystem parity proves physical instruction decoding;
-- treating wire framing, stream counters, serial configuration, transcript hashes, or telemetry as arithmetic semantics;
+- claiming fixed first-hardware vectors or trace-derived subsystem parity prove physical instruction decoding;
+- manufacturing workload provenance for a fixed electrical bring-up suite;
+- treating wire framing, stream counters, serial configuration, transcript hashes, evidence digests, or telemetry as arithmetic semantics;
 - treating transcript SHA-256 values as authenticated device signatures;
-- adding nondeterministic wall-clock timestamps to normative transcript artifacts;
+- adding nondeterministic wall-clock timestamps to normative evidence artifacts;
 - auto-discovering a serial port or defining a TD-1 default baud rate;
 - defining USB identity, connector, pinout, retry/reconnect policy, or electrical thresholds before the bench hardware earns those choices;
 - claiming navigation-grade accuracy before the timing/reference stack earns it;
