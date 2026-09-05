@@ -1,4 +1,5 @@
 import json
+import sys
 
 import pytest
 
@@ -13,6 +14,7 @@ from td1_simulacrum.hardware_characterization import (
     TritCellCharacterization,
     TritStimulus,
 )
+from td1_simulacrum.hardware_cli import main as hardware_main
 from td1_simulacrum.strict_json import CanonicalArtifactError
 
 
@@ -162,3 +164,24 @@ def test_switching_observation_requires_real_code_transition() -> None:
             "Z",
             "Z",
         )
+
+
+def test_characterization_cli_verifies_and_summarizes_without_acceptance_inference(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    artifact = tmp_path / "cell.characterization.json"
+    source = _characterization()
+    artifact.write_text(source.canonical_json(), encoding="utf-8")
+
+    monkeypatch.setattr(sys, "argv", ["td1-characterize", "verify", str(artifact)])
+    assert hardware_main() == 0
+    verified = json.loads(capsys.readouterr().out)
+    assert verified["verified"] is True
+    assert verified["digest"] == source.digest()
+    assert verified["observations"] == 6
+
+    monkeypatch.setattr(sys, "argv", ["td1-characterize", "summary", str(artifact)])
+    assert hardware_main() == 0
+    summary = json.loads(capsys.readouterr().out)
+    assert summary["acceptance_inferred"] is False
+    assert summary["voltage_summary"][0]["stimulus"] == -1
