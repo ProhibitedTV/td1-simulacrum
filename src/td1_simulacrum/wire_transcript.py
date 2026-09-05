@@ -357,6 +357,20 @@ def transcript_for_report(report: ConformanceReport) -> ParityWireTranscript:
     )
 
 
+def validate_report_transcript(
+    report: ConformanceReport,
+    transcript: ParityWireTranscript,
+    *,
+    context: str = "wire evidence",
+) -> None:
+    """Require a transcript to equal the canonical wire traffic implied by a report."""
+    expected = transcript_for_report(report)
+    if transcript.canonical_json() != expected.canonical_json():
+        raise ParityTranscriptError(
+            f"{context} transcript disagrees with conformance report wire traffic"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class ParityBenchRun:
     """One campaign run plus the exact wire transcript that produced its report."""
@@ -369,11 +383,11 @@ class ParityBenchRun:
     def __post_init__(self) -> None:
         if self.schema != BENCH_RUN_SCHEMA or self.version != BENCH_RUN_SCHEMA_VERSION:
             raise ParityTranscriptError("unsupported parity-bench-run schema")
-        expected = transcript_for_report(self.campaign_run.report)
-        if self.transcript.canonical_json() != expected.canonical_json():
-            raise ParityTranscriptError(
-                "bench run transcript disagrees with campaign report wire traffic"
-            )
+        validate_report_transcript(
+            self.campaign_run.report,
+            self.transcript,
+            context="bench run",
+        )
 
     def as_dict(self) -> dict[str, object]:
         return {
